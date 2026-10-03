@@ -4,6 +4,7 @@ import { Pattern } from '@strudel/core/pattern.mjs';
 import { musicPattern, LAYERS, type Layer, type MusicEvent, type Settings } from './music';
 import clockUrl from './clock.worklet.js?url';
 import { scheduleDuck } from './duck';
+import { createMastering, volumeGain } from './mastering';
 
 interface Scene {
   settings: Settings; cyclist: Cyclist; output: GainNode; input: GainNode;
@@ -18,6 +19,7 @@ export class MusicEngine {
   onStop: (() => void) | null = null;
   onError: ((message: string) => void) | null = null;
   private master!: GainNode;
+  private mastering: ReturnType<typeof createMastering> | null = null;
   private clock: AudioWorkletNode | null = null;
   private scene: Scene | null = null;
   private retired = new Set<Scene>();
@@ -37,13 +39,9 @@ export class MusicEngine {
     const context = new AudioContext({ latencyHint: 'playback' });
     this.context = context;
     await context.resume();
-    const hp = context.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 28;
-    const compressor = context.createDynamicsCompressor();
-    compressor.threshold.value = -16; compressor.knee.value = 12; compressor.ratio.value = 3;
-    compressor.attack.value = .008; compressor.release.value = .22;
-    this.master = context.createGain(); this.master.gain.value = 0;
-    this.analyser = context.createAnalyser(); this.analyser.fftSize = 2048; this.analyser.smoothingTimeConstant = .82;
-    hp.connect(compressor).connect(this.master).connect(this.analyser).connect(context.destination);
+    this.mastering = createMastering(context);
+    this.master = this.mastering.volume;
+    this.analyser = this.mastering.analyser;
     // Reproducible noise/room responses, synthesized once locally, never downloaded.
     let rng = 0x12345678;
     const random = () => { rng ^= rng << 13; rng ^= rng >>> 17; rng ^= rng << 5; return (rng >>> 0) / 4294967296 * 2 - 1; };
@@ -78,7 +76,7 @@ export class MusicEngine {
       throw new Error('이 브라우저에서 오디오 엔진을 시작하지 못했습니다. 최신 Chrome·Edge·Firefox에서 다시 시도해 주세요.', { cause: error });
     }
     // Keep the graph source independent of the UI and avoid default synthesizer/eval imports.
-    this.destination = hp;
+    this.destination = this.mastering.input;
   }
   private destination!: AudioNode;
 
@@ -172,7 +170,7 @@ export class MusicEngine {
     }));
   }
   setVolume(volume: number) {
-    if (this.context) this.ramp(this.master.gain, Math.pow(volume / 100, 1.4) * .85, .08);
+    if (this.context) this.ramp(this.master.gain, volumeGain(volume), .08);
   }
   setTimer(minutes: number) {
     this.timerAt = minutes > 0 && this.context && this.playing ? this.context.currentTime + minutes * 60 : null;
@@ -186,7 +184,8 @@ export class MusicEngine {
     return { playing: this.playing, state: this.context?.state ?? 'uninitialized', activeSources: (this.scene?.sources.size ?? 0)
       + Array.from(this.retired).reduce((sum, scene) => sum + scene.sources.size, 0), triggered: this.triggered,
       late: this.late, lastError: this.lastError, bar: this.bar, pending: this.pending, sampleRate: this.context?.sampleRate,
-      duckCount: this.duckCount, bassGain: this.scene?.bassDuck.gain.value ?? 1 };
+      duckCount: this.duckCount, bassGain: this.scene?.bassDuck.gain.value ?? 1,
+      glueReduction: this.mastering?.glue.reduction ?? 0, limiterReduction: this.mastering?.limiter.reduction ?? 0 };
   }
   async stop() {
     if (this.stopPromise) return this.stopPromise;
