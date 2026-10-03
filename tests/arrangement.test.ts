@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { DEFAULTS, eventsForBar, chordAt, selectProfile, normalizeSettings, type ProfileId, type Settings } from '../src/music.ts';
+import { DEFAULTS, eventsForBar, chordAt, selectProfile as currentProfile, normalizeSettings, type ProfileId, type Settings } from '../src/music.ts';
 import { arrangementAt, scalePitches } from '../src/arrangement.ts';
 import { scheduleDuck } from '../src/duck.ts';
+const selectProfile = (s: Settings, profile: ProfileId): Settings => ({ ...currentProfile(s, profile), generatorVersion: 2 });
 const profiles: ProfileId[] = ['lofi', 'ambient', 'dub'];
 const score = (s: Settings, start = 0) => Array.from({ length: arrangementAt(s, 0).formLength }, (_, i) => eventsForBar(s, i + start).map((e) => ({ ...e, at: Number((e.at - start).toFixed(8)) })));
 
@@ -15,7 +16,7 @@ test('legacy favorites and versionless links retain the exact v1 scores', () => 
     assert.equal(createHash('sha256').update(JSON.stringify(events)).digest('hex'), expected[i]);
   });
   assert.equal(normalizeSettings({ seed: 'SLOWFLOW' }).generatorVersion, 1);
-  assert.equal(normalizeSettings(null).generatorVersion, 2);
+  assert.equal(normalizeSettings(null).generatorVersion, 3);
 });
 test('phrases vary note counts, pitch, spacing and bass lines within the first form', () => {
   for (const profile of profiles) {

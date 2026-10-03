@@ -1,7 +1,8 @@
 // Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
 import './style.css';
+import { INSTRUMENTS } from './instruments';
 import { MusicEngine } from './audio';
-import { LAYERS, PROFILES, normalizeSettings, newSeed, selectProfile, progression, musicPattern, type Settings, type ProfileId, type Layer } from './music';
+import { LAYERS, PROFILES, normalizeSettings, upgradeSettings, regenerateSettings, selectProfile, progression, musicPattern, type Settings, type ProfileId, type Layer } from './music';
 
 const SOURCE = 'https://github.com/heavyrain39/worksong';
 const STORAGE = 'worksong.v1';
@@ -9,7 +10,7 @@ const FAVORITES = 'worksong.favorites.v1';
 const read = (key: string) => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, value: unknown) => { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } };
 const saved = read(STORAGE);
-let settings = { ...normalizeSettings(saved), generatorVersion: 2 } as Settings;
+let settings = upgradeSettings(saved);
 let shared = false;
 if (location.hash.startsWith('#mix=')) {
   try { settings = normalizeSettings(JSON.parse(decodeURIComponent(location.hash.slice(5)))); shared = true; } catch { /* ignore invalid links */ }
@@ -58,14 +59,14 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
             <button class="icon-button tip" id="favorite" aria-label="현재 음악 저장">${icon('save')}<span class="tooltip" role="tooltip">현재 음악 저장</span></button>
             <button class="icon-button tip" id="share" aria-label="현재 음악 링크 복사">${icon('share')}<span class="tooltip" role="tooltip">음악 링크 복사</span></button>
           </div>
-          <div class="player-bottom"><button class="text-button" id="focus" aria-pressed="false">${icon('focus')}<span>집중 화면</span></button></div>
+          <div class="player-bottom"><select id="groove" class="instrument-select groove-select" aria-label="리듬 패턴"><option value="straight">Four on the floor</option><option value="dnb">Drum &amp; bass</option></select><button class="text-button" id="focus" aria-pressed="false">${icon('focus')}<span>집중 화면</span></button></div>
         </div>
-        <div class="layer-grid" role="group" aria-label="악기 켜기 및 끄기">${LAYERS.map((layer) => `<button class="layer" data-layer="${layer}" aria-pressed="true"><span>${layerNames[layer]}</span><span class="switch" aria-hidden="true"></span></button>`).join('')}</div>
+        <div class="layer-grid" role="group" aria-label="악기">${LAYERS.map((layer) => `<div class="part"><button class="layer" data-layer="${layer}" aria-pressed="true"><span>${layerNames[layer]}</span><span class="switch" aria-hidden="true"></span></button><select class="instrument-select" data-instrument="${layer}" aria-label="${layerNames[layer]} 음색"></select></div>`).join('')}</div>
       </section>
       <aside class="panel controls-panel">
         <div class="panel-head"><h2>조절</h2></div>
         <div class="fader-list">${[
-          ['bpm', '템포', 50, 130, 'BPM', ''],
+          ['bpm', '템포', 50, 180, 'BPM', ''],
           ['energy', '에너지', 0, 100, '%', '음표와 리듬의 밀도'],
           ['warmth', '온기', 0, 100, '%', '높을수록 부드러운 음색'],
           ['evolution', '변화', 0, 100, '%', '다음 구간에서 프레이즈가 변할 확률'],
@@ -78,7 +79,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><a href="https://strudel.cc" target="_blank" rel="noopener noreferrer">Strudel © contributors</a><div><a href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 · AGPL-3.0</a><button class="text-button" id="about">앱 정보</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2>WORKSONG</h2><button id="close-about" class="icon-button" aria-label="닫기">×</button></div><p>장르별 32·64마디 편곡에 화음, 프레이즈, 베이스와 리듬을 배치합니다. 비트가 쉬는 구간과 아르페지오가 이어지고, 변화 값을 높이면 다음 편곡에서 프레이즈가 더 자주 바뀝니다.</p><p>음악은 브라우저에서 합성하고 EQ·컴프레션·피크 제어로 전체 출력을 다듬습니다. 설정과 저장한 음악은 이 브라우저에 보관되며 공유 링크에는 음악 설정이 담깁니다. 기존에 저장한 음악과 링크는 이전 생성 규칙으로 재생됩니다.</p><p>Space: 재생·정지. 탭을 닫거나 기기가 잠자기에 들어가면 재생이 멈출 수 있습니다.</p><p>v0.3 · Strudel © contributors · AGPL-3.0-or-later</p><a class="inline-link" href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 코드 ${icon('arrow')}</a></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2>WORKSONG</h2><button id="close-about" class="icon-button" aria-label="닫기">×</button></div><p>장르별 32·64마디 편곡에 화음, 프레이즈, 베이스와 리듬을 배치합니다. 비트가 쉬는 구간과 아르페지오가 이어지고, 변화 값을 높이면 다음 편곡에서 프레이즈가 더 자주 바뀝니다.</p><p>음악은 브라우저에서 합성하고 EQ·컴프레션·피크 제어로 전체 출력을 다듬습니다. 설정과 저장한 음악은 이 브라우저에 보관되며 공유 링크에는 음악 설정이 담깁니다. 기존에 저장한 음악과 링크는 이전 생성 규칙으로 재생됩니다.</p><p>Space: 재생·정지. 탭을 닫거나 기기가 잠자기에 들어가면 재생이 멈출 수 있습니다.</p><p>v0.4 · Strudel © contributors · AGPL-3.0-or-later</p><a class="inline-link" href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 코드 ${icon('arrow')}</a></dialog>
 `;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 function toast(message: string) {
@@ -87,6 +88,7 @@ function toast(message: string) {
 }
 function persist() { if (!write(STORAGE, settings)) toast('브라우저 저장 공간을 사용할 수 없어 이번 설정은 저장되지 않았어요.'); }
 function renderSettings() {
+  $<HTMLInputElement>('#bpm').max = settings.generatorVersion === 3 ? '180' : '130';
   for (const key of ['bpm', 'energy', 'warmth', 'evolution', 'volume'] as const) {
     const input = $<HTMLInputElement>(`#${key}`);
     input.value = String(settings[key]);
@@ -99,6 +101,13 @@ function renderSettings() {
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-layer]')) {
     button.setAttribute('aria-pressed', String(settings.layers[button.dataset.layer as Layer]));
   }
+  for (const select of document.querySelectorAll<HTMLSelectElement>('[data-instrument]')) {
+    const layer = select.dataset.instrument as Layer;
+    select.innerHTML = (settings.generatorVersion < 3 ? '<option value="legacy">기존 음색</option>' : '') + INSTRUMENTS[layer].map(i => `<option value="${i.id}">${i.name}</option>`).join('');
+    select.value = settings.instruments[layer];
+  }
+  $<HTMLSelectElement>('#groove').hidden = settings.profile !== 'dub';
+  $<HTMLSelectElement>('#groove').value = settings.groove;
   $('#now-title').textContent = PROFILES[settings.profile].name;
   renderChords(); renderFavorites();
 }
@@ -116,6 +125,7 @@ function renderPlayback() {
   $('#play').setAttribute('aria-label', playing ? '음악 정지' : '음악 재생');
   $<HTMLButtonElement>('#play').disabled = busy;
   $<HTMLButtonElement>('#regenerate').disabled = busy;
+  document.querySelectorAll<HTMLSelectElement>('[data-instrument], #groove').forEach(select => { select.disabled = busy; });
   document.body.classList.toggle('is-playing', playing);
   $('#status-text').textContent = busy ? '준비 중' : playing ? '재생 중' : '정지';
 }
@@ -139,7 +149,7 @@ async function replace(next: Settings) {
   updateMediaSession();
 }
 $('#play').addEventListener('click', () => void togglePlayback());
-$('#regenerate').addEventListener('click', () => { void replace({ ...settings, seed: newSeed(), generatorVersion: 2 }); });
+$('#regenerate').addEventListener('click', () => { void replace(regenerateSettings(settings)); });
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-profile]')) button.addEventListener('click', () => {
   if (button.dataset.profile !== settings.profile) void replace(selectProfile(settings, button.dataset.profile as ProfileId));
 });
@@ -154,6 +164,15 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('[data-layer]'
   const layer = button.dataset.layer as Layer;
   settings = { ...settings, layers: { ...settings.layers, [layer]: !settings.layers[layer] } };
   engine.update(settings); persist(); renderSettings();
+});
+for (const select of document.querySelectorAll<HTMLSelectElement>('[data-instrument]')) select.addEventListener('change', () => {
+  const layer = select.dataset.instrument as Layer;
+  settings = { ...upgradeSettings(settings), instruments: { ...upgradeSettings(settings).instruments, [layer]: select.value } };
+  engine.update(settings); persist(); renderSettings();
+});
+$('#groove').addEventListener('change', () => {
+  const groove = $<HTMLSelectElement>('#groove').value as Settings['groove'];
+  void replace({ ...upgradeSettings(settings), groove, bpm: groove === 'dnb' ? 170 : PROFILES.dub.bpm });
 });
 $('#favorite').addEventListener('click', () => {
   const same = JSON.stringify(settings);

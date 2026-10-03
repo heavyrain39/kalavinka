@@ -5,6 +5,7 @@ import { musicPattern, LAYERS, type Layer, type MusicEvent, type Settings } from
 import clockUrl from './clock.worklet.js?url';
 import { scheduleDuck } from './duck';
 import { createMastering, volumeGain } from './mastering';
+import { instrumentVoice } from './synth';
 
 interface Scene {
   settings: Settings; cyclist: Cyclist; output: GainNode; input: GainNode;
@@ -217,6 +218,10 @@ export class MusicEngine {
     if (event.voice === 'kick' && event.duck && scene.liveRhythm) {
       scheduleDuck(scene.bassDuck.gain, time, event.duck, scene.pending?.settings.bpm ?? scene.settings.bpm, context.currentTime);
       this.duckCount++;
+    }
+    if (event.instrument) {
+      instrumentVoice(context, event, time, duration, this.noise, scene.layers[event.layer], scene.sources);
+      return;
     }
     const gain = context.createGain();
     const filter = context.createBiquadFilter();

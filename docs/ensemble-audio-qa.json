@@ -1,0 +1,232 @@
+{
+  "date": "2026-10-03",
+  "browser": "Chrome / OfflineAudioContext",
+  "sampleRate": 48000,
+  "channels": 2,
+  "voiceProbeSeconds": 3,
+  "mixProbeBars": [
+    8,
+    9,
+    10,
+    11
+  ],
+  "mixSettings": {
+    "energy": 100,
+    "warmth": 0,
+    "volume": 100,
+    "bpm": 130,
+    "dnbBpm": 180
+  },
+  "voices": [
+    {
+      "id": "h-felt",
+      "peak": 0.2729980945587158,
+      "rms": 0.034269950261374485,
+      "invalid": 0
+    },
+    {
+      "id": "h-electric",
+      "peak": 0.2549113631248474,
+      "rms": 0.032206634855837565,
+      "invalid": 0
+    },
+    {
+      "id": "h-organ",
+      "peak": 0.1779124140739441,
+      "rms": 0.02916871456260101,
+      "invalid": 0
+    },
+    {
+      "id": "h-pad",
+      "peak": 0.1850401908159256,
+      "rms": 0.032956127653034524,
+      "invalid": 0
+    },
+    {
+      "id": "b-round",
+      "peak": 0.6419249176979065,
+      "rms": 0.18533328021597326,
+      "invalid": 0
+    },
+    {
+      "id": "b-sub",
+      "peak": 0.7099220752716064,
+      "rms": 0.20667304517879131,
+      "invalid": 0
+    },
+    {
+      "id": "b-pluck",
+      "peak": 0.6508716940879822,
+      "rms": 0.11300467083452782,
+      "invalid": 0
+    },
+    {
+      "id": "b-analog",
+      "peak": 0.4393008351325989,
+      "rms": 0.12888105693170776,
+      "invalid": 0
+    },
+    {
+      "id": "r-brush",
+      "peak": 0.6380506157875061,
+      "rms": 0.0516538072436208,
+      "invalid": 0
+    },
+    {
+      "id": "r-tape",
+      "peak": 0.8154301643371582,
+      "rms": 0.0653884162454011,
+      "invalid": 0
+    },
+    {
+      "id": "r-electro",
+      "peak": 0.7001656293869019,
+      "rms": 0.06555390233805776,
+      "invalid": 0
+    },
+    {
+      "id": "r-click",
+      "peak": 0.5879907608032227,
+      "rms": 0.040919602531490996,
+      "invalid": 0
+    },
+    {
+      "id": "m-bell",
+      "peak": 0.2095012366771698,
+      "rms": 0.03325416121049765,
+      "invalid": 0
+    },
+    {
+      "id": "m-marimba",
+      "peak": 0.2890837788581848,
+      "rms": 0.046095977098039836,
+      "invalid": 0
+    },
+    {
+      "id": "m-flute",
+      "peak": 0.1454162448644638,
+      "rms": 0.04358189015501937,
+      "invalid": 0
+    },
+    {
+      "id": "m-pluck",
+      "peak": 0.23412413895130157,
+      "rms": 0.039946326651775464,
+      "invalid": 0
+    }
+  ],
+  "mixes": [
+    {
+      "profile": "lofi",
+      "palette": 0,
+      "peak": 0.8491913080215454,
+      "rms": 0.20342195121470089,
+      "invalid": 0
+    },
+    {
+      "profile": "lofi",
+      "palette": 1,
+      "peak": 0.8559449315071106,
+      "rms": 0.2297944371963391,
+      "invalid": 0
+    },
+    {
+      "profile": "lofi",
+      "palette": 2,
+      "peak": 0.8404914140701294,
+      "rms": 0.1615178206237186,
+      "invalid": 0
+    },
+    {
+      "profile": "lofi",
+      "palette": 3,
+      "peak": 0.8249970078468323,
+      "rms": 0.14929667833570281,
+      "invalid": 0
+    },
+    {
+      "profile": "ambient",
+      "palette": 0,
+      "peak": 0.44698309898376465,
+      "rms": 0.12139785848206273,
+      "invalid": 0
+    },
+    {
+      "profile": "ambient",
+      "palette": 1,
+      "peak": 0.5254746675491333,
+      "rms": 0.13983463393890866,
+      "invalid": 0
+    },
+    {
+      "profile": "ambient",
+      "palette": 2,
+      "peak": 0.3806171119213104,
+      "rms": 0.0610952671095318,
+      "invalid": 0
+    },
+    {
+      "profile": "ambient",
+      "palette": 3,
+      "peak": 0.37113362550735474,
+      "rms": 0.06565834314840412,
+      "invalid": 0
+    },
+    {
+      "profile": "dub",
+      "palette": 0,
+      "peak": 0.8323701620101929,
+      "rms": 0.1740344971295942,
+      "invalid": 0
+    },
+    {
+      "profile": "dub",
+      "palette": 1,
+      "peak": 0.8435095548629761,
+      "rms": 0.20596783599745988,
+      "invalid": 0
+    },
+    {
+      "profile": "dub",
+      "palette": 2,
+      "peak": 0.8171945810317993,
+      "rms": 0.17259369348136744,
+      "invalid": 0
+    },
+    {
+      "profile": "dub",
+      "palette": 3,
+      "peak": 0.7953462600708008,
+      "rms": 0.13446514323256156,
+      "invalid": 0
+    },
+    {
+      "profile": "dnb",
+      "palette": 0,
+      "peak": 0.8228594660758972,
+      "rms": 0.16770655562156672,
+      "invalid": 0
+    },
+    {
+      "profile": "dnb",
+      "palette": 1,
+      "peak": 0.8537795543670654,
+      "rms": 0.19689310589897627,
+      "invalid": 0
+    },
+    {
+      "profile": "dnb",
+      "palette": 2,
+      "peak": 0.8138217926025391,
+      "rms": 0.16798550584887134,
+      "invalid": 0
+    },
+    {
+      "profile": "dnb",
+      "palette": 3,
+      "peak": 0.8174918293952942,
+      "rms": 0.1290120624566895,
+      "invalid": 0
+    }
+  ]
+}
