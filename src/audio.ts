@@ -105,10 +105,11 @@ export class MusicEngine {
     const wet = context.createGain(); wet.gain.value = settings.profile === 'ambient' ? .35 : .13;
     input.connect(dry).connect(output);
     input.connect(room).connect(roomHp).connect(roomFilter).connect(wet).connect(output);
-    const delay = context.createDelay(2); delay.delayTime.value = 60 / settings.bpm * .75;
+    const halfTime = settings.generatorVersion >= 4 && settings.profile === 'dub' && settings.groove === 'dnb';
+    const delay = context.createDelay(2); delay.delayTime.value = 60 / settings.bpm * (halfTime ? 1.5 : .75);
     const delayFilter = context.createBiquadFilter(); delayFilter.type = 'lowpass'; delayFilter.frequency.value = 1700;
     const feedback = context.createGain(); feedback.gain.value = .27;
-    const delayWet = context.createGain(); delayWet.gain.value = settings.profile === 'dub' ? .19 : .075;
+    const delayWet = context.createGain(); delayWet.gain.value = halfTime ? .09 : settings.profile === 'dub' ? .19 : .075;
     const delayHp = context.createBiquadFilter(); delayHp.type = 'highpass'; delayHp.frequency.value = 220;
     input.connect(delay).connect(delayHp).connect(delayFilter).connect(feedback).connect(delay);
     delayFilter.connect(delayWet).connect(output);

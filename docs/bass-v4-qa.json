@@ -1,0 +1,229 @@
+{
+  "date": "2026-10-03",
+  "version": "0.5.0",
+  "scoreCorpus": "BASS0..63; bars 8..11; default profile energy; 78 BPM or D&B 170 BPM",
+  "scores": [
+    {
+      "profile": "lofi",
+      "version": 3,
+      "pitchContours": 12,
+      "bassCounts": [
+        12
+      ],
+      "gateVariants": 61,
+      "meanMelody": 9.25,
+      "meanHarmony": 6,
+      "meanBass": 12
+    },
+    {
+      "profile": "lofi",
+      "version": 4,
+      "pitchContours": 53,
+      "bassCounts": [
+        6,
+        7,
+        10,
+        11
+      ],
+      "gateVariants": 24,
+      "meanMelody": 9.25,
+      "meanHarmony": 6,
+      "meanBass": 9
+    },
+    {
+      "profile": "ambient",
+      "version": 3,
+      "pitchContours": 3,
+      "bassCounts": [
+        2
+      ],
+      "gateVariants": 1,
+      "meanMelody": 8,
+      "meanHarmony": 2,
+      "meanBass": 2
+    },
+    {
+      "profile": "ambient",
+      "version": 4,
+      "pitchContours": 9,
+      "bassCounts": [
+        2,
+        3,
+        4
+      ],
+      "gateVariants": 8,
+      "meanMelody": 8,
+      "meanHarmony": 2,
+      "meanBass": 2.46875
+    },
+    {
+      "profile": "dub",
+      "version": 3,
+      "pitchContours": 12,
+      "bassCounts": [
+        12
+      ],
+      "gateVariants": 34,
+      "meanMelody": 9.25,
+      "meanHarmony": 8,
+      "meanBass": 12
+    },
+    {
+      "profile": "dub",
+      "version": 4,
+      "pitchContours": 52,
+      "bassCounts": [
+        6,
+        7,
+        10,
+        11
+      ],
+      "gateVariants": 8,
+      "meanMelody": 9.25,
+      "meanHarmony": 8,
+      "meanBass": 9.171875
+    },
+    {
+      "profile": "dnb",
+      "version": 3,
+      "pitchContours": 12,
+      "bassCounts": [
+        12
+      ],
+      "gateVariants": 45,
+      "meanMelody": 9.25,
+      "meanHarmony": 8,
+      "meanBass": 12
+    },
+    {
+      "profile": "dnb",
+      "version": 4,
+      "pitchContours": 44,
+      "bassCounts": [
+        6,
+        7,
+        10,
+        11
+      ],
+      "gateVariants": 8,
+      "meanMelody": 5,
+      "meanHarmony": 2,
+      "meanBass": 9.171875
+    }
+  ],
+  "render": "Chrome OfflineAudioContext 48kHz stereo; bars 8..11; energy100 warmth0 volume100; 130 BPM or D&B 180 BPM",
+  "mixes": [
+    {
+      "profile": "lofi",
+      "palette": 0,
+      "peak": 0.842287540435791,
+      "rms": 0.15132405374620572,
+      "invalid": 0
+    },
+    {
+      "profile": "lofi",
+      "palette": 1,
+      "peak": 0.850734531879425,
+      "rms": 0.17721887646005896,
+      "invalid": 0
+    },
+    {
+      "profile": "lofi",
+      "palette": 2,
+      "peak": 0.8415051102638245,
+      "rms": 0.14259638998500532,
+      "invalid": 0
+    },
+    {
+      "profile": "lofi",
+      "palette": 3,
+      "peak": 0.8317602276802063,
+      "rms": 0.11824408806032785,
+      "invalid": 0
+    },
+    {
+      "profile": "ambient",
+      "palette": 0,
+      "peak": 0.4226779341697693,
+      "rms": 0.13804969685369187,
+      "invalid": 0
+    },
+    {
+      "profile": "ambient",
+      "palette": 1,
+      "peak": 0.47137346863746643,
+      "rms": 0.15865068923816156,
+      "invalid": 0
+    },
+    {
+      "profile": "ambient",
+      "palette": 2,
+      "peak": 0.4709482789039612,
+      "rms": 0.06859753885250176,
+      "invalid": 0
+    },
+    {
+      "profile": "ambient",
+      "palette": 3,
+      "peak": 0.36889320611953735,
+      "rms": 0.07919091183028606,
+      "invalid": 0
+    },
+    {
+      "profile": "dub",
+      "palette": 0,
+      "peak": 0.8098467588424683,
+      "rms": 0.15698990344475458,
+      "invalid": 0
+    },
+    {
+      "profile": "dub",
+      "palette": 1,
+      "peak": 0.8476916551589966,
+      "rms": 0.1869999575169267,
+      "invalid": 0
+    },
+    {
+      "profile": "dub",
+      "palette": 2,
+      "peak": 0.8330461978912354,
+      "rms": 0.16105969227172298,
+      "invalid": 0
+    },
+    {
+      "profile": "dub",
+      "palette": 3,
+      "peak": 0.8061584234237671,
+      "rms": 0.12362549072219008,
+      "invalid": 0
+    },
+    {
+      "profile": "dnb",
+      "palette": 0,
+      "peak": 0.806777834892273,
+      "rms": 0.16318772032645487,
+      "invalid": 0
+    },
+    {
+      "profile": "dnb",
+      "palette": 1,
+      "peak": 0.8399933576583862,
+      "rms": 0.18951401832959472,
+      "invalid": 0
+    },
+    {
+      "profile": "dnb",
+      "palette": 2,
+      "peak": 0.8274770975112915,
+      "rms": 0.15201429429638227,
+      "invalid": 0
+    },
+    {
+      "profile": "dnb",
+      "palette": 3,
+      "peak": 0.8057098388671875,
+      "rms": 0.12443219792644612,
+      "invalid": 0
+    }
+  ]
+}
