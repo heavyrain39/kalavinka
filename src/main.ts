@@ -1,5 +1,6 @@
 // Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
 import './style.css';
+import { Starfield } from './starfield';
 import { INSTRUMENTS } from './instruments';
 import { MusicEngine } from './audio';
 import { LAYERS, PROFILES, normalizeSettings, upgradeSettings, regenerateSettings, selectProfile, progression, chordHold, musicPattern, type Settings, type ProfileId, type Layer } from './music';
@@ -32,9 +33,11 @@ const icons = {
   arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
 };
 const icon = (name: keyof typeof icons) => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="${name === 'play' || name === 'pause' ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.4" stroke-linecap="square" stroke-linejoin="miter">${icons[name]}</svg>`;
-const profileGraphic = (id: ProfileId) => id === 'lofi' ? '<path d="M0 26h7V12h6v26h6V18h6v13h6V8h6v35h6V16h6v19h6V22h7"/>' : id === 'ambient'
-  ? '<path d="M0 30c10 0 9-17 20-17s10 23 22 23S53 15 64 15M0 36c9 0 12-14 21-14s12 20 23 20S55 25 64 25"/>'
-  : '<path d="M0 32h8V13h8v19h8V13h8v19h8V13h8v19h8V13h8"/>';
+const profileGraphic = (id: ProfileId) => id === 'lofi'
+  ? '<circle cx="30" cy="24" r="16"/><circle cx="30" cy="24" r="8"/><circle cx="30" cy="24" r="1.5"/><path d="M50 8v17l-8 7"/>'
+  : id === 'ambient'
+  ? '<path d="M8 16c8-8 16-8 24 0s16 8 24 0M8 24c8-8 16-8 24 0s16 8 24 0M8 32c8-8 16-8 24 0s16 8 24 0"/>'
+  : '<path d="M12 20v8m10-15v22m10-29v36m10-29v22m10-15v8"/>';
 const layerNames: Record<Layer, string> = { harmony: '화음', bass: '베이스', rhythm: '리듬', motif: '멜로디' };
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <header class="site-header">
@@ -45,7 +48,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <div class="console-grid">
       <aside class="panel atmosphere-panel">
         <div class="panel-head"><h2>분위기</h2></div>
-        <div class="profile-list" role="group" aria-label="음악 분위기">${(Object.keys(PROFILES) as ProfileId[]).map((id) => `<button class="profile" data-profile="${id}" aria-pressed="false"><svg class="profile-art" viewBox="0 0 64 50" aria-hidden="true">${profileGraphic(id)}</svg><span class="profile-name">${PROFILES[id].name}</span><span class="profile-indicator" aria-hidden="true"></span></button>`).join('')}</div>
+        <div class="profile-list" role="group" aria-label="음악 분위기">${(Object.keys(PROFILES) as ProfileId[]).map((id) => `<button class="profile" data-profile="${id}" aria-pressed="false"><svg class="profile-art" viewBox="0 0 64 48" aria-hidden="true">${profileGraphic(id)}</svg><span class="profile-name">${PROFILES[id].name}</span><span class="profile-indicator" aria-hidden="true"></span></button>`).join('')}</div>
       </aside>
       <section class="panel player-panel" aria-label="음악 플레이어">
         <div class="deck">
@@ -63,7 +66,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
         </div>
         <div class="layer-grid" role="group" aria-label="악기">${LAYERS.map((layer) => `<div class="part"><button class="layer" data-layer="${layer}" aria-pressed="true"><span>${layerNames[layer]}</span><span class="switch" aria-hidden="true"></span></button><select class="instrument-select" data-instrument="${layer}" aria-label="${layerNames[layer]} 음색"></select></div>`).join('')}</div>
       </section>
-      <aside class="panel controls-panel">
+      <aside class="right-column"><div class="panel starfield"><canvas id="starfield" role="img" aria-label="소리에 반응하는 별하늘"></canvas></div><section class="panel controls-panel">
         <div class="panel-head"><h2>조절</h2></div>
         <div class="fader-list">${[
           ['bpm', '템포', 50, 180, 'BPM', ''],
@@ -73,13 +76,13 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
           ['volume', '볼륨', 0, 100, '%', ''],
         ].map(([key, label, min, max, unit, tip]) => `<div class="fader"><div class="fader-heading"><label for="${key}">${label}</label>${tip ? `<button class="help tip" aria-label="${label} 설명" aria-describedby="${key}-tip">?<span id="${key}-tip" class="tooltip" role="tooltip">${tip}</span></button>` : ''}<span class="fader-value"><output id="${key}-value" for="${key}"></output><span class="unit">${unit}</span></span></div><input id="${key}" type="range" min="${min}" max="${max}" step="1"/></div>`).join('')}</div>
         <div class="timer-section"><div class="timer-head"><span>타이머</span><span class="mono" id="timer-left"></span></div><div class="timer-options" role="group" aria-label="집중 타이머"><button data-timer="0" aria-pressed="true">계속</button><button data-timer="25" aria-pressed="false">25분</button><button data-timer="50" aria-pressed="false">50분</button></div></div>
-      </aside>
+      </section></aside>
     </div>
     <section class="panel saved-panel"><h2>저장한 음악</h2><div id="favorites"></div></section>
   </main>
   <footer><a href="https://strudel.cc" target="_blank" rel="noopener noreferrer">Strudel © contributors</a><div><a href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 · AGPL-3.0</a><button class="text-button" id="about">앱 정보</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2>WORKSONG</h2><button id="close-about" class="icon-button" aria-label="닫기">×</button></div><p>장르별 32·64마디 편곡에 화음, 프레이즈, 베이스와 리듬을 배치합니다. 비트가 쉬는 구간과 아르페지오가 이어지고, 변화 값을 높이면 다음 편곡에서 프레이즈가 더 자주 바뀝니다.</p><p>음악은 브라우저에서 합성하고 EQ·컴프레션·피크 제어로 전체 출력을 다듬습니다. 설정과 저장한 음악은 이 브라우저에 보관되며 공유 링크에는 음악 설정이 담깁니다. 기존에 저장한 음악과 링크는 이전 생성 규칙으로 재생됩니다.</p><p>Space: 재생·정지. 탭을 닫거나 기기가 잠자기에 들어가면 재생이 멈출 수 있습니다.</p><p>v0.5 · Strudel © contributors · AGPL-3.0-or-later</p><a class="inline-link" href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 코드 ${icon('arrow')}</a></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2>WORKSONG</h2><button id="close-about" class="icon-button" aria-label="닫기">×</button></div><p>장르별 32·64마디 편곡에 화음, 프레이즈, 베이스와 리듬을 배치합니다. 비트가 쉬는 구간과 아르페지오가 이어지고, 변화 값을 높이면 다음 편곡에서 프레이즈가 더 자주 바뀝니다.</p><p>음악은 브라우저에서 합성하고 EQ·컴프레션·피크 제어로 전체 출력을 다듬습니다. 설정과 저장한 음악은 이 브라우저에 보관되며 공유 링크에는 음악 설정이 담깁니다. 기존에 저장한 음악과 링크는 이전 생성 규칙으로 재생됩니다.</p><p>Space: 재생·정지. 탭을 닫거나 기기가 잠자기에 들어가면 재생이 멈출 수 있습니다.</p><p>v0.6 · Strudel © contributors · AGPL-3.0-or-later</p><a class="inline-link" href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 코드 ${icon('arrow')}</a></dialog>
 `;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 function toast(message: string) {
@@ -254,11 +257,13 @@ const context = canvas.getContext('2d')!;
 let samples = new Float32Array(2048);
 let lastFrame = 0;
 let peak = 0;
+const starfield = new Starfield($<HTMLCanvasElement>('#starfield'));
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 function draw(timestamp: number) {
   requestAnimationFrame(draw);
-  if (timestamp - lastFrame < (reduceMotion.matches || !engine.playing ? 200 : 50)) return;
+  if (document.hidden || timestamp - lastFrame < (reduceMotion.matches ? 200 : engine.playing ? 50 : 66)) return;
   lastFrame = timestamp;
+  starfield.draw(timestamp, engine.playing ? engine.analyser ?? null : null, reduceMotion.matches);
   const width = canvas.clientWidth, height = canvas.clientHeight;
   const dpr = Math.min(devicePixelRatio, 2);
   if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
@@ -297,7 +302,7 @@ function draw(timestamp: number) {
 
 }
 // Read-only inspection surface for browser/audio verification; it is not needed by the player.
-Object.defineProperty(window, '__worksong', { value: { diagnostics: () => ({ ...engine.diagnostics(), peak, settings: structuredClone(settings) }),
+Object.defineProperty(window, '__worksong', { value: { diagnostics: () => ({ ...engine.diagnostics(), peak, sky: starfield.diagnostics(), settings: structuredClone(settings) }),
   events: (begin: number, end: number) => musicPattern(settings).queryArc(begin, end).filter((hap) => hap.hasOnset()).length } });
 applyTheme(); renderSettings(); renderPlayback(); requestAnimationFrame(draw);
 if (shared) toast('공유한 흐름을 불러왔어요. 재생을 눌러 시작하세요.');
