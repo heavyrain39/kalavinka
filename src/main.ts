@@ -10,7 +10,7 @@ import { LAYERS, PROFILES, normalizeSettings, upgradeSettings, regenerateSetting
 
 const PORTFOLIO = 'https://heavyrain39.github.io/portfolio/';
 const STORAGE = 'worksong.v1';
-const FAVORITES = 'worksong.favorites.v1';
+const FAVORITES = 'worksong.favorites.v2';
 const read = (key: string) => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, value: unknown) => { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } };
 let language: Language = browserLanguage(navigator.language);
@@ -23,9 +23,26 @@ let shared = false;
 if (location.hash.startsWith('#mix=')) {
   try { settings = normalizeSettings(JSON.parse(decodeURIComponent(location.hash.slice(5)))); shared = true; } catch { /* ignore invalid links */ }
 }
-interface Favorite { id: string; settings: Settings }
-const rawFavorites = read(FAVORITES);
-let favorites: Favorite[] = Array.isArray(rawFavorites) ? rawFavorites.slice(0, 12).filter((item) => item && typeof item.id === 'string' && /^[0-9]+$/.test(item.id)).map((item) => ({ id: item.id, settings: normalizeSettings(item.settings) })) : [];
+interface Favorite { id: string; number: number; settings: Settings }
+const storedFavorites = read(FAVORITES);
+const rawFavorites = storedFavorites?.items ?? read('worksong.favorites.v1');
+const validNumber = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) > 0 && Number(value) < Number.MAX_SAFE_INTEGER;
+const favoriteCounters = Object.fromEntries((Object.keys(PROFILES) as ProfileId[]).map(profile => [profile,
+  validNumber(storedFavorites?.counters?.[profile]) ? storedFavorites.counters[profile] : 0,
+])) as Record<ProfileId, number>;
+let favorites: Favorite[] = Array.isArray(rawFavorites) ? rawFavorites.slice(0, 12).filter((item) => item && typeof item.id === 'string' && /^[0-9]+$/.test(item.id)).map((item) => ({ id: item.id, number: validNumber(item.number) ? item.number : 0, settings: normalizeSettings(item.settings) })) : [];
+// Reserve existing numbers before assigning older, unnumbered saves in save order.
+for (const item of favorites) favoriteCounters[item.settings.profile] = Math.max(favoriteCounters[item.settings.profile], item.number);
+const usedNumbers: Record<ProfileId, Set<number>> = {lofi:new Set(), ambient:new Set(), dub:new Set()};
+for (const item of [...favorites].reverse()) {
+  const profile = item.settings.profile;
+  if (!item.number || usedNumbers[profile].has(item.number)) item.number = ++favoriteCounters[profile];
+  usedNumbers[profile].add(item.number);
+}
+function storeFavorites() { return write(FAVORITES, {items:favorites, counters:favoriteCounters}); }
+// Keep the old array for compatibility; new items and counters persist atomically.
+storeFavorites();
+const favoriteName = (item: Favorite) => `${t(item.settings.profile)} (${item.number})`;
 const engine = new MusicEngine();
 let busy = false;
 let timer = 0;
@@ -85,7 +102,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer" data-i18n="terms">${t('terms')}</a><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.10.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.10.1 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 let currentToast: {key: TextKey; values: Record<string,string|number>} | null = null;
@@ -130,7 +147,7 @@ function renderChords(audible = settings, bar = 0) {
 function renderFavorites() {
   const exists = favorites.some((item) => JSON.stringify(item.settings) === JSON.stringify(settings));
   $('#favorite').classList.toggle('is-saved', exists);
-  $('#favorites').innerHTML = favorites.length ? `<div class="favorite-grid">${favorites.map((item) => `<div class="favorite-item"><button class="favorite-load" data-load="${item.id}" aria-label="${t('loadSaved',{name:t(item.settings.profile),seed:item.settings.seed})}"><span>${t(item.settings.profile)}</span></button><button class="favorite-delete" data-delete="${item.id}" aria-label="${t('deleteSaved',{name:t(item.settings.profile),seed:item.settings.seed})}">×</button></div>`).join('')}</div>` : `<span class="collection-empty">—</span>`;
+  $('#favorites').innerHTML = favorites.length ? `<div class="favorite-grid">${favorites.map((item) => `<div class="favorite-item"><button class="favorite-load" data-load="${item.id}" aria-label="${t('loadSaved',{name:favoriteName(item),seed:item.settings.seed})}"><span>${favoriteName(item)}</span></button><button class="favorite-delete" data-delete="${item.id}" aria-label="${t('deleteSaved',{name:favoriteName(item),seed:item.settings.seed})}">×</button></div>`).join('')}</div>` : `<span class="collection-empty">—</span>`;
 }
 function renderPlayback() {
   const playing = engine.playing;
@@ -216,8 +233,8 @@ $('#favorite').addEventListener('click', () => {
   const same = JSON.stringify(settings);
   if (favorites.some((item) => JSON.stringify(item.settings) === same)) { toast('alreadySaved'); return; }
   if (favorites.length >= 12) { toast('savedLimit'); return; }
-  favorites = [{ id: String(Date.now()), settings: structuredClone(settings) }, ...favorites];
-  const stored = write(FAVORITES, favorites); renderFavorites();
+  favorites = [{ id: String(Date.now()), number: ++favoriteCounters[settings.profile], settings: structuredClone(settings) }, ...favorites];
+  const stored = storeFavorites(); renderFavorites();
   toast(stored ? 'savedDone' : 'savedTemporary');
 });
 $('#favorites').addEventListener('click', (event) => {
@@ -229,7 +246,7 @@ $('#favorites').addEventListener('click', (event) => {
   }
   if (target.dataset.delete) {
     favorites = favorites.filter((item) => item.id !== target.dataset.delete);
-    write(FAVORITES, favorites); renderFavorites(); toast('deleted');
+    storeFavorites(); renderFavorites(); toast('deleted');
   }
 });
 $('#share').addEventListener('click', async () => {
