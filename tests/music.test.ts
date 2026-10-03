@@ -1,0 +1,46 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { DEFAULTS, eventsForBar, musicPattern, normalizeSettings, progression, selectProfile, type ProfileId } from '../src/music.ts';
+
+test('seeded score is stable across reloads and independent of query order', () => {
+  const a = musicPattern(DEFAULTS), b = musicPattern(DEFAULTS);
+  b.queryArc(20, 21);
+  const serialize = (pattern: typeof a) => pattern.queryArc(0, 8).map((hap) => [Number(hap.whole.begin), hap.value]);
+  assert.deepEqual(serialize(a), serialize(b));
+  assert.notDeepEqual(progression(DEFAULTS), progression({ ...DEFAULTS, seed: 'OTHERFLOW' }));
+});
+test('a sustained pad is triggered once across scheduler query fragments', () => {
+  const pattern = musicPattern(selectProfile(DEFAULTS, 'ambient'));
+  const onsets = Array.from({ length: 80 }, (_, i) => pattern.queryArc(i / 20, (i + 1) / 20)).flat().filter((hap) => hap.hasOnset());
+  assert.equal(onsets.filter((hap) => hap.value.voice === 'pad' && Number(hap.whole.begin) === 0).length, 1);
+  assert.ok(onsets.some((hap) => hap.value.voice === 'pluck'));
+});
+test('all profiles keep note range, event density and duration bounded over a long session', () => {
+  for (const profile of ['lofi', 'ambient', 'dub'] as ProfileId[]) {
+    const settings = { ...selectProfile(DEFAULTS, profile), energy: 100, evolution: 100, layers: { harmony: true, bass: true, rhythm: true, motif: true } };
+    for (let bar = 0; bar < 256; bar++) {
+      const events = eventsForBar(settings, bar);
+      assert.ok(events.length <= 24);
+      for (const event of events) {
+        assert.ok(event.at >= bar && event.at < bar + 1);
+        assert.ok(event.length > 0 && event.length <= 2);
+        assert.ok(event.gain >= 0 && event.gain <= .36);
+        for (const note of event.notes) assert.ok(note >= 36 && note <= 81);
+      }
+    }
+  }
+});
+test('zero evolution repeats the authored phrase and mutes remove entire parts', () => {
+  const settings = { ...DEFAULTS, evolution: 0 };
+  const a = eventsForBar(settings, 1).map((event) => ({ ...event, at: event.at - 1 }));
+  const b = eventsForBar(settings, 129).map((event) => ({ ...event, at: event.at - 129 }));
+  for (let i = 0; i < a.length; i++) assert.ok(Math.abs(a[i].at - b[i].at) < .000001);
+  assert.deepEqual(a.map(({ at, ...event }) => event), b.map(({ at, ...event }) => event));
+  assert.equal(eventsForBar({ ...DEFAULTS, layers: { harmony: false, bass: false, rhythm: false, motif: false } }, 0).length, 0);
+});
+test('stored and shared settings cannot introduce code, invalid numbers, or prototype keys', () => {
+  const normalized = normalizeSettings({ profile: '__proto__', seed: '<script>', bpm: NaN, volume: 500, energy: -10, layers: {} });
+  assert.equal(normalized.profile, 'lofi'); assert.equal(normalized.seed, DEFAULTS.seed);
+  assert.equal(normalized.bpm, DEFAULTS.bpm); assert.equal(normalized.volume, 100); assert.equal(normalized.energy, 0);
+  assert.deepEqual(normalizeSettings({ ...DEFAULTS, generatorVersion: 99 }), DEFAULTS);
+});

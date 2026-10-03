@@ -1,0 +1,8 @@
+node_modules/
+dist/
+output/
+.playwright-cli/
+.local/
+terra-music-design.md
+*.log
+.env*
