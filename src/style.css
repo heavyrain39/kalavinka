@@ -41,9 +41,11 @@ h1,h2,p { margin: 0; }
 .panel { border: 1px solid var(--line-strong); background: var(--panel-bg); min-width: 0; }
 .panel-head { height: 44px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
 h2 { font-size: 13px; font-weight: 600; }
-.profile-list { padding: 12px; display: grid; grid-template-rows: repeat(3,minmax(0,1fr)); gap: 8px; height: calc(100% - 44px); }
-.profile { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; text-align: left; padding: 18px; border: 1px solid var(--line); background: transparent; position: relative; min-height: 95px; }
-.profile[aria-pressed="true"] { border-color: var(--text); background: var(--hover-bg); }
+.profile-list { display: grid; grid-template-rows: repeat(3,minmax(0,1fr)); height: 100%; }
+.profile { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; text-align: left; padding: 18px; border: 0; background: transparent; position: relative; min-height: 95px; }
+.profile + .profile { border-top: 1px solid var(--line); }
+.profile:focus-visible { outline-offset: -4px; }
+.profile[aria-pressed="true"] { background: var(--hover-bg); }
 .profile-art { width: 56px; height: 44px; stroke: var(--text-dim); stroke-width: 1; fill: none; margin-bottom: 12px; }
 .profile-name { font-size: 18px; font-weight: 550; letter-spacing: -.035em; }
 .profile-indicator { position: absolute; width: 6px; height: 6px; border: 1px solid var(--line-strong); right: 12px; top: 12px; }
@@ -156,8 +158,8 @@ dialog p { color: var(--text-dim); font-size: 12px; margin: 16px 0; word-break: 
   .workspace { height: auto; min-height: 0; padding: 16px; grid-template-rows: auto auto; }
   .console-grid { grid-template-columns: minmax(0,1fr) 220px; }
   .atmosphere-panel { grid-column: 1/-1; }
-  .atmosphere-panel .panel-head { display: none; }
-  .profile-list { grid-template-columns: repeat(3,minmax(0,1fr)); grid-template-rows: auto; height: auto; padding: 8px; }
+  .profile-list { grid-template-columns: repeat(3,minmax(0,1fr)); grid-template-rows: auto; height: auto; }
+  .profile + .profile { border-top: 0; border-left: 1px solid var(--line); }
   .profile { min-height: 86px; padding: 12px; }
   .profile-art { height: 26px; width: 36px; margin-bottom: 5px; }
   .profile-name { font-size: 16px; }
@@ -172,7 +174,6 @@ dialog p { color: var(--text-dim); font-size: 12px; margin: 16px 0; word-break: 
   .wordmark { font-size: 24px; }
   .workspace { padding: 12px; gap: 10px; }
   .console-grid { grid-template-columns: minmax(0,1fr); gap: 10px; }
-  .profile-list { gap: 5px; padding: 6px; }
   .profile { padding: 8px; min-height: 80px; }
   .profile-name { font-size: 13px; }
   .profile-indicator { top: 7px; right: 7px; width: 4px; height: 4px; }
