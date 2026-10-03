@@ -8,7 +8,7 @@ async(page)=>{
   }
   const corpus=new Map();for(const profile of ['lofi','ambient','dub'])for(let i=0;i<200;i++){const s={...selectProfile(DEFAULTS,profile),seed:'RENDER'+i,bpm:180,energy:100,evolution:100,reverb:100,volume:100,groove:profile==='dub'?'dnb':'straight',layers:{...DEFAULTS.layers}};if(hasEnding(s,profile==='ambient'?31:15))corpus.set(recipeFor(s).id,s);}
   if(corpus.size!==30)throw Error('coverage');const mixes=[];
-  for(const [id,s] of corpus){const start=s.profile==='ambient'?28:12;const ctx=new OfflineAudioContext(2,48000*9,48000),chain=createMastering(ctx);chain.volume.gain.value=1;const engine=new MusicEngine();engine.context=ctx;engine.destination=chain.input;engine.noise=noise;engine.impulse=impulse;const scene=await engine.makeScene(s,0);scene.transport.stop();for(const source of scene.sources)source.stop(0);scene.sources.clear();
+  for(const [id,s] of corpus){const start=s.profile==='ambient'?28:12;const ctx=new OfflineAudioContext(2,48000*9,48000),chain=createMastering(ctx);chain.volume.gain.value=1;const engine=new MusicEngine();engine.context=ctx;engine.destination=chain.input;engine.drumBank=prepared.drumBank;engine.noise=noise;engine.impulse=impulse;const scene=await engine.makeScene(s,0);scene.transport.stop();for(const source of scene.sources)source.stop(0);scene.sources.clear();
    for(const event of musicScore(s).onsets(start,start+4))engine.voice(scene,event,(event.at-start)*240/s.bpm+.15,event.length*240/s.bpm);
    const signal=analyze(await ctx.startRendering());if(signal.invalid||signal.rms<.001||signal.peak>.95||scene.sources.size)throw Error('mix '+JSON.stringify({id,signal,active:scene.sources.size}));mixes.push({id,...signal});
   }

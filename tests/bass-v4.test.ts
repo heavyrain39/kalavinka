@@ -30,7 +30,7 @@ test('D&B holds harmony, repeats a two-bar drum pulse and leaves melody breathin
   for(let b=8;b<12;b++)assert.deepEqual(chordAt(s,b),chordAt(s,8));
   const bars=Array.from({length:4},(_,i)=>eventsForBar(s,8+i));
   const kicks=(bar:number)=>bars[bar].filter(e=>e.voice==='kick').map(e=>[e.at%1,e.length,e.gain]);assert.deepEqual(kicks(0),kicks(2));assert.deepEqual(kicks(1),kicks(3));
-  for(const bar of bars)assert.deepEqual(bar.filter(e=>e.voice==='hat').map(e=>e.at%1),[0,.125,.25,.375,.5,.625,.75,.875]);
+  for(const bar of bars)assert.deepEqual(bar.filter(e=>e.voice==='hat').map(e=>Math.round((e.at%1)*16)/16),[0,.125,.25,.375,.5,.625,.75,.875]);
   assert.equal(bars.flat().filter(e=>e.layer==='harmony').length,2);
   assert.ok(bars.flat().filter(e=>e.layer==='motif').length<=5);
   const old={...s,generatorVersion:3 as const};assert.ok(bars.flat().filter(e=>e.layer==='motif').length<phrase(old,8).filter(e=>e.layer==='motif').length);

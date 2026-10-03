@@ -1,4 +1,6 @@
 // Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
+import {prepareDrums, type DrumBank} from './drum-bank';
+import {createDrumBus, drumVoice, drumRoomGain, type DrumBus, type HatVoice} from './drums';
 import { ownVoice } from './source-lifecycle';
 import { Transport } from './transport';
 import { musicScore, LAYERS, type Layer, type MusicEvent, type Settings } from './music';
@@ -11,7 +13,7 @@ import { createRoom, reverbGain } from './reverb';
 interface Scene {
   settings: Settings; transport: Transport<Settings>; output: GainNode; input: GainNode;
   layers: Record<Layer, GainNode>; nodes: AudioNode[]; sources: Set<AudioScheduledSourceNode>; cleanups: Set<() => void>;
-  bassDuck: GainNode; liveRhythm: boolean; roomWet: GainNode;
+  bassDuck: GainNode; liveRhythm: boolean; roomWet: GainNode; drums: DrumBus | null; hats: HatVoice[];
 }
 export class MusicEngine {
   context: AudioContext | null = null;
@@ -24,6 +26,7 @@ export class MusicEngine {
   private clock: AudioWorkletNode | null = null;
   private scene: Scene | null = null;
   private retired = new Set<Scene>();
+  private drumBank!: DrumBank;
   private noise!: AudioBuffer;
   private impulse!: AudioBuffer;
   private startedAt = 0;
@@ -61,6 +64,7 @@ export class MusicEngine {
       for (let i = 0; i < data.length; i++) data[i] = random() * Math.pow(1 - i / data.length, 3.5) * .6;
     }
     try {
+      this.drumBank = await prepareDrums(context);
       await context.audioWorklet.addModule(clockUrl);
       this.clock = new AudioWorkletNode(context, 'worksong-clock');
       const silence = context.createGain(); silence.gain.value = 0;
@@ -115,12 +119,14 @@ export class MusicEngine {
     delayFilter.connect(delayWet).connect(output);
     output.connect(this.destination);
     const bassDuck = context.createGain(); bassDuck.connect(input);
+    const drums = settings.generatorVersion >= 6 ? createDrumBus(context, settings) : null;
     const layers = Object.fromEntries(LAYERS.map((layer) => {
       const gain = context.createGain(); gain.gain.value = settings.layers[layer] ? 1 : 0;
-      gain.connect(layer === 'bass' ? bassDuck : input); return [layer, gain];
+      gain.connect(layer === 'bass' ? bassDuck : layer === 'rhythm' && drums ? output : input); return [layer, gain];
     })) as Record<Layer, GainNode>;
-    const scene: Scene = { settings, output, input, layers, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), cleanups: new Set(),
-      nodes: [input, output, bassDuck, dry, ...room.nodes, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers)], transport: null! };
+    drums?.output.connect(layers.rhythm);
+    const scene: Scene = { drums, hats: [], settings, output, input, layers, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), cleanups: new Set(),
+      nodes: [...(drums?.nodes ?? []), input, output, bassDuck, dry, ...room.nodes, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers)], transport: null! };
     scene.transport = new Transport<Settings>({
       clock: () => context.currentTime,
       onError: (error) => {
@@ -171,6 +177,7 @@ export class MusicEngine {
     if (!this.context) return;
     for (const scene of [...this.retired, ...(this.scene ? [this.scene] : [])]) {
       this.ramp(scene.roomWet.gain, reverbGain(amount), .12);
+      if (scene.drums) this.ramp(scene.drums.wet.gain, drumRoomGain(amount), .12);
       scene.settings = { ...scene.settings, reverb: amount };
     }
   }
@@ -187,6 +194,8 @@ export class MusicEngine {
       + Array.from(this.retired).reduce((sum, scene) => sum + scene.sources.size, 0), triggered: this.triggered,
       late: this.late, clockStalls: this.scene?.transport.stalled ?? 0, lastError: this.lastError, bar: this.bar, pending: this.pending, sampleRate: this.context?.sampleRate,
       reverbWet: this.scene?.roomWet.gain.value ?? 0, duckCount: this.duckCount, bassGain: this.scene?.bassDuck.gain.value ?? 1,
+      drumBank: this.drumBank ? {sounds:this.drumBank.size, bytes:this.drumBank.bytes} : null,
+      drumReduction: this.scene?.drums?.glue.reduction ?? 0,
       glueReduction: this.mastering?.glue.reduction ?? 0, limiterReduction: this.mastering?.limiter.reduction ?? 0 };
   }
   async stop() {
@@ -220,6 +229,10 @@ export class MusicEngine {
     if (event.voice === 'kick' && event.duck && scene.liveRhythm) {
       scheduleDuck(scene.bassDuck.gain, time, event.duck, bpm, context.currentTime);
       this.duckCount++;
+    }
+    if (render.generatorVersion >= 6 && event.layer === 'rhythm' && scene.drums) {
+      drumVoice(context, this.drumBank, scene.drums, scene.hats, event, time, render, scene.sources, scene.cleanups);
+      return;
     }
     if (event.instrument) {
       instrumentVoice(context, event, time, duration, this.noise, scene.layers[event.layer], scene.sources, scene.cleanups);

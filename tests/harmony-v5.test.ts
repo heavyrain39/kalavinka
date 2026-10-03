@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {HARMONIES,QUALITIES} from '../src/harmony-catalog';
 import {recipeFor,hasEnding,nextHarmonyBoundary} from '../src/harmony-v5';
-import {DEFAULTS,selectProfile,normalizeSettings,eventsForBar,chordAt,chordHold,progression,type Settings} from '../src/music';
+import {DEFAULTS,selectProfile as currentProfile,normalizeSettings,eventsForBar,chordAt,chordHold,progression,type Settings} from '../src/music';
 import {fillPlan,FILL_RECIPES} from '../src/fills';
 import {arrangementAt} from '../src/arrangement';
 import {kickSteps} from '../src/groove';
 import {gridTime} from '../src/timing';
+const selectProfile=(s:Settings,p:Settings['profile']):Settings=>({...currentProfile(s,p),generatorVersion:5});
 
 test('v4 saved scores remain byte-identical for all profiles including D&B',()=>{
  const hashes=['0ecc6daa0ca2a7c7ef90a9c7049338ced4704bea4b66bf88d6fbbf91ddc6b73f','9e86d1c9a3146394eac96b288cf1f00d8ee14fa7ee650b969573c90ef8d39940','411bcf6caf658348a5eeed67505c47418c7890df21df00905a6d177138c19ac2','2528803a274fed2601eda0d4e71bb4002f148bc2a3a9ebba6c95a51f02e5e218'];

@@ -1,4 +1,5 @@
 // Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
+import { drumPerformance } from './drum-performance';
 import { Score } from './score';
 import { eventsForBar as legacyEventsForBar, progression as legacyProgression } from './music-v1';
 import { arrangementEvents } from './arrangement';
@@ -15,7 +16,7 @@ export type ProfileId = 'lofi' | 'ambient' | 'dub';
 export type Layer = 'harmony' | 'bass' | 'rhythm' | 'motif';
 export type Voice = 'keys' | 'pad' | 'bass' | 'pluck' | 'arp' | 'kick' | 'snare' | 'hat' | 'tom' | 'rim';
 export interface Settings {
-  generatorVersion: 1 | 2 | 3 | 4 | 5; profile: ProfileId; seed: string; bpm: number; energy: number; warmth: number;
+  generatorVersion: 1 | 2 | 3 | 4 | 5 | 6; profile: ProfileId; seed: string; bpm: number; energy: number; warmth: number;
   evolution: number; reverb: number; volume: number; layers: Record<Layer, boolean>; instruments: InstrumentMix; groove: 'straight' | 'dnb';
 }
 export interface MusicEvent {
@@ -26,6 +27,10 @@ export interface MusicEvent {
   duck?: number;
   instrument?: string;
   fill?: number;
+  articulation?: 'closed' | 'half' | 'open';
+  velocity?: number;
+  ghost?: boolean;
+  variation?: number;
 }
 export interface Chord { label: string; root: number; notes: number[] }
 export const LAYERS: Layer[] = ['harmony', 'bass', 'rhythm', 'motif'];
@@ -34,17 +39,17 @@ export const PROFILES = {
   ambient: { name: 'Quiet space', subtitle: '넓은 공간, 느리게 번지는 화음', description: '문장과 생각 사이에, 조용한 여백을.', bpm: 64, energy: 25, warmth: 60, evolution: 25, tag: 'AMBIENT', number: '02' },
   dub: { name: 'After hours', subtitle: '둥근 저음, 절제된 전자 리듬', description: '일정한 박자에 몸을 맡기고, 한 걸음 더.', bpm: 108, energy: 48, warmth: 62, evolution: 40, tag: 'DEEP ELECTRONIC', number: '03' },
 } as const;
-export const DEFAULTS: Settings = { generatorVersion: 5, groove: 'straight', instruments: chooseInstruments('lofi', 'SLOWFLOW'), profile: 'lofi', seed: 'SLOWFLOW', bpm: 78, energy: 42, warmth: 72, evolution: 35, reverb: 28, volume: 55, layers: { harmony: true, bass: true, rhythm: true, motif: true } };
+export const DEFAULTS: Settings = { generatorVersion: 6, groove: 'straight', instruments: chooseInstruments('lofi', 'SLOWFLOW'), profile: 'lofi', seed: 'SLOWFLOW', bpm: 78, energy: 42, warmth: 72, evolution: 35, reverb: 28, volume: 55, layers: { harmony: true, bass: true, rhythm: true, motif: true } };
 export const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 export function normalizeSettings(input: unknown): Settings {
   const s = input && typeof input === 'object' ? input as Partial<Settings> : {};
-  if (s.generatorVersion !== undefined && s.generatorVersion !== 1 && s.generatorVersion !== 2 && s.generatorVersion !== 3 && s.generatorVersion !== 4 && s.generatorVersion !== 5) return structuredClone(DEFAULTS);
+  if (s.generatorVersion !== undefined && s.generatorVersion !== 1 && s.generatorVersion !== 2 && s.generatorVersion !== 3 && s.generatorVersion !== 4 && s.generatorVersion !== 5 && s.generatorVersion !== 6) return structuredClone(DEFAULTS);
   const number = (key: 'bpm' | 'energy' | 'warmth' | 'evolution' | 'volume', lo: number, hi: number) =>
     typeof s[key] === 'number' && Number.isFinite(s[key]) ? Math.round(clamp(s[key]!, lo, hi)) : DEFAULTS[key];
   const profile = typeof s.profile === 'string' && Object.hasOwn(PROFILES, s.profile) ? s.profile : 'lofi';
   const seed = typeof s.seed === 'string' && /^[A-Z0-9]{4,16}$/.test(s.seed) ? s.seed : DEFAULTS.seed;
-  const version = s.generatorVersion === 1 || (s.generatorVersion === undefined && typeof s.seed === 'string') ? 1 : s.generatorVersion === 2 ? 2 : s.generatorVersion === 3 ? 3 : s.generatorVersion === 4 ? 4 : 5;
+  const version = s.generatorVersion === 1 || (s.generatorVersion === undefined && typeof s.seed === 'string') ? 1 : s.generatorVersion === 2 ? 2 : s.generatorVersion === 3 ? 3 : s.generatorVersion === 4 ? 4 : s.generatorVersion === 5 ? 5 : 6;
   return {
     instruments: version >= 3 ? normalizeInstruments(s.instruments, profile, seed) : legacyInstruments(),
     generatorVersion: version,
@@ -59,16 +64,16 @@ export function normalizeSettings(input: unknown): Settings {
 }
 export function selectProfile(settings: Settings, profile: ProfileId): Settings {
   const p = PROFILES[profile];
-  return { ...settings, generatorVersion: 5, groove: 'straight', instruments: chooseInstruments(profile, settings.seed), profile, bpm: p.bpm, energy: p.energy, warmth: p.warmth, evolution: p.evolution,
+  return { ...settings, generatorVersion: 6, groove: 'straight', instruments: chooseInstruments(profile, settings.seed), profile, bpm: p.bpm, energy: p.energy, warmth: p.warmth, evolution: p.evolution,
     layers: { harmony: true, bass: true, rhythm: profile !== 'ambient', motif: true } };
 }
 
 export function upgradeSettings(input: unknown): Settings {
   const s = normalizeSettings(input);
-  return s.generatorVersion === 5 ? s : { ...s, generatorVersion: 5, instruments: s.generatorVersion >= 3 ? s.instruments : chooseInstruments(s.profile, s.seed) };
+  return s.generatorVersion === 6 ? s : { ...s, generatorVersion: 6, instruments: s.generatorVersion >= 3 ? s.instruments : chooseInstruments(s.profile, s.seed) };
 }
 export function regenerateSettings(settings: Settings, seed = newSeed()): Settings {
-  return { ...settings, generatorVersion: 5, seed, instruments: chooseInstruments(settings.profile, seed, settings.instruments) };
+  return { ...settings, generatorVersion: 6, seed, instruments: chooseInstruments(settings.profile, seed, settings.instruments) };
 }
 
 const NAMES = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'];
@@ -114,7 +119,8 @@ export function chordAt(settings: Settings, bar: number): Chord {
 export function eventsForBar(settings: Settings, bar: number): MusicEvent[] {
   if (settings.generatorVersion === 1) return legacyEventsForBar({ ...settings, generatorVersion: 1 }, bar);
   if (settings.generatorVersion === 2) return arrangementEvents(settings, bar);
-  return (settings.generatorVersion === 3 ? v3Events(settings, bar) : settings.generatorVersion === 4 ? v4Events(settings, bar) : ensembleEvents(settings, bar)).filter(e=>settings.layers[e.layer]).map(e=>({ ...e, instrument: settings.instruments[e.layer] }));
+  const events = settings.generatorVersion === 3 ? v3Events(settings, bar) : settings.generatorVersion === 4 ? v4Events(settings, bar) : ensembleEvents(settings, bar);
+  return (settings.generatorVersion >= 6 ? drumPerformance(settings, bar, events) : events).filter(e=>settings.layers[e.layer]).map(e=>({ ...e, instrument: settings.instruments[e.layer] }));
 }
 export function musicScore(settings: Settings): Score {
   const snapshot = structuredClone(settings);
