@@ -25,7 +25,7 @@ test('all profiles keep note range, event density and duration bounded over a lo
         assert.ok(event.at >= bar && event.at < bar + 1);
         assert.ok(event.length > 0 && event.length <= 2);
         assert.ok(event.gain >= 0 && event.gain <= .36);
-        for (const note of event.notes) assert.ok(note >= 36 && note <= 81);
+        for (const note of event.notes) assert.ok(note >= 34 && note <= 81);
       }
     }
   }

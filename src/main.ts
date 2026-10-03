@@ -9,7 +9,7 @@ const FAVORITES = 'worksong.favorites.v1';
 const read = (key: string) => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, value: unknown) => { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } };
 const saved = read(STORAGE);
-let settings = normalizeSettings(saved);
+let settings = { ...normalizeSettings(saved), generatorVersion: 2 } as Settings;
 let shared = false;
 if (location.hash.startsWith('#mix=')) {
   try { settings = normalizeSettings(JSON.parse(decodeURIComponent(location.hash.slice(5)))); shared = true; } catch { /* ignore invalid links */ }
@@ -35,61 +35,50 @@ const profileGraphic = (id: ProfileId) => id === 'lofi' ? '<path d="M0 26h7V12h6
   ? '<path d="M0 30c10 0 9-17 20-17s10 23 22 23S53 15 64 15M0 36c9 0 12-14 21-14s12 20 23 20S55 25 64 25"/>'
   : '<path d="M0 32h8V13h8v19h8V13h8v19h8V13h8v19h8V13h8"/>';
 const layerNames: Record<Layer, string> = { harmony: '화음', bass: '베이스', rhythm: '리듬', motif: '멜로디' };
-const layerDescriptions: Record<Layer, string> = { harmony: '음악의 온도', bass: '흐름의 중심', rhythm: '작업의 박자', motif: '작은 디테일' };
-
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <header class="site-header">
     <a class="wordmark" href="${location.pathname}" aria-label="WORKSONG 홈">WORKSONG<span class="brand-cross">+</span></a>
-    <div class="header-description">당신의 속도로 흐르는 음악</div>
-    <div class="header-right"><span class="version">PROTOTYPE / 01</span><div class="theme-switch" role="group" aria-label="화면 테마"><button data-theme="light" title="밝은 테마" aria-label="밝은 테마">◑</button><button data-theme="dark" title="어두운 테마" aria-label="어두운 테마">◐</button><button data-theme="system" title="시스템 테마" aria-label="시스템 테마">◒</button></div></div>
+    <div class="theme-switch" role="group" aria-label="화면 테마"><button data-theme="light" aria-label="밝은 테마">◑</button><button data-theme="dark" aria-label="어두운 테마">◐</button><button data-theme="system" aria-label="시스템 테마">◒</button></div>
   </header>
   <main class="workspace">
-    <div class="intro"><div><div class="eyebrow">GENERATIVE WORK MUSIC</div><h1>일에 몰입할 시간.</h1><p>분위기를 고르고, 재생을 누르세요. 나머지는 음악에 맡겨두세요.</p></div><span class="intro-mark" aria-hidden="true">⌖</span></div>
     <div class="console-grid">
       <aside class="panel atmosphere-panel">
-        <div class="panel-head"><h2>분위기</h2><span class="section-number">01 / ATMOSPHERE</span></div>
-        <div class="profile-list" role="group" aria-label="음악 분위기">${(Object.keys(PROFILES) as ProfileId[]).map((id) => {
-          const p = PROFILES[id]; return `<button class="profile" data-profile="${id}" aria-pressed="false"><div class="profile-top"><span class="mono">${p.number}</span><span class="profile-indicator" aria-hidden="true"></span></div><svg class="profile-art" viewBox="0 0 64 50" aria-hidden="true">${profileGraphic(id)}</svg><span class="profile-name">${p.name}</span><span class="profile-subtitle">${p.subtitle}</span><span class="profile-tag">${p.tag}</span></button>`;
-        }).join('')}</div>
-        <div class="atmosphere-note"><span class="eyebrow">MADE FOR YOUR FLOW</span><p id="profile-description"></p></div>
+        <div class="panel-head"><h2>분위기</h2></div>
+        <div class="profile-list" role="group" aria-label="음악 분위기">${(Object.keys(PROFILES) as ProfileId[]).map((id) => `<button class="profile" data-profile="${id}" aria-pressed="false"><svg class="profile-art" viewBox="0 0 64 50" aria-hidden="true">${profileGraphic(id)}</svg><span class="profile-name">${PROFILES[id].name}</span><span class="profile-indicator" aria-hidden="true"></span></button>`).join('')}</div>
       </aside>
-      <section class="panel player-panel">
-        <div class="panel-head"><h2>지금 흐르는 음악</h2><div class="status"><span class="status-led"></span><span id="status-text" role="status" aria-live="polite">재생 준비</span></div></div>
+      <section class="panel player-panel" aria-label="음악 플레이어">
         <div class="deck">
-          <div class="deck-top"><span id="now-title">Warm desk</span><span class="mono" id="elapsed">00:00</span></div>
-          <div class="scope-wrap"><canvas id="scope" aria-label="재생 오디오 파형"></canvas><div class="scope-idle" id="scope-idle"><span class="idle-symbol">∿</span><span>음악이 시작될 자리를 남겨두었어요.</span></div><div class="scope-label"><span>STEREO / LIVE</span><span id="level-label">— dB</span></div></div>
-          <div class="chord-header"><span class="eyebrow">HARMONIC FLOW</span><span class="mono" id="bar-label">BAR 01 / 08</span></div>
+          <div class="deck-top"><h1 id="now-title">Warm desk</h1><span class="mono" id="elapsed">00:00</span></div>
+          <div class="scope-wrap"><canvas id="scope" aria-label="전체 출력 파형"></canvas></div>
+          <div class="playback-info"><span id="status-text" role="status">정지</span><span class="mono" id="bar-label"></span></div>
           <div class="chord-lane" id="chords" aria-label="코드 진행"></div>
           <div class="transport">
             <button class="play-button" id="play" aria-label="음악 재생">${icon('play')}<span>재생</span></button>
             <button class="compact-btn regenerate" id="regenerate">${icon('refresh')}<span>새 흐름</span></button>
-            <button class="icon-button" id="favorite" aria-label="현재 음악 저장" title="현재 음악 저장">${icon('save')}</button>
-            <button class="icon-button" id="share" aria-label="현재 음악 링크 복사" title="현재 음악 링크 복사">${icon('share')}</button>
+            <button class="icon-button tip" id="favorite" aria-label="현재 음악 저장">${icon('save')}<span class="tooltip" role="tooltip">현재 음악 저장</span></button>
+            <button class="icon-button tip" id="share" aria-label="현재 음악 링크 복사">${icon('share')}<span class="tooltip" role="tooltip">음악 링크 복사</span></button>
           </div>
-          <div class="player-bottom"><span class="mono" id="seed-label">SEED / SLOWFLOW</span><button class="text-button" id="focus" aria-pressed="false">${icon('focus')}<span>집중 화면</span></button></div>
+          <div class="player-bottom"><button class="text-button" id="focus" aria-pressed="false">${icon('focus')}<span>집중 화면</span></button></div>
         </div>
-        <div class="layer-section"><div class="layer-heading"><span class="eyebrow">YOUR MIX</span><span>필요한 소리만 남겨두세요.</span></div><div class="layer-grid">${LAYERS.map((layer, i) => `<button class="layer" data-layer="${layer}" aria-pressed="true"><span class="layer-top"><span class="mono">0${i + 1}</span><span class="switch" aria-hidden="true"></span></span><span class="layer-name">${layerNames[layer]}</span><span class="layer-description">${layerDescriptions[layer]}</span><div class="layer-meter" aria-hidden="true">${Array.from({ length: 12 }, () => '<i></i>').join('')}</div></button>`).join('')}</div></div>
+        <div class="layer-grid" role="group" aria-label="악기 켜기 및 끄기">${LAYERS.map((layer) => `<button class="layer" data-layer="${layer}" aria-pressed="true"><span>${layerNames[layer]}</span><span class="switch" aria-hidden="true"></span></button>`).join('')}</div>
       </section>
       <aside class="panel controls-panel">
-        <div class="panel-head"><h2>나의 속도</h2><span class="section-number">02 / TUNE</span></div>
-        <div class="fader-list">
-          ${[
-            ['bpm', '템포', '느긋하게', '경쾌하게', 50, 130, 'BPM'],
-            ['energy', '에너지', '차분하게', '선명하게', 0, 100, '%'],
-            ['warmth', '온기', '맑게', '포근하게', 0, 100, '%'],
-            ['evolution', '변화', '익숙하게', '새롭게', 0, 100, '%'],
-          ].map(([key, label, left, right, min, max, unit]) => `<div class="fader"><label for="${key}">${label}<span class="fader-value"><output id="${key}-value" for="${key}"></output><span class="unit">${unit}</span></span></label><input id="${key}" type="range" min="${min}" max="${max}" step="1"/><div class="fader-ends"><span>${left}</span><span>${right}</span></div></div>`).join('')}
-        </div>
-        <div class="volume-section"><div class="fader"><label for="volume">볼륨<span class="fader-value"><output id="volume-value" for="volume"></output><span class="unit">%</span></span></label><input id="volume" type="range" min="0" max="100" step="1" aria-label="마스터 볼륨"/></div></div>
-        <div class="timer-section"><div class="timer-head"><span>집중 타이머</span><span class="mono" id="timer-left">계속 재생</span></div><div class="timer-options" role="group" aria-label="집중 타이머"><button data-timer="0" aria-pressed="true">계속</button><button data-timer="25" aria-pressed="false">25분</button><button data-timer="50" aria-pressed="false">50분</button></div><p>시간이 끝나면 음악이 부드럽게 멈춰요.</p></div>
+        <div class="panel-head"><h2>조절</h2></div>
+        <div class="fader-list">${[
+          ['bpm', '템포', 50, 130, 'BPM', ''],
+          ['energy', '에너지', 0, 100, '%', '음표와 리듬의 밀도'],
+          ['warmth', '온기', 0, 100, '%', '높을수록 부드러운 음색'],
+          ['evolution', '변화', 0, 100, '%', '다음 구간에서 프레이즈가 변할 확률'],
+          ['volume', '볼륨', 0, 100, '%', ''],
+        ].map(([key, label, min, max, unit, tip]) => `<div class="fader"><div class="fader-heading"><label for="${key}">${label}</label>${tip ? `<button class="help tip" aria-label="${label} 설명" aria-describedby="${key}-tip">?<span id="${key}-tip" class="tooltip" role="tooltip">${tip}</span></button>` : ''}<span class="fader-value"><output id="${key}-value" for="${key}"></output><span class="unit">${unit}</span></span></div><input id="${key}" type="range" min="${min}" max="${max}" step="1"/></div>`).join('')}</div>
+        <div class="timer-section"><div class="timer-head"><span>타이머</span><span class="mono" id="timer-left"></span></div><div class="timer-options" role="group" aria-label="집중 타이머"><button data-timer="0" aria-pressed="true">계속</button><button data-timer="25" aria-pressed="false">25분</button><button data-timer="50" aria-pressed="false">50분</button></div></div>
       </aside>
     </div>
-    <section class="panel saved-panel"><div class="panel-head"><h2>다시 듣고 싶은 흐름</h2><span class="section-number">03 / COLLECTION</span></div><div id="favorites"></div></section>
-    <div class="help-row"><span>새 흐름으로 음악을 바꾸고, ♡로 마음에 드는 구성을 저장하세요.</span><span>SPACE — 재생 / 정지</span></div>
+    <section class="panel saved-panel"><h2>저장한 음악</h2><div id="favorites"></div></section>
   </main>
-  <footer><span>WORKSONG <span class="footer-divider">/</span> MADE BY YAKSHAWAN</span><div><a href="https://strudel.cc" target="_blank" rel="noopener noreferrer">Strudel © contributors</a><span>·</span><a href="${SOURCE}" target="_blank" rel="noopener noreferrer">오픈소스 · AGPL-3.0</a><button class="text-button" id="about">이 앱에 대하여</button></div></footer>
+  <footer><a href="https://strudel.cc" target="_blank" rel="noopener noreferrer">Strudel © contributors</a><div><a href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 · AGPL-3.0</a><button class="text-button" id="about">앱 정보</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><span class="eyebrow">ABOUT WORKSONG</span><button id="close-about" class="icon-button" aria-label="닫기">×</button></div><h2>오래 듣기 위한 작은 음악 도구.</h2><p>음악은 브라우저에서 실시간으로 만들어집니다. 정해진 화음과 리듬에 작은 변화를 더해, 작업 중 듣기 편한 흐름을 만듭니다.</p><p>로그인·음원 업로드·유료 API가 없습니다. 설정과 저장한 흐름은 이 브라우저에만 보관됩니다. 공유 링크에는 음악 설정이 담깁니다.</p><p>현재는 합성음 기반 프로토타입입니다. 재생 탭을 열어두면 다른 탭에서 작업할 수 있으며, 브라우저를 닫거나 기기가 잠자기에 들어가면 재생이 멈출 수 있습니다.</p><p>Strudel © Strudel contributors. 이 앱과 Strudel은 AGPL-3.0-or-later로 제공됩니다.</p><a class="inline-link" href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 코드 보기 ${icon('arrow')}</a></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2>WORKSONG</h2><button id="close-about" class="icon-button" aria-label="닫기">×</button></div><p>장르별 32·64마디 편곡에 화음, 프레이즈, 베이스와 리듬을 배치합니다. 비트가 쉬는 구간과 아르페지오가 이어지고, 변화 값을 높이면 다음 편곡에서 프레이즈가 더 자주 바뀝니다.</p><p>음악은 브라우저에서 합성합니다. 설정과 저장한 음악은 이 브라우저에 보관되며 공유 링크에는 음악 설정이 담깁니다. 기존에 저장한 음악과 링크는 이전 생성 규칙으로 재생됩니다.</p><p>Space: 재생·정지. 탭을 닫거나 기기가 잠자기에 들어가면 재생이 멈출 수 있습니다.</p><p>v0.2 · Strudel © contributors · AGPL-3.0-or-later</p><a class="inline-link" href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 코드 ${icon('arrow')}</a></dialog>
 `;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 function toast(message: string) {
@@ -110,19 +99,16 @@ function renderSettings() {
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-layer]')) {
     button.setAttribute('aria-pressed', String(settings.layers[button.dataset.layer as Layer]));
   }
-  $('#profile-description').textContent = PROFILES[settings.profile].description;
   $('#now-title').textContent = PROFILES[settings.profile].name;
-  $('#seed-label').textContent = `SEED / ${settings.seed}`;
   renderChords(); renderFavorites();
 }
 function renderChords() {
-  const hold = settings.profile === 'ambient' ? 4 : 2;
-  $('#chords').innerHTML = progression(settings).map((chord, i) => `<div class="chord-cell" data-chord="${i}"><span class="mono chord-index">${String(i * hold + 1).padStart(2, '0')}–${String((i + 1) * hold).padStart(2, '0')}</span><span class="chord-name">${chord.label}</span><div class="chord-progress"></div></div>`).join('');
+  $('#chords').innerHTML = progression(settings).map((chord, i) => `<div class="chord-cell" data-chord="${i}"><span class="chord-name">${chord.label}</span><div class="chord-progress"></div></div>`).join('');
 }
 function renderFavorites() {
-  const exists = favorites.some((item) => item.settings.seed === settings.seed && item.settings.profile === settings.profile);
+  const exists = favorites.some((item) => JSON.stringify(item.settings) === JSON.stringify(settings));
   $('#favorite').classList.toggle('is-saved', exists);
-  $('#favorites').innerHTML = favorites.length ? `<div class="favorite-grid">${favorites.map((item) => `<div class="favorite-item"><button class="favorite-load" data-load="${item.id}"><span>${PROFILES[item.settings.profile].name}</span><span class="mono">${item.settings.bpm} BPM <span class="favorite-seed">/ ${item.settings.seed}</span></span></button><button class="favorite-delete" data-delete="${item.id}" aria-label="${item.settings.seed} 저장 삭제">×</button></div>`).join('')}</div>` : `<div class="collection-empty"><span class="empty-heart">♡</span><p>마음에 드는 순간을 남겨두세요.<br/><span>저장한 흐름은 같은 구성으로 다시 시작할 수 있어요.</span></p></div>`;
+  $('#favorites').innerHTML = favorites.length ? `<div class="favorite-grid">${favorites.map((item) => `<div class="favorite-item"><button class="favorite-load" data-load="${item.id}" aria-label="${PROFILES[item.settings.profile].name} ${item.settings.seed} 불러오기"><span>${PROFILES[item.settings.profile].name}</span></button><button class="favorite-delete" data-delete="${item.id}" aria-label="${PROFILES[item.settings.profile].name} ${item.settings.seed} 저장 삭제">×</button></div>`).join('')}</div>` : `<span class="collection-empty">—</span>`;
 }
 function renderPlayback() {
   const playing = engine.playing;
@@ -131,8 +117,7 @@ function renderPlayback() {
   $<HTMLButtonElement>('#play').disabled = busy;
   $<HTMLButtonElement>('#regenerate').disabled = busy;
   document.body.classList.toggle('is-playing', playing);
-  $('#scope-idle').hidden = playing;
-  $('#status-text').textContent = busy ? '소리를 준비하는 중' : playing ? '재생 중' : '재생 준비';
+  $('#status-text').textContent = busy ? '준비 중' : playing ? '재생 중' : '정지';
 }
 async function togglePlayback() {
   if (busy) return;
@@ -154,7 +139,7 @@ async function replace(next: Settings) {
   updateMediaSession();
 }
 $('#play').addEventListener('click', () => void togglePlayback());
-$('#regenerate').addEventListener('click', () => { void replace({ ...settings, seed: newSeed() }); });
+$('#regenerate').addEventListener('click', () => { void replace({ ...settings, seed: newSeed(), generatorVersion: 2 }); });
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-profile]')) button.addEventListener('click', () => {
   if (button.dataset.profile !== settings.profile) void replace(selectProfile(settings, button.dataset.profile as ProfileId));
 });
@@ -217,6 +202,14 @@ document.querySelectorAll<HTMLButtonElement>('[data-theme]').forEach((button) =>
 systemDark.addEventListener('change', applyTheme);
 $('#about').addEventListener('click', () => $<HTMLDialogElement>('#about-dialog').showModal());
 $('#close-about').addEventListener('click', () => $<HTMLDialogElement>('#about-dialog').close());
+document.querySelectorAll<HTMLButtonElement>('.help').forEach((button) => button.addEventListener('click', () => {
+  const open = !button.classList.contains('open');
+  document.querySelectorAll('.help.open').forEach((item) => item.classList.remove('open'));
+  button.classList.toggle('open', open);
+}));
+document.addEventListener('pointerdown', (event) => {
+  if (!(event.target as HTMLElement).closest('.help')) document.querySelectorAll('.help.open').forEach((item) => item.classList.remove('open'));
+});
 $<HTMLDialogElement>('#about-dialog').addEventListener('click', (event) => { if (event.target === event.currentTarget) $<HTMLDialogElement>('#about-dialog').close(); });
 document.addEventListener('keydown', (event) => {
   const target = event.target as HTMLElement;
@@ -268,24 +261,19 @@ function draw(timestamp: number) {
   } else {
     context.strokeStyle = style.getPropertyValue('--line-strong'); context.beginPath(); context.moveTo(0, height / 2); context.lineTo(width, height / 2); context.stroke();
   }
-  $('#level-label').textContent = engine.playing && peak > .00001 ? `${Math.round(20 * Math.log10(peak))} dB` : '— dB';
   $('#elapsed').textContent = time(engine.elapsed);
   const audible = engine.audibleSettings ?? settings;
   const bar = engine.bar, length = audible.profile === 'ambient' ? 16 : 8, hold = length / 4;
   const barWithin = bar % length;
-  $('#bar-label').textContent = `BAR ${String(Math.floor(barWithin) + 1).padStart(2, '0')} / ${length}`;
-  $('#status-text').textContent = busy ? '소리를 준비하는 중' : engine.playing ? engine.pending ? '다음 마디에 반영' : '재생 중' : '재생 준비';
+  $('#bar-label').textContent = engine.playing ? `${Math.floor(barWithin) + 1} / ${length}` : '';
+  $('#status-text').textContent = busy ? '준비 중' : engine.playing ? engine.pending ? '다음 마디에 반영' : '재생 중' : '정지';
   for (const cell of document.querySelectorAll<HTMLElement>('[data-chord]')) {
     const current = engine.playing && Math.floor(barWithin / hold) === Number(cell.dataset.chord);
     cell.classList.toggle('current', current);
     cell.style.setProperty('--chord-progress', current ? `${(barWithin % hold) / hold * 100}%` : '0%');
   }
-  $('#timer-left').textContent = engine.remaining === null ? timer ? `${timer}:00` : '계속 재생' : time(engine.remaining);
-  for (const layer of document.querySelectorAll<HTMLElement>('[data-layer]')) {
-    const active = engine.playing && settings.layers[layer.dataset.layer as Layer];
-    const bars = layer.querySelectorAll('i');
-    bars.forEach((item, i) => item.classList.toggle('lit', active && i < Math.min(12, Math.floor(peak * 100 + 1))));
-  }
+  $('#timer-left').textContent = engine.remaining === null ? timer ? `${timer}:00` : '' : time(engine.remaining);
+
 }
 // Read-only inspection surface for browser/audio verification; it is not needed by the player.
 Object.defineProperty(window, '__worksong', { value: { diagnostics: () => ({ ...engine.diagnostics(), peak, settings: structuredClone(settings) }),

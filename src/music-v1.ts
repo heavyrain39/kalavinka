@@ -1,23 +1,19 @@
+// Frozen generator v1: retain exact stored-favorite and shared-link playback.
 // Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
 import { Pattern } from '@strudel/core/pattern.mjs';
 import { Hap } from '@strudel/core/hap.mjs';
 import { TimeSpan } from '@strudel/core/timespan.mjs';
-import { eventsForBar as legacyEventsForBar, progression as legacyProgression } from './music-v1';
-import { arrangementEvents } from './arrangement';
 
 export type ProfileId = 'lofi' | 'ambient' | 'dub';
 export type Layer = 'harmony' | 'bass' | 'rhythm' | 'motif';
-export type Voice = 'keys' | 'pad' | 'bass' | 'pluck' | 'arp' | 'kick' | 'snare' | 'hat';
+export type Voice = 'keys' | 'pad' | 'bass' | 'pluck' | 'kick' | 'snare' | 'hat';
 export interface Settings {
-  generatorVersion: 1 | 2; profile: ProfileId; seed: string; bpm: number; energy: number; warmth: number;
+  generatorVersion: 1; profile: ProfileId; seed: string; bpm: number; energy: number; warmth: number;
   evolution: number; volume: number; layers: Record<Layer, boolean>;
 }
 export interface MusicEvent {
   at: number; length: number; voice: Voice; layer: Layer; notes: number[];
   gain: number; pan: number; cutoff: number;
-  role?: 'anchor' | 'passing' | 'anticipation' | 'arpeggio';
-  resolvesTo?: number;
-  duck?: number;
 }
 export interface Chord { label: string; root: number; notes: number[] }
 export const LAYERS: Layer[] = ['harmony', 'bass', 'rhythm', 'motif'];
@@ -26,7 +22,7 @@ export const PROFILES = {
   ambient: { name: 'Quiet space', subtitle: '넓은 공간, 느리게 번지는 화음', description: '문장과 생각 사이에, 조용한 여백을.', bpm: 64, energy: 25, warmth: 60, evolution: 25, tag: 'AMBIENT', number: '02' },
   dub: { name: 'After hours', subtitle: '둥근 저음, 절제된 전자 리듬', description: '일정한 박자에 몸을 맡기고, 한 걸음 더.', bpm: 108, energy: 48, warmth: 62, evolution: 40, tag: 'DEEP ELECTRONIC', number: '03' },
 } as const;
-export const DEFAULTS: Settings = { generatorVersion: 2, profile: 'lofi', seed: 'SLOWFLOW', bpm: 78, energy: 42, warmth: 72, evolution: 35, volume: 55, layers: { harmony: true, bass: true, rhythm: true, motif: true } };
+export const DEFAULTS: Settings = { generatorVersion: 1, profile: 'lofi', seed: 'SLOWFLOW', bpm: 78, energy: 42, warmth: 72, evolution: 35, volume: 55, layers: { harmony: true, bass: true, rhythm: true, motif: true } };
 export const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 // Stateless randomness: querying a pattern twice or in a different order gives the same music.
@@ -44,11 +40,11 @@ export function newSeed(): string {
 }
 export function normalizeSettings(input: unknown): Settings {
   const s = input && typeof input === 'object' ? input as Partial<Settings> : {};
-  if (s.generatorVersion !== undefined && s.generatorVersion !== 1 && s.generatorVersion !== 2) return structuredClone(DEFAULTS);
+  if (s.generatorVersion !== undefined && s.generatorVersion !== 1) return structuredClone(DEFAULTS);
   const number = (key: 'bpm' | 'energy' | 'warmth' | 'evolution' | 'volume', lo: number, hi: number) =>
     typeof s[key] === 'number' && Number.isFinite(s[key]) ? Math.round(clamp(s[key]!, lo, hi)) : DEFAULTS[key];
   return {
-    generatorVersion: s.generatorVersion === 1 || (s.generatorVersion === undefined && typeof s.seed === 'string') ? 1 : 2,
+    generatorVersion: 1,
     profile: typeof s.profile === 'string' && Object.hasOwn(PROFILES, s.profile) ? s.profile : 'lofi',
     seed: typeof s.seed === 'string' && /^[A-Z0-9]{4,16}$/.test(s.seed) ? s.seed : DEFAULTS.seed,
     bpm: number('bpm', 50, 130), energy: number('energy', 0, 100), warmth: number('warmth', 0, 100),
@@ -58,7 +54,7 @@ export function normalizeSettings(input: unknown): Settings {
 }
 export function selectProfile(settings: Settings, profile: ProfileId): Settings {
   const p = PROFILES[profile];
-  return { ...settings, generatorVersion: 2, profile, bpm: p.bpm, energy: p.energy, warmth: p.warmth, evolution: p.evolution,
+  return { ...settings, profile, bpm: p.bpm, energy: p.energy, warmth: p.warmth, evolution: p.evolution,
     layers: { harmony: true, bass: true, rhythm: profile !== 'ambient', motif: true } };
 }
 
@@ -66,7 +62,6 @@ const NAMES = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B�
 const minor = [0, 3, 7, 10], major = [0, 4, 7, 11], sus = [0, 5, 7, 10];
 // Four functional chords; the seed selects a key and one of two deliberately authored progressions.
 export function progression(settings: Settings): Chord[] {
-  if (settings.generatorVersion === 1) return legacyProgression({ ...settings, generatorVersion: 1 });
   const root = [48, 50, 53, 55][hash(settings.seed) % 4];
   const alternate = hash(`${settings.seed}:progression`) % 2;
   const recipe: [number, number[], string][] = settings.profile === 'ambient'
@@ -99,9 +94,65 @@ export function chordAt(settings: Settings, bar: number): Chord {
   return progression(settings)[Math.floor(Math.max(0, bar) / hold) % 4];
 }
 export function eventsForBar(settings: Settings, bar: number): MusicEvent[] {
-  if (settings.generatorVersion === 1) return legacyEventsForBar({ ...settings, generatorVersion: 1 }, bar);
-  return arrangementEvents(settings, bar);
+  const { profile, seed } = settings, energy = settings.energy / 100, warmth = settings.warmth / 100;
+  const loopLength = profile === 'ambient' ? 16 : 8;
+  const position = bar % loopLength;
+  const block = Math.floor(bar / 16);
+  const evolves = block > 0 && random(seed, `evolve:${block}`) < settings.evolution / 100;
+  const variant = evolves ? hash(`${seed}:variant:${block}`) % 3 : 0;
+  const r = (id: string) => random(seed, `${position}:${variant}:${id}`);
+  const chord = chordAt(settings, bar);
+  const cutoff = 3200 - warmth * 2300;
+  const result: MusicEvent[] = [];
+  const add = (voice: Voice, layer: Layer, at: number, length: number, notes: number[], gain: number, pan = 0) => {
+    if (!settings.layers[layer]) return;
+    result.push({ voice, layer, at: bar + at, length, notes, gain: gain * (.92 + r(`${voice}:${at}:velocity`) * .12), pan, cutoff });
+  };
+  if (profile === 'ambient') {
+    if (bar % 2 === 0) {
+      add('pad', 'harmony', 0, 1.85, chord.notes, .11 + energy * .025);
+      add('bass', 'bass', 0, 1.65, [chord.root - 12], .12);
+    }
+    if (bar % 4 === 2 && energy > .08) {
+      const note = chord.notes[variant % 4] + (chord.notes[variant % 4] < 64 ? 12 : 0);
+      add('pluck', 'motif', .25, .5, [note], .045, -.2);
+      if (energy > .55) {
+        let second = chord.notes[(variant + 2) % 4];
+        if (second < 64) second += 12;
+        add('pluck', 'motif', .75, .4, [second], .035, .2);
+      }
+    }
+    if (energy > .6 && bar % 2 === 1) add('hat', 'rhythm', .5, .02, [], .014);
+  } else {
+    const dub = profile === 'dub';
+    add('keys', 'harmony', dub ? .125 : .012, dub ? .16 : .38, chord.notes, dub ? .105 : .15);
+    if (energy > .28 && bar % 2 === 1) add('keys', 'harmony', dub ? .625 : .52, dub ? .12 : .27, chord.notes, .09);
+    const bassRoot = chord.root - 12;
+    add('bass', 'bass', 0, dub ? .17 : .22, [bassRoot], .2);
+    add('bass', 'bass', .5, .16, [bassRoot], .16);
+    if (energy > .48) add('bass', 'bass', .8125, .12, [bassRoot + (position % 2 ? 7 : 0)], .12);
+    const kicks = dub ? [0, .25, .5, .75] : energy > .55 ? [0, .4375, .625] : [0, .5];
+    for (const step of kicks) add('kick', 'rhythm', step, .09, [], dub ? .32 : .27);
+    if (energy > .12) for (const step of [.25, .75]) add('snare', 'rhythm', step + (dub ? 0 : .008), .05, [], dub ? .045 : .07);
+    const hats = energy < .25 ? 4 : 8;
+    for (let i = 0; i < hats; i++) {
+      const swing = !dub && i % 2 ? .018 : 0;
+      const jitter = i === 0 ? 0 : (r(`hat:${i}:timing`) - .5) * .003;
+      add('hat', 'rhythm', i / hats + swing + jitter, .018, [], i % 2 ? .023 : .035, i % 2 ? .18 : -.18);
+    }
+    // A short, repeated motif with rests. Variation changes one chord tone, never the entire phrase.
+    if (energy > .12 && position % 4 === 1) {
+      const indices = [[2, 1, 3], [1, 2, 3], [3, 2, 1]][variant];
+      for (let i = 0; i < (energy > .7 ? 3 : 2); i++) {
+        let note = chord.notes[indices[i]];
+        if (note < 64) note += 12;
+        add('pluck', 'motif', [.375, .6875, .875][i], .10, [note], .052 + energy * .02, i % 2 ? .25 : -.25);
+      }
+    }
+  }
+  return result.sort((a, b) => a.at - b.at);
 }
+
 export function musicPattern(settings: Settings): Pattern {
   const cache = new Map<number, MusicEvent[]>();
   return new Pattern((state) => {

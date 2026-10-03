@@ -3,11 +3,13 @@ import { Cyclist } from '@strudel/core/cyclist.mjs';
 import { Pattern } from '@strudel/core/pattern.mjs';
 import { musicPattern, LAYERS, type Layer, type MusicEvent, type Settings } from './music';
 import clockUrl from './clock.worklet.js?url';
+import { scheduleDuck } from './duck';
 
 interface Scene {
   settings: Settings; cyclist: Cyclist; output: GainNode; input: GainNode;
   layers: Record<Layer, GainNode>; nodes: AudioNode[]; sources: Set<AudioScheduledSourceNode>;
   tick: (() => void) | null; pending?: { settings: Settings; bar: number; pattern: Pattern };
+  bassDuck: GainNode; liveRhythm: boolean;
 }
 export class MusicEngine {
   context: AudioContext | null = null;
@@ -28,6 +30,7 @@ export class MusicEngine {
   private late = 0;
   private lastError: string | null = null;
   private sceneNumber = 0;
+  private duckCount = 0;
 
   async init() {
     if (this.context) return;
@@ -86,7 +89,7 @@ export class MusicEngine {
     await context.resume();
     if (context.state !== 'running') throw new Error('오디오가 잠겨 있습니다. 재생 버튼을 다시 눌러 주세요.');
     if (this.playing) return;
-    this.triggered = 0; this.late = 0; this.lastError = null;
+    this.triggered = 0; this.late = 0; this.lastError = null; this.duckCount = 0;
     this.startedAt = context.currentTime;
     this.playing = true;
     this.setVolume(settings.volume);
@@ -111,12 +114,13 @@ export class MusicEngine {
     input.connect(delay).connect(delayHp).connect(delayFilter).connect(feedback).connect(delay);
     delayFilter.connect(delayWet).connect(output);
     output.connect(this.destination);
+    const bassDuck = context.createGain(); bassDuck.connect(input);
     const layers = Object.fromEntries(LAYERS.map((layer) => {
       const gain = context.createGain(); gain.gain.value = settings.layers[layer] ? 1 : 0;
-      gain.connect(input); return [layer, gain];
+      gain.connect(layer === 'bass' ? bassDuck : input); return [layer, gain];
     })) as Record<Layer, GainNode>;
-    const scene: Scene = { settings, output, input, layers, sources: new Set(), tick: null,
-      nodes: [input, output, dry, room, roomHp, roomFilter, wet, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers)], cyclist: null! };
+    const scene: Scene = { settings, output, input, layers, bassDuck, liveRhythm: settings.layers.rhythm, sources: new Set(), tick: null,
+      nodes: [input, output, bassDuck, dry, room, roomHp, roomFilter, wet, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers)], cyclist: null! };
     scene.cyclist = new Cyclist({ getTime: () => context.currentTime, interval: .05, latency: .18,
       setInterval: (callback) => { scene.tick = callback; return ++this.sceneNumber; },
       clearInterval: () => { scene.tick = null; },
@@ -154,6 +158,8 @@ export class MusicEngine {
     const scene = this.scene;
     if (!scene || !this.playing) return;
     for (const layer of LAYERS) this.ramp(scene.layers[layer].gain, settings.layers[layer] ? 1 : 0, .08);
+    scene.liveRhythm = settings.layers.rhythm;
+    if (!scene.liveRhythm) this.ramp(scene.bassDuck.gain, 1, .03);
     const oldPattern = musicPattern(scene.settings);
     const newPattern = musicPattern(settings);
     const bar = scene.pending?.bar ?? Math.ceil(this.bar + .2);
@@ -179,7 +185,8 @@ export class MusicEngine {
   diagnostics() {
     return { playing: this.playing, state: this.context?.state ?? 'uninitialized', activeSources: (this.scene?.sources.size ?? 0)
       + Array.from(this.retired).reduce((sum, scene) => sum + scene.sources.size, 0), triggered: this.triggered,
-      late: this.late, lastError: this.lastError, bar: this.bar, pending: this.pending, sampleRate: this.context?.sampleRate };
+      late: this.late, lastError: this.lastError, bar: this.bar, pending: this.pending, sampleRate: this.context?.sampleRate,
+      duckCount: this.duckCount, bassGain: this.scene?.bassDuck.gain.value ?? 1 };
   }
   async stop() {
     if (this.stopPromise) return this.stopPromise;
@@ -208,6 +215,10 @@ export class MusicEngine {
 
   private voice(scene: Scene, event: MusicEvent, time: number, duration: number) {
     const context = this.context!;
+    if (event.voice === 'kick' && event.duck && scene.liveRhythm) {
+      scheduleDuck(scene.bassDuck.gain, time, event.duck, scene.pending?.settings.bpm ?? scene.settings.bpm, context.currentTime);
+      this.duckCount++;
+    }
     const gain = context.createGain();
     const filter = context.createBiquadFilter();
     filter.type = 'lowpass'; filter.frequency.value = event.cutoff; filter.Q.value = .5;
@@ -218,8 +229,9 @@ export class MusicEngine {
     const percussion = ['kick', 'snare', 'hat'].includes(event.voice);
     const pad = event.voice === 'pad';
     const bass = event.voice === 'bass';
-    const release = pad ? .7 : percussion ? .02 : bass ? .06 : .3;
-    const attack = pad ? .65 : percussion ? .004 : .009;
+    const release = pad ? .7 : percussion ? .02 : bass ? .06 : event.voice === 'arp' ? .12
+      : scene.settings.generatorVersion === 1 || event.voice === 'keys' ? .3 : scene.settings.profile === 'ambient' ? .45 : scene.settings.profile === 'dub' ? .06 : .08;
+    const attack = pad ? .65 : percussion ? .004 : event.voice === 'pluck' && scene.settings.generatorVersion === 2 && scene.settings.profile === 'ambient' ? .04 : .009;
     const hold = percussion ? event.voice === 'kick' ? .24 : event.voice === 'snare' ? .13 : .045 : Math.max(duration, attack + .02);
     const end = time + hold + release;
     const amplitude = event.gain / (event.notes.length || 1);
@@ -262,7 +274,7 @@ export class MusicEngine {
           const carrier = osc(frequency);
           const modulator = context.createOscillator(); modulator.frequency.value = frequency * 2;
           const modulation = context.createGain();
-          modulation.gain.setValueAtTime(frequency * (event.voice === 'keys' ? .75 : 1.25), time);
+          modulation.gain.setValueAtTime(frequency * (event.voice === 'keys' ? .75 : event.voice === 'arp' ? .65 : 1.25), time);
           modulation.gain.exponentialRampToValueAtTime(.001, time + .45);
           modulator.connect(modulation).connect(carrier.frequency);
           nodes.push(modulation); sources.push(modulator);
