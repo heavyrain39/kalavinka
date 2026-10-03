@@ -2,7 +2,7 @@
 
 당신의 속도로 흐르는 음악. 로그인 없이 브라우저 안에서 음악을 생성하는 무료 노동요 프로토타입입니다.
 
-**실행:** https://heavyrain39.github.io/worksong/
+**실행:** https://heavyrain39.github.io/kalavinka/
 
 ## 사용법
 
@@ -78,6 +78,6 @@ Copyright (C) 2026 Yakshawan. All rights reserved.
 
 v0.9.0부터 자체 코드에는 [Kalavinka Proprietary License](LICENSE)를 적용합니다. 공식 웹앱의 무료 사용과 청취는 허용합니다. 코드의 재사용·수정·재배포·별도 호스팅·다른 제품이나 서비스로의 전용에는 별도 서면 허락이 필요합니다. 법령, GitHub 약관상 권한, 별도 라이선스에 따른 권리는 예외입니다.
 
-이미 AGPL-3.0-or-later로 배포한 v0.8.0 및 이전 코드에 부여된 권한은 철회하지 않습니다. [마지막 AGPL 배포본](https://github.com/heavyrain39/worksong/tree/54cd8a16d6765179f6754547d4e75f3b21adcc2b)과 고지는 Git 기록에 보존합니다. 공개 저장소의 열람·포크와 자유로운 코드 재사용 허가는 서로 다릅니다.
+이미 AGPL-3.0-or-later로 배포한 v0.8.0 및 이전 코드에 부여된 권한은 철회하지 않습니다. [마지막 AGPL 배포본](https://github.com/heavyrain39/kalavinka/tree/54cd8a16d6765179f6754547d4e75f3b21adcc2b)과 고지는 Git 기록에 보존합니다. 공개 저장소의 열람·포크와 자유로운 코드 재사용 허가는 서로 다릅니다.
 
 폰트(OFL), Mastermind 유래 부분(MIT), 빌드 도구의 별도 고지는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)와 `public/licenses/`에 보존합니다. 기존 오픈소스 부분까지 독점 라이선스로 제한한다고 주장하지 않습니다.
