@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import type { ProfileId } from './music';
 export const QUALITIES = {
   maj7: [0,4,7,11], m7: [0,3,7,10], '7sus4': [0,5,7,10],

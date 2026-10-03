@@ -6,3 +6,5 @@ output/
 terra-music-design.md
 *.log
 .env*
+public/LICENSE.txt
+public/THIRD_PARTY_NOTICES.txt

@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 // A bundled audio clock, independent of UI animation and inactive-tab setTimeout throttling.
 class WorkSongClock extends AudioWorkletProcessor {
   constructor() { super(); this.frames = 0; }

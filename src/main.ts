@@ -1,12 +1,11 @@
-// Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import './style.css';
 import { Starfield } from './starfield';
 import { recipeFor, hasEnding } from './harmony-v5';
 import { INSTRUMENTS } from './instruments';
 import { MusicEngine } from './audio';
-import { LAYERS, PROFILES, normalizeSettings, upgradeSettings, regenerateSettings, selectProfile, progression, chordHold, musicPattern, type Settings, type ProfileId, type Layer } from './music';
+import { LAYERS, PROFILES, normalizeSettings, upgradeSettings, regenerateSettings, selectProfile, progression, chordHold, musicScore, type Settings, type ProfileId, type Layer } from './music';
 
-const SOURCE = 'https://github.com/heavyrain39/worksong';
 const STORAGE = 'worksong.v1';
 const FAVORITES = 'worksong.favorites.v1';
 const read = (key: string) => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
@@ -81,9 +80,9 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     </div>
     <section class="panel saved-panel"><h2>저장한 음악</h2><div id="favorites"></div></section>
   </main>
-  <footer><a href="https://strudel.cc" target="_blank" rel="noopener noreferrer">Strudel © contributors</a><div><a href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 · AGPL-3.0</a><button class="text-button" id="about">앱 정보</button></div></footer>
+  <footer><span>© 2026 Yakshawan</span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer">이용 조건</a><button class="text-button" id="about">앱 정보</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2>Kalavinka · 가릉빈가</h2><button id="close-about" class="icon-button" aria-label="닫기">×</button></div><p>30종 코드 진행에 화음, 프레이즈, 베이스와 리듬을 배치합니다. 구간 끝의 코드 변형과 간헐적인 드럼 필인이 이어집니다. 비트가 쉬는 구간과 아르페지오가 이어지고, 변화 값을 높이면 다음 편곡에서 프레이즈가 더 자주 바뀝니다.</p><p>음악은 브라우저에서 합성하고 EQ·컴프레션·피크 제어로 전체 출력을 다듬습니다. 설정과 저장한 음악은 이 브라우저에 보관되며 공유 링크에는 음악 설정이 담깁니다. 기존에 저장한 음악과 링크는 이전 생성 규칙으로 재생됩니다.</p><p>Space: 재생·정지. 탭을 닫거나 기기가 잠자기에 들어가면 재생이 멈출 수 있습니다.</p><p>v0.8.0 · Strudel © contributors · AGPL-3.0-or-later</p><a class="inline-link" href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 코드 ${icon('arrow')}</a></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2>Kalavinka · 가릉빈가</h2><button id="close-about" class="icon-button" aria-label="닫기">×</button></div><p>30종 코드 진행에 화음, 프레이즈, 베이스와 리듬을 배치합니다. 구간 끝의 코드 변형과 간헐적인 드럼 필인이 이어집니다. 비트가 쉬는 구간과 아르페지오가 이어지고, 변화 값을 높이면 다음 편곡에서 프레이즈가 더 자주 바뀝니다.</p><p>음악은 브라우저에서 합성하고 EQ·컴프레션·피크 제어로 전체 출력을 다듬습니다. 설정과 저장한 음악은 이 브라우저에 보관되며 공유 링크에는 음악 설정이 담깁니다. 기존에 저장한 음악과 링크는 이전 생성 규칙으로 재생됩니다.</p><p>Space: 재생·정지. 탭을 닫거나 기기가 잠자기에 들어가면 재생이 멈출 수 있습니다.</p><p>v0.9.0 · © 2026 Yakshawan · All rights reserved.</p><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">외부 구성요소 ${icon('arrow')}</a></dialog>
 `;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 function toast(message: string) {
@@ -311,6 +310,6 @@ function draw(timestamp: number) {
 }
 // Read-only inspection surface for browser/audio verification; it is not needed by the player.
 Object.defineProperty(window, '__worksong', { value: { diagnostics: () => ({ ...engine.diagnostics(), peak, sky: starfield.diagnostics(), harmony: { recipe: (engine.audibleSettings ?? settings).generatorVersion >= 5 ? recipeFor(engine.audibleSettings ?? settings).id : null, ending: (engine.audibleSettings ?? settings).generatorVersion >= 5 && hasEnding(engine.audibleSettings ?? settings, engine.bar), chords: progression(engine.audibleSettings ?? settings, engine.bar).map(c=>c.label) }, settings: structuredClone(settings) }),
-  events: (begin: number, end: number) => musicPattern(settings).queryArc(begin, end).filter((hap) => hap.hasOnset()).length } });
+  events: (begin: number, end: number) => musicScore(settings).onsets(begin, end).length } });
 applyTheme(); renderSettings(); renderPlayback(); requestAnimationFrame(draw);
 if (shared) toast('공유한 흐름을 불러왔어요. 재생을 눌러 시작하세요.');

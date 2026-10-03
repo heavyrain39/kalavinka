@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import type { Layer, ProfileId } from './music';
 import { random } from './seed';
 export type InstrumentMix = Record<Layer, string>;

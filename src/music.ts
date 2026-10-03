@@ -1,7 +1,5 @@
-// Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
-import { Pattern } from '@strudel/core/pattern.mjs';
-import { Hap } from '@strudel/core/hap.mjs';
-import { TimeSpan } from '@strudel/core/timespan.mjs';
+// Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
+import { Score } from './score';
 import { eventsForBar as legacyEventsForBar, progression as legacyProgression } from './music-v1';
 import { arrangementEvents } from './arrangement';
 import { ensembleEvents as v3Events } from './ensemble-v3';
@@ -118,20 +116,7 @@ export function eventsForBar(settings: Settings, bar: number): MusicEvent[] {
   if (settings.generatorVersion === 2) return arrangementEvents(settings, bar);
   return (settings.generatorVersion === 3 ? v3Events(settings, bar) : settings.generatorVersion === 4 ? v4Events(settings, bar) : ensembleEvents(settings, bar)).filter(e=>settings.layers[e.layer]).map(e=>({ ...e, instrument: settings.instruments[e.layer] }));
 }
-export function musicPattern(settings: Settings): Pattern {
-  const cache = new Map<number, MusicEvent[]>();
-  return new Pattern((state) => {
-    const begin = Number(state.span.begin), end = Number(state.span.end);
-    const haps: Hap[] = [];
-    for (let bar = Math.max(0, Math.floor(begin) - 2); bar < Math.ceil(end); bar++) {
-      if (!cache.has(bar)) cache.set(bar, eventsForBar(settings, bar));
-      for (const event of cache.get(bar)!) {
-        const whole = new TimeSpan(event.at, event.at + event.length);
-        const part = whole.intersection(state.span);
-        if (part) haps.push(new Hap(whole, part, event));
-      }
-    }
-    for (const key of cache.keys()) if (key < Math.floor(begin) - 4 || key > Math.ceil(end) + 4) cache.delete(key);
-    return haps;
-  });
+export function musicScore(settings: Settings): Score {
+  const snapshot = structuredClone(settings);
+  return new Score(bar => eventsForBar(snapshot, bar));
 }

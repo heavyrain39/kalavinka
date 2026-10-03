@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 // Frozen v0.4 score compiler for saved/shared generatorVersion 3 settings.
 import { chordAt, type Settings, type MusicEvent, type Chord } from './music';
 import { arrangementAt } from './arrangement';

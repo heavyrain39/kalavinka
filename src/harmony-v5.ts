@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import type { Settings, Chord } from './music';
 import { hash, random } from './seed';
 import { arrangementAt } from './arrangement';

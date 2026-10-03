@@ -1,8 +1,5 @@
 // Frozen generator v1: retain exact stored-favorite and shared-link playback.
-// Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
-import { Pattern } from '@strudel/core/pattern.mjs';
-import { Hap } from '@strudel/core/hap.mjs';
-import { TimeSpan } from '@strudel/core/timespan.mjs';
+// Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 
 export type ProfileId = 'lofi' | 'ambient' | 'dub';
 export type Layer = 'harmony' | 'bass' | 'rhythm' | 'motif';
@@ -151,22 +148,4 @@ export function eventsForBar(settings: Settings, bar: number): MusicEvent[] {
     }
   }
   return result.sort((a, b) => a.at - b.at);
-}
-
-export function musicPattern(settings: Settings): Pattern {
-  const cache = new Map<number, MusicEvent[]>();
-  return new Pattern((state) => {
-    const begin = Number(state.span.begin), end = Number(state.span.end);
-    const haps: Hap[] = [];
-    for (let bar = Math.max(0, Math.floor(begin) - 2); bar < Math.ceil(end); bar++) {
-      if (!cache.has(bar)) cache.set(bar, eventsForBar(settings, bar));
-      for (const event of cache.get(bar)!) {
-        const whole = new TimeSpan(event.at, event.at + event.length);
-        const part = whole.intersection(state.span);
-        if (part) haps.push(new Hap(whole, part, event));
-      }
-    }
-    for (const key of cache.keys()) if (key < Math.floor(begin) - 4 || key > Math.ceil(end) + 4) cache.delete(key);
-    return haps;
-  });
 }

@@ -1,19 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULTS, eventsForBar, musicPattern, normalizeSettings, progression, selectProfile, type ProfileId } from '../src/music.ts';
+import { DEFAULTS, eventsForBar, musicScore, normalizeSettings, progression, selectProfile, type ProfileId } from '../src/music.ts';
 
 test('seeded score is stable across reloads and independent of query order', () => {
-  const a = musicPattern(DEFAULTS), b = musicPattern(DEFAULTS);
-  b.queryArc(20, 21);
-  const serialize = (pattern: typeof a) => pattern.queryArc(0, 8).map((hap) => [Number(hap.whole.begin), hap.value]);
+  const a = musicScore(DEFAULTS), b = musicScore(DEFAULTS);
+  b.onsets(20, 21);
+  const serialize = (pattern: typeof a) => pattern.onsets(0, 8).map((event) => [event.at, event]);
   assert.deepEqual(serialize(a), serialize(b));
   assert.notDeepEqual(progression(DEFAULTS), progression({ ...DEFAULTS, seed: 'OTHERFLOW' }));
 });
 test('a sustained pad is triggered once across scheduler query fragments', () => {
-  const pattern = musicPattern(selectProfile(DEFAULTS, 'ambient'));
-  const onsets = Array.from({ length: 80 }, (_, i) => pattern.queryArc(i / 20, (i + 1) / 20)).flat().filter((hap) => hap.hasOnset());
-  assert.equal(onsets.filter((hap) => hap.value.voice === 'pad' && Number(hap.whole.begin) === 0).length, 1);
-  assert.ok(onsets.some((hap) => hap.value.voice === 'pluck'));
+  const pattern = musicScore(selectProfile(DEFAULTS, 'ambient'));
+  const onsets = Array.from({ length: 80 }, (_, i) => pattern.onsets(i / 20, (i + 1) / 20)).flat();
+  assert.equal(onsets.filter((hap) => hap.voice === 'pad' && hap.at === 0).length, 1);
+  assert.ok(onsets.some((hap) => hap.voice === 'pluck'));
 });
 test('all profiles keep note range, event density and duration bounded over a long session', () => {
   for (const profile of ['lofi', 'ambient', 'dub'] as ProfileId[]) {

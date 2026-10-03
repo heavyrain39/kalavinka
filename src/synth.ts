@@ -1,11 +1,12 @@
-// Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import type { MusicEvent } from './music';
+import { ownVoice } from './source-lifecycle';
 import { random } from './seed';
 
 // Small, locally synthesized palettes. Struck bodies decay continuously; sustained
 // instruments keep a breath/bow envelope. The score and bass gate remain unchanged.
 export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, time: number, duration: number,
-  noiseBuffer: AudioBuffer, destination: AudioNode, active: Set<AudioScheduledSourceNode>) {
+  noiseBuffer: AudioBuffer, destination: AudioNode, active: Set<AudioScheduledSourceNode>, cleanups?: Set<() => void>) {
   const id = event.instrument!, percussion = event.layer === 'rhythm', bass = event.layer === 'bass';
   if ((!percussion && !event.notes.length) || !Number.isFinite(event.gain) || event.gain <= 0 || !Number.isFinite(duration) || duration <= 0) return;
   const variation = random(id, `${event.at}:${event.notes.join(',')}:${event.voice}`);
@@ -150,10 +151,8 @@ export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, ti
       default: osc(f);
     }
   }
-  let alive = sources.length;
+  ownVoice(sources, nodes, active, cleanups);
   for (const source of sources) {
-    active.add(source);
-    source.onended = () => { active.delete(source); source.disconnect(); if (--alive === 0) for (const node of nodes) node.disconnect(); };
     if (source instanceof AudioBufferSourceNode) source.start(time, variation * .7); else source.start(time);
     source.stop(end + .015);
   }

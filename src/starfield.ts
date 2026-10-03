@@ -1,4 +1,5 @@
-// Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
+// Mastermind-derived portions retain MIT terms; see public/licenses/Mastermind-MIT.txt.
 // Mastermind VisualizerCard geometry, adapted to a compact canvas and elapsed time.
 import { random } from './seed';
 interface Star { x: number; y: number; z: number; inner: boolean; frequency: number }

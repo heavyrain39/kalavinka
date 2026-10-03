@@ -1,4 +1,5 @@
-// Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
+// Mastermind-derived portions retain MIT terms; see public/licenses/Mastermind-MIT.txt.
 
 // Adapted from Mastermind's applySoftKneeCurve: unity below the knee,
 // continuous unity slope on entry, then a monotonic approach to the ceiling.

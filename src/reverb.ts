@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 export const reverbGain = (amount: number) => .46 * Math.min(100, Math.max(0, Number.isFinite(amount) ? amount : 0)) / 100;
 
 export function createRoom(context: BaseAudioContext, impulse: AudioBuffer, amount: number) {

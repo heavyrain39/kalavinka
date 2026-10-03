@@ -1,27 +1,42 @@
-# Third-party notices
+# Third-party notices — Kalavinka v0.9.0
 
-## Strudel core 1.2.6
+The application code is governed by the root LICENSE. The following components
+retain their original terms. These notices do not license the whole application
+under the components' licenses.
 
-Copyright (C) 2022–2025 Strudel contributors.
+## Mastermind — MIT
 
-Source: https://codeberg.org/uzu/strudel
+Copyright (c) 2026 Yakshawan.
 
-License: GNU Affero General Public License, version 3 or later.
+The soft-knee peak curve in src/mastering.ts and visualization geometry adapted
+in src/starfield.ts originate in the author's Mastermind project. The MIT notice
+is retained in public/licenses/Mastermind-MIT.txt for those incorporated portions.
 
-WORKSONG uses the unmodified `pattern.mjs`, `hap.mjs`, `timespan.mjs`, `cyclist.mjs` modules and their core dependencies. Source is available from the pinned npm package and upstream repository. The complete license is included in `LICENSE` and `public/licenses/AGPL-3.0.txt`.
+Source: https://github.com/heavyrain39/mastermind
+Reference: e093056ac68593c25b48f132438ace0189b4d72d
+Files: src/lib/dsp/limiter.js; src/features/mastering/VisualizerCard.tsx.
 
-## fraction.js 5.3.4
+## Fonts — SIL Open Font License 1.1
 
-Copyright (c) 2025 Robert Eisele.
+Inter, JetBrains Mono and MuseoModerno are bundled locally through Fontsource
+Variable packages. Fonts are unmodified. Their original copyright statements
+and complete licenses are retained in public/licenses/Inter-OFL.txt,
+public/licenses/JetBrainsMono-OFL.txt and public/licenses/MuseoModerno-OFL.txt.
 
-Source: https://github.com/rawify/Fraction.js
+Package source: https://github.com/fontsource/font-files
+Exact installed versions are recorded in package-lock.json.
 
-License: MIT. The installed package's complete notice is included in `public/licenses/fraction.js.txt`.
+## Build tools
 
-## Fonts
+Vite, TypeScript, Playwright and tsx are development tools, not the application's
+music engine. Their dependencies and package licenses are recorded by npm in
+package-lock.json and their installed packages. The Vite module-preload helper
+included in the generated JavaScript retains its MIT notice in
+public/licenses/Vite-MIT.txt.
 
-Inter, JetBrains Mono, MuseoModerno are bundled locally through Fontsource Variable packages and distributed under SIL Open Font License 1.1. The original copyright notices and complete licenses are included in `public/licenses/`. Fonts are unmodified.
+## Historical releases
 
-Fontsource package sources: https://github.com/fontsource/font-files
-
-Development tools and other installed Strudel dependencies are recorded in `package-lock.json`. Only the modules required by the static build are delivered to the browser.
+Strudel and fraction.js are absent from the v0.9.0 dependency tree and browser
+bundle. The previous v0.8.0 release used them; its notices remain in Git history
+at commit 54cd8a16d6765179f6754547d4e75f3b21adcc2b. The transition does not
+revoke any permissions previously granted for that release or its code.
