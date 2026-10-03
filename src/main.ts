@@ -72,6 +72,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
           ['energy', '에너지', 0, 100, '%', '음표와 리듬의 밀도'],
           ['warmth', '온기', 0, 100, '%', '높을수록 부드러운 음색'],
           ['evolution', '변화', 0, 100, '%', '다음 구간에서 프레이즈가 변할 확률'],
+          ['reverb', '리버브', 0, 100, '%', ''],
           ['volume', '볼륨', 0, 100, '%', ''],
         ].map(([key, label, min, max, unit, tip]) => `<div class="fader"><div class="fader-heading"><label for="${key}">${label}</label>${tip ? `<button class="help tip" aria-label="${label} 설명" aria-describedby="${key}-tip">?<span id="${key}-tip" class="tooltip" role="tooltip">${tip}</span></button>` : ''}<span class="fader-value"><output id="${key}-value" for="${key}"></output><span class="unit">${unit}</span></span></div><input id="${key}" type="range" min="${min}" max="${max}" step="1"/></div>`).join('')}</div>
         <div class="timer-section"><div class="timer-head"><span>타이머</span><span class="mono" id="timer-left"></span></div><div class="timer-options" role="group" aria-label="집중 타이머"><button data-timer="0" aria-pressed="true">계속</button><button data-timer="25" aria-pressed="false">25분</button><button data-timer="50" aria-pressed="false">50분</button></div></div>
@@ -81,7 +82,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><a href="https://strudel.cc" target="_blank" rel="noopener noreferrer">Strudel © contributors</a><div><a href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 · AGPL-3.0</a><button class="text-button" id="about">앱 정보</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2>WORKSONG</h2><button id="close-about" class="icon-button" aria-label="닫기">×</button></div><p>장르별 32·64마디 편곡에 화음, 프레이즈, 베이스와 리듬을 배치합니다. 비트가 쉬는 구간과 아르페지오가 이어지고, 변화 값을 높이면 다음 편곡에서 프레이즈가 더 자주 바뀝니다.</p><p>음악은 브라우저에서 합성하고 EQ·컴프레션·피크 제어로 전체 출력을 다듬습니다. 설정과 저장한 음악은 이 브라우저에 보관되며 공유 링크에는 음악 설정이 담깁니다. 기존에 저장한 음악과 링크는 이전 생성 규칙으로 재생됩니다.</p><p>Space: 재생·정지. 탭을 닫거나 기기가 잠자기에 들어가면 재생이 멈출 수 있습니다.</p><p>v0.6.3 · Strudel © contributors · AGPL-3.0-or-later</p><a class="inline-link" href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 코드 ${icon('arrow')}</a></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2>WORKSONG</h2><button id="close-about" class="icon-button" aria-label="닫기">×</button></div><p>장르별 32·64마디 편곡에 화음, 프레이즈, 베이스와 리듬을 배치합니다. 비트가 쉬는 구간과 아르페지오가 이어지고, 변화 값을 높이면 다음 편곡에서 프레이즈가 더 자주 바뀝니다.</p><p>음악은 브라우저에서 합성하고 EQ·컴프레션·피크 제어로 전체 출력을 다듬습니다. 설정과 저장한 음악은 이 브라우저에 보관되며 공유 링크에는 음악 설정이 담깁니다. 기존에 저장한 음악과 링크는 이전 생성 규칙으로 재생됩니다.</p><p>Space: 재생·정지. 탭을 닫거나 기기가 잠자기에 들어가면 재생이 멈출 수 있습니다.</p><p>v0.7.0 · Strudel © contributors · AGPL-3.0-or-later</p><a class="inline-link" href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 코드 ${icon('arrow')}</a></dialog>
 `;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 function toast(message: string) {
@@ -91,7 +92,7 @@ function toast(message: string) {
 function persist() { if (!write(STORAGE, settings)) toast('브라우저 저장 공간을 사용할 수 없어 이번 설정은 저장되지 않았어요.'); }
 function renderSettings() {
   $<HTMLInputElement>('#bpm').max = settings.generatorVersion >= 3 ? '180' : '130';
-  for (const key of ['bpm', 'energy', 'warmth', 'evolution', 'volume'] as const) {
+  for (const key of ['bpm', 'energy', 'warmth', 'evolution', 'reverb', 'volume'] as const) {
     const input = $<HTMLInputElement>(`#${key}`);
     input.value = String(settings[key]);
     input.style.setProperty('--progress', `${(settings[key] - Number(input.min)) / (Number(input.max) - Number(input.min)) * 100}%`);
@@ -136,7 +137,7 @@ async function togglePlayback() {
   busy = true; renderPlayback();
   try {
     if (engine.playing) await engine.stop();
-    else { await engine.start(settings); engine.setTimer(timer); }
+    else { await engine.start(settings); engine.setVolume(settings.volume); engine.setReverb(settings.reverb); engine.setTimer(timer); }
   } catch (error) { await engine.stop(); toast(error instanceof Error ? error.message : '음악을 시작하지 못했어요. 다시 시도해 주세요.'); }
   finally { busy = false; renderPlayback(); updateMediaSession(); }
 }
@@ -145,7 +146,7 @@ async function replace(next: Settings) {
   settings = normalizeSettings(next); persist(); renderSettings();
   if (engine.playing) {
     busy = true; renderPlayback();
-    try { await engine.regenerate(settings); } catch { await engine.stop(); toast('음악을 바꾸지 못했어요. 다시 재생해 주세요.'); }
+    try { await engine.regenerate(settings); engine.setVolume(settings.volume); engine.setReverb(settings.reverb); } catch { await engine.stop(); toast('음악을 바꾸지 못했어요. 다시 재생해 주세요.'); }
     finally { busy = false; renderPlayback(); }
   }
   updateMediaSession();
@@ -155,10 +156,12 @@ $('#regenerate').addEventListener('click', () => { void replace(regenerateSettin
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-profile]')) button.addEventListener('click', () => {
   if (button.dataset.profile !== settings.profile) void replace(selectProfile(settings, button.dataset.profile as ProfileId));
 });
-for (const key of ['bpm', 'energy', 'warmth', 'evolution', 'volume'] as const) {
+for (const key of ['bpm', 'energy', 'warmth', 'evolution', 'reverb', 'volume'] as const) {
   $<HTMLInputElement>(`#${key}`).addEventListener('input', (event) => {
     settings = { ...settings, [key]: Number((event.target as HTMLInputElement).value) };
-    if (key === 'volume') engine.setVolume(settings.volume); else engine.update(settings);
+    if (key === 'volume') engine.setVolume(settings.volume);
+    else if (key === 'reverb') engine.setReverb(settings.reverb);
+    else engine.update(settings);
     persist(); renderSettings();
   });
 }

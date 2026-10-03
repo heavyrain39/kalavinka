@@ -1,86 +1,152 @@
 // Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
 import type { MusicEvent } from './music';
+import { random } from './seed';
 
-// Small oscillator/FM/noise palettes; no samples, downloads or per-note worklets.
+// Small, locally synthesized palettes. Struck bodies decay continuously; sustained
+// instruments keep a breath/bow envelope. The score and bass gate remain unchanged.
 export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, time: number, duration: number,
   noiseBuffer: AudioBuffer, destination: AudioNode, active: Set<AudioScheduledSourceNode>) {
-  const id=event.instrument!, percussion=event.layer==='rhythm', bass=event.layer==='bass';
-  const gain=context.createGain(), filter=context.createBiquadFilter(), pan=context.createStereoPanner();
-  filter.type='lowpass';filter.frequency.value=event.cutoff;filter.Q.value=.55;pan.pan.value=event.pan;
+  const id = event.instrument!, percussion = event.layer === 'rhythm', bass = event.layer === 'bass';
+  if ((!percussion && !event.notes.length) || !Number.isFinite(event.gain) || event.gain <= 0 || !Number.isFinite(duration) || duration <= 0) return;
+  const variation = random(id, `${event.at}:${event.notes.join(',')}:${event.voice}`);
+  const velocity = Math.min(1, Math.max(.15, event.gain / (bass ? .18 : event.layer === 'harmony' ? .12 : .075)));
+  const gain = context.createGain(), filter = context.createBiquadFilter(), pan = context.createStereoPanner();
+  filter.type = 'lowpass'; filter.frequency.value = event.cutoff; filter.Q.value = .55; pan.pan.value = event.pan;
   gain.connect(filter).connect(pan).connect(destination);
-  const nodes:AudioNode[]=[gain,filter,pan], sources:AudioScheduledSourceNode[]=[];
-  let attack=.006, release=.10, sustain=.24, level=1, hold=duration;
-  if(id==='h-felt'){attack=.009;release=.16;sustain=.18;level=.94;filter.frequency.value*=.85;}
-  if(id==='h-electric'){attack=.006;release=.20;sustain=.24;level=.92;}
-  if(id==='h-organ'){attack=.022;release=.09;sustain=.62;level=.64;}
-  if(id==='h-pad'){attack=Math.min(.24,duration*.32);release=.24;sustain=.75;level=.85;filter.frequency.value*=.86;}
-  if(id==='m-bell'){attack=.003;release=.12;sustain=.16;level=.80;filter.frequency.value*=1.25;}
-  if(id==='m-marimba'){attack=.004;release=.055;sustain=.11;level=1.12;filter.frequency.value*=.85;}
-  if(id==='m-flute'){attack=Math.min(.04,duration*.25);release=.12;sustain=.65;level=.64;filter.frequency.value*=.9;}
-  if(id==='m-pluck'){attack=.005;release=.09;sustain=.19;level=.88;}
-  if(bass){attack=.007;release=.065;sustain=id==='b-pluck'?.27:.65;level=id==='b-analog'?.74:id==='b-sub'?1.12:1;filter.frequency.value=id==='b-analog'?650:id==='b-pluck'?850:440;}
-  if(percussion){
-    attack=.003;release=.015;sustain=.035;
-    hold=event.voice==='kick'?(id==='r-click'?.13:id==='r-brush'?.18:.24):event.voice==='snare'?(id==='r-brush'?.18:id==='r-click'?.055:.115):id==='r-brush'?.07:.035;
-    level=id==='r-brush'?.78:id==='r-click'?.80:1;
+  const nodes: AudioNode[] = [gain, filter, pan], sources: AudioScheduledSourceNode[] = [];
+  let attack = .006, release = .24, decay = .65, sustain = 0, level = 1, hold = duration;
+  if (id === 'h-felt') { attack = .006; decay = 1.35; release = .34; level = .94; }
+  if (id === 'h-electric') { decay = 1.6; release = .40; level = .92; }
+  if (id === 'h-organ') { attack = .025; sustain = .72; release = .16; level = .64; }
+  if (id === 'h-pad') { attack = Math.min(.28, duration * .3); sustain = .80; release = .58; level = .85; }
+  if (id === 'm-bell') { attack = .003; decay = 1.05; release = .52; level = .85; }
+  if (id === 'm-marimba') { attack = .003; decay = .30; release = .18; level = 1.12; }
+  if (id === 'm-flute') { attack = Math.min(.055, duration * .25); sustain = .85; release = .18; level = .64; }
+  if (id === 'm-pluck') { attack = .004; decay = .42; release = .22; level = .88; }
+  if (bass) {
+    attack = .007; release = .055; decay = id === 'b-pluck' ? .30 : 2.4;
+    sustain = id === 'b-sub' ? .78 : 0;
+    level = id === 'b-analog' ? .74 : id === 'b-sub' ? 1.12 : 1;
+    filter.frequency.value = id === 'b-analog' ? 650 : id === 'b-pluck' ? 850 : 440;
   }
-  hold=Math.max(hold,attack+.012);
-  const end=time+hold+release, amplitude=event.gain*level/Math.max(1,event.notes.length);
-  gain.gain.setValueAtTime(0,time);
-  gain.gain.linearRampToValueAtTime(amplitude,time+attack);
-  gain.gain.exponentialRampToValueAtTime(Math.max(.00001,amplitude*sustain),time+Math.min(hold,attack+(bass?.13:.22)));
-  gain.gain.setValueAtTime(Math.max(.00001,amplitude*sustain),time+hold);
-  gain.gain.exponentialRampToValueAtTime(.00001,end);gain.gain.setValueAtTime(0,end+.005);
-  const osc=(frequency:number,type:OscillatorType='sine',amount=1,detune=0)=>{
-    const source=context.createOscillator(),mix=context.createGain();source.type=type;source.frequency.value=frequency;source.detune.value=detune;mix.gain.value=amount;
-    source.connect(mix).connect(gain);nodes.push(mix);sources.push(source);return source;
+  if (percussion) {
+    attack = .002; release = .025;
+    hold = event.voice === 'kick' ? (id === 'r-click' ? .13 : id === 'r-brush' ? .18 : .24)
+      : event.voice === 'snare' ? (id === 'r-brush' ? .22 : id === 'r-click' ? .07 : .16) : id === 'r-brush' ? .10 : .065;
+    decay = hold / (event.voice === 'hat' ? 4 : 3.5);
+    level = id === 'r-brush' ? .78 : id === 'r-click' ? .80 : 1;
+  }
+  hold = Math.max(hold, attack + .012);
+  const end = time + hold + release;
+  const amplitude = event.gain * level * (.97 + variation * .06) / Math.max(1, event.notes.length);
+  const epsilon = 1e-6;
+  gain.gain.setValueAtTime(0, time);
+  gain.gain.linearRampToValueAtTime(amplitude, time + attack);
+  // Two slopes for breath/sustained sounds; uninterrupted natural decay for strikes.
+  const decayEnd = Math.min(hold, attack + .18);
+  if (sustain) {
+    gain.gain.exponentialRampToValueAtTime(Math.max(epsilon, amplitude * sustain), time + decayEnd);
+    gain.gain.exponentialRampToValueAtTime(Math.max(epsilon, amplitude * sustain * .90), time + hold);
+  } else {
+    gain.gain.exponentialRampToValueAtTime(Math.max(epsilon, amplitude * Math.exp(-(hold - attack) / decay)), time + hold);
+  }
+  gain.gain.exponentialRampToValueAtTime(epsilon, end);
+  gain.gain.linearRampToValueAtTime(0, end + .005);
+  if (!percussion) {
+    const brightness = Math.min(context.sampleRate * .45, filter.frequency.value * (.8 + velocity * .35));
+    filter.frequency.setValueAtTime(brightness, time);
+    filter.frequency.exponentialRampToValueAtTime(Math.max(120, brightness * (sustain ? .83 : bass ? .63 : .50)), time + Math.min(hold, bass ? .22 : .7));
+  }
+  const osc = (frequency: number, type: OscillatorType = 'sine', amount = 1, detune = 0, partialDecay = 0) => {
+    const source = context.createOscillator(), mix = context.createGain();
+    source.type = type; source.frequency.value = Math.min(frequency, context.sampleRate * .45); source.detune.value = detune;
+    mix.gain.setValueAtTime(amount, time);
+    if (partialDecay) mix.gain.setTargetAtTime(0, time, partialDecay);
+    source.connect(mix).connect(gain); nodes.push(mix); sources.push(source); return source;
   };
-  const fm=(frequency:number,ratio:number,index:number,decay:number,amount=1)=>{
-    const carrier=osc(frequency,'sine',amount),mod=context.createOscillator(),depth=context.createGain();
-    mod.frequency.value=frequency*ratio;depth.gain.setValueAtTime(frequency*index,time);depth.gain.exponentialRampToValueAtTime(.001,time+decay);
-    mod.connect(depth).connect(carrier.frequency);sources.push(mod);nodes.push(depth);
+  const fm = (frequency: number, ratio: number, index: number, decayTime: number, amount = 1) => {
+    const carrier = osc(frequency, 'sine', amount), mod = context.createOscillator(), depth = context.createGain();
+    mod.frequency.value = frequency * ratio;
+    depth.gain.setValueAtTime(frequency * index * (.55 + velocity * .45), time);
+    depth.gain.setTargetAtTime(0, time, decayTime);
+    mod.connect(depth).connect(carrier.frequency); sources.push(mod); nodes.push(depth); return carrier;
   };
-  const noise=(highpass:number,amount:number)=>{
-    const source=context.createBufferSource(),hp=context.createBiquadFilter(),mix=context.createGain();source.buffer=noiseBuffer;
-    hp.type='highpass';hp.frequency.value=highpass;mix.gain.value=amount;source.connect(hp).connect(mix).connect(gain);sources.push(source);nodes.push(hp,mix);
+  const noise = (frequency: number, amount: number, decayTime = 0, bandpass = false) => {
+    const source = context.createBufferSource(), tone = context.createBiquadFilter(), mix = context.createGain();
+    source.buffer = noiseBuffer; source.loop = true;
+    // Different attacks read different parts of the same deterministic noise buffer.
+    source.loopStart = variation * .7; source.loopEnd = noiseBuffer.duration;
+    tone.type = bandpass ? 'bandpass' : 'highpass'; tone.frequency.value = frequency; tone.Q.value = .7;
+    mix.gain.setValueAtTime(amount, time); if (decayTime) mix.gain.setTargetAtTime(0, time, decayTime);
+    source.connect(tone).connect(mix).connect(gain); sources.push(source); nodes.push(tone, mix);
   };
-  if(percussion){
-    if(event.voice==='kick'){
-      const start=id==='r-electro'?135:id==='r-click'?165:id==='r-brush'?85:110;
-      const bottom=id==='r-electro'?42:id==='r-click'?65:48;
-      const source=osc(start);source.frequency.setValueAtTime(start,time);source.frequency.exponentialRampToValueAtTime(bottom,time+(id==='r-click'?.035:.085));
-      filter.frequency.value=id==='r-click'?950:500;
-      if(id==='r-electro')osc(bottom,'triangle',.13);
-    }else if(event.voice==='snare'){
-      noise(id==='r-brush'?650:id==='r-click'?2100:1200,id==='r-brush'?.85:.7);
-      if(id!=='r-brush')osc(id==='r-electro'?195:id==='r-click'?400:175,'sine',.32);
-      filter.frequency.value=id==='r-tape'?3400:id==='r-brush'?4200:6500;
-    }else{
-      if(id==='r-electro'){osc(7100,'square',.12);osc(9300,'square',.09);noise(5800,.45);}
-      else noise(id==='r-brush'?3700:id==='r-click'?7200:5000,id==='r-click'?.75:1);
-      filter.frequency.value=id==='r-brush'?6400:9200;
+  const vibrato = (carriers: OscillatorNode[], depthCents: number, rate: number) => {
+    const lfo = context.createOscillator(), depth = context.createGain(); lfo.frequency.value = rate;
+    depth.gain.setValueAtTime(0, time);
+    depth.gain.setValueAtTime(0, time + Math.min(.16, hold * .25));
+    depth.gain.linearRampToValueAtTime(depthCents, time + Math.min(.45, hold * .75));
+    lfo.connect(depth); for (const carrier of carriers) depth.connect(carrier.detune);
+    sources.push(lfo); nodes.push(depth);
+  };
+  if (percussion) {
+    if (event.voice === 'kick') {
+      const start = id === 'r-electro' ? 135 : id === 'r-click' ? 165 : id === 'r-brush' ? 85 : 110;
+      const bottom = id === 'r-electro' ? 42 : id === 'r-click' ? 65 : 48;
+      const source = osc(start); source.frequency.setValueAtTime(start, time);
+      source.frequency.exponentialRampToValueAtTime(bottom, time + (id === 'r-click' ? .035 : .085));
+      filter.frequency.value = id === 'r-click' ? 950 : 500;
+      noise(700, .10, .008, true);
+      if (id === 'r-electro') osc(bottom, 'triangle', .13, 0, .12);
+    } else if (event.voice === 'snare') {
+      noise(id === 'r-brush' ? 650 : id === 'r-click' ? 2100 : 1200, id === 'r-brush' ? .85 : .7);
+      if (id !== 'r-brush') { osc(id === 'r-click' ? 400 : 185, 'sine', .28, 0, .055); osc(330, 'sine', .10, 0, .025); }
+      filter.frequency.value = id === 'r-tape' ? 3400 : id === 'r-brush' ? 4200 : 6500;
+    } else {
+      if (id === 'r-electro') { osc(7100, 'square', .12, 0, .02); osc(9300, 'square', .09, 0, .015); noise(5800, .45); }
+      else noise(id === 'r-brush' ? 3700 : id === 'r-click' ? 7200 : 5000, id === 'r-click' ? .75 : 1);
+      filter.frequency.value = id === 'r-brush' ? 6400 : 9200;
     }
-  }else for(const note of event.notes){
-    const f=440*2**((note-69)/12);
-    switch(id){
-      case 'h-felt': fm(f,1,.35,.12,.82);osc(f,'triangle',.18);break;
-      case 'h-electric': fm(f,2,.85,.42,.85);osc(f*2,'sine',.12);break;
-      case 'h-organ': osc(f,'sine',.64);osc(f*2,'sine',.23);osc(f*3,'sine',.10);break;
-      case 'h-pad': osc(f,'triangle',.48,-5);osc(f,'sine',.48,5);break;
-      case 'b-sub': osc(f,'sine');break;
-      case 'b-round': osc(f,'sine',.78);osc(f,'triangle',.22);break;
-      case 'b-pluck': fm(f,1,.75,.11,.8);osc(f,'triangle',.2);break;
-      case 'b-analog': osc(f,'sawtooth',.26,-3);osc(f,'triangle',.3,3);osc(f,'sine',.44);break;
-      case 'm-bell': fm(f,2.01,1.7,.30,.9);osc(f*3,'sine',.05);break;
-      case 'm-marimba': fm(f,3.99,.7,.055,.82);osc(f,'sine',.18);break;
-      case 'm-flute': osc(f,'sine',.82);osc(f*2,'sine',.13);osc(f*3,'sine',.04);break;
-      case 'm-pluck': fm(f,2,1.1,.13,.8);osc(f,'triangle',.2);break;
+  } else for (const note of event.notes) {
+    const f = 440 * 2 ** ((note - 69) / 12), detune = (random(id, `${event.at}:${note}`) - .5) * 3;
+    switch (id) {
+      case 'h-felt':
+        osc(f, 'sine', .70, detune); osc(f * 2.001, 'sine', .19 * velocity, detune, .7);
+        osc(f * 3.004, 'sine', .085 * velocity, detune, .28); osc(f * 4.009, 'sine', .025, detune, .12);
+        noise(1500, .025, .012, true); break;
+      case 'h-electric':
+        fm(f, 2, .85, .25, .85); osc(f * 2, 'sine', .12, detune, .55); noise(2200, .012, .008, true); break;
+      case 'h-organ': {
+        const carriers = [osc(f, 'sine', .64), osc(f * 2, 'sine', .23), osc(f * 3, 'sine', .10)];
+        vibrato(carriers, 2.5, 5.1); break;
+      }
+      case 'h-pad': {
+        const carriers = [osc(f, 'triangle', .40, -4 + detune), osc(f, 'sine', .45, 4 + detune), osc(f * 2, 'sine', .09, 1)];
+        vibrato(carriers, 3, .7 + variation * .15); break;
+      }
+      case 'b-sub': osc(f, 'sine'); break;
+      case 'b-round': osc(f, 'sine', .78); osc(f, 'triangle', .22, 0, .5); break;
+      case 'b-pluck': fm(f, 1, .75, .065, .8); osc(f * 2, 'sine', .18, 0, .10); break;
+      case 'b-analog': osc(f, 'sawtooth', .26, -3); osc(f, 'triangle', .3, 3); osc(f, 'sine', .44); break;
+      case 'm-bell':
+        osc(f, 'sine', .76, detune); osc(f * 2.756, 'sine', .15, detune, .38); osc(f * 5.404, 'sine', .055, detune, .16); break;
+      case 'm-marimba':
+        osc(f, 'sine', .80, detune); osc(f * 3.99, 'sine', .17, detune, .045); osc(f * 10, 'sine', .025, detune, .018);
+        noise(1200, .022, .01, true); break;
+      case 'm-flute': {
+        const carriers = [osc(f, 'sine', .82, detune), osc(f * 2, 'sine', .13, detune), osc(f * 3, 'sine', .04, detune)];
+        noise(1800, .055 + velocity * .025, 0, true); vibrato(carriers, 7 + velocity * 3, 4.8 + variation * .5); break;
+      }
+      case 'm-pluck':
+        osc(f, 'triangle', .74, detune); osc(f * 2, 'sine', .18, detune, .12); osc(f * 3, 'sine', .07, detune, .055);
+        noise(2400, .028, .01, true); break;
       default: osc(f);
     }
   }
-  let alive=sources.length;
-  for(const source of sources){
-    active.add(source);source.onended=()=>{active.delete(source);source.disconnect();if(--alive===0)for(const node of nodes)node.disconnect();};
-    source.start(time);source.stop(end+.015);
+  let alive = sources.length;
+  for (const source of sources) {
+    active.add(source);
+    source.onended = () => { active.delete(source); source.disconnect(); if (--alive === 0) for (const node of nodes) node.disconnect(); };
+    if (source instanceof AudioBufferSourceNode) source.start(time, variation * .7); else source.start(time);
+    source.stop(end + .015);
   }
 }

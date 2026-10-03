@@ -16,7 +16,7 @@ export type Layer = 'harmony' | 'bass' | 'rhythm' | 'motif';
 export type Voice = 'keys' | 'pad' | 'bass' | 'pluck' | 'arp' | 'kick' | 'snare' | 'hat';
 export interface Settings {
   generatorVersion: 1 | 2 | 3 | 4; profile: ProfileId; seed: string; bpm: number; energy: number; warmth: number;
-  evolution: number; volume: number; layers: Record<Layer, boolean>; instruments: InstrumentMix; groove: 'straight' | 'dnb';
+  evolution: number; reverb: number; volume: number; layers: Record<Layer, boolean>; instruments: InstrumentMix; groove: 'straight' | 'dnb';
 }
 export interface MusicEvent {
   at: number; length: number; voice: Voice; layer: Layer; notes: number[];
@@ -33,7 +33,7 @@ export const PROFILES = {
   ambient: { name: 'Quiet space', subtitle: '넓은 공간, 느리게 번지는 화음', description: '문장과 생각 사이에, 조용한 여백을.', bpm: 64, energy: 25, warmth: 60, evolution: 25, tag: 'AMBIENT', number: '02' },
   dub: { name: 'After hours', subtitle: '둥근 저음, 절제된 전자 리듬', description: '일정한 박자에 몸을 맡기고, 한 걸음 더.', bpm: 108, energy: 48, warmth: 62, evolution: 40, tag: 'DEEP ELECTRONIC', number: '03' },
 } as const;
-export const DEFAULTS: Settings = { generatorVersion: 4, groove: 'straight', instruments: chooseInstruments('lofi', 'SLOWFLOW'), profile: 'lofi', seed: 'SLOWFLOW', bpm: 78, energy: 42, warmth: 72, evolution: 35, volume: 55, layers: { harmony: true, bass: true, rhythm: true, motif: true } };
+export const DEFAULTS: Settings = { generatorVersion: 4, groove: 'straight', instruments: chooseInstruments('lofi', 'SLOWFLOW'), profile: 'lofi', seed: 'SLOWFLOW', bpm: 78, energy: 42, warmth: 72, evolution: 35, reverb: 28, volume: 55, layers: { harmony: true, bass: true, rhythm: true, motif: true } };
 export const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 export function normalizeSettings(input: unknown): Settings {
@@ -52,6 +52,7 @@ export function normalizeSettings(input: unknown): Settings {
     seed,
     bpm: number('bpm', 50, version >= 3 ? 180 : 130), energy: number('energy', 0, 100), warmth: number('warmth', 0, 100),
     evolution: number('evolution', 0, 100), volume: number('volume', 0, 100),
+    reverb: typeof s.reverb === 'number' && Number.isFinite(s.reverb) ? Math.round(clamp(s.reverb, 0, 100)) : profile === 'ambient' ? 76 : 28,
     layers: Object.fromEntries(LAYERS.map((key) => [key, typeof s.layers?.[key] === 'boolean' ? s.layers[key] : true])) as Record<Layer, boolean>,
   };
 }

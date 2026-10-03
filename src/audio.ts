@@ -6,12 +6,13 @@ import clockUrl from './clock.worklet.js?url';
 import { scheduleDuck } from './duck';
 import { createMastering, volumeGain } from './mastering';
 import { instrumentVoice } from './synth';
+import { createRoom, reverbGain } from './reverb';
 
 interface Scene {
   settings: Settings; cyclist: Cyclist; output: GainNode; input: GainNode;
   layers: Record<Layer, GainNode>; nodes: AudioNode[]; sources: Set<AudioScheduledSourceNode>;
   tick: (() => void) | null; pending?: { settings: Settings; bar: number; pattern: Pattern };
-  bassDuck: GainNode; liveRhythm: boolean;
+  bassDuck: GainNode; liveRhythm: boolean; roomWet: GainNode;
 }
 export class MusicEngine {
   context: AudioContext | null = null;
@@ -99,12 +100,9 @@ export class MusicEngine {
     const input = context.createGain();
     const output = context.createGain(); output.gain.value = 0;
     const dry = context.createGain(); dry.gain.value = settings.profile === 'ambient' ? .8 : 1;
-    const room = context.createConvolver(); room.buffer = this.impulse;
-    const roomHp = context.createBiquadFilter(); roomHp.type = 'highpass'; roomHp.frequency.value = 220;
-    const roomFilter = context.createBiquadFilter(); roomFilter.type = 'lowpass'; roomFilter.frequency.value = 3400;
-    const wet = context.createGain(); wet.gain.value = settings.profile === 'ambient' ? .35 : .13;
+    const room = createRoom(context, this.impulse, settings.reverb);
     input.connect(dry).connect(output);
-    input.connect(room).connect(roomHp).connect(roomFilter).connect(wet).connect(output);
+    input.connect(room.input); room.wet.connect(output);
     const halfTime = settings.generatorVersion >= 4 && settings.profile === 'dub' && settings.groove === 'dnb';
     const delay = context.createDelay(2); delay.delayTime.value = 60 / settings.bpm * (halfTime ? 1.5 : .75);
     const delayFilter = context.createBiquadFilter(); delayFilter.type = 'lowpass'; delayFilter.frequency.value = 1700;
@@ -119,8 +117,8 @@ export class MusicEngine {
       const gain = context.createGain(); gain.gain.value = settings.layers[layer] ? 1 : 0;
       gain.connect(layer === 'bass' ? bassDuck : input); return [layer, gain];
     })) as Record<Layer, GainNode>;
-    const scene: Scene = { settings, output, input, layers, bassDuck, liveRhythm: settings.layers.rhythm, sources: new Set(), tick: null,
-      nodes: [input, output, bassDuck, dry, room, roomHp, roomFilter, wet, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers)], cyclist: null! };
+    const scene: Scene = { settings, output, input, layers, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), tick: null,
+      nodes: [input, output, bassDuck, dry, ...room.nodes, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers)], cyclist: null! };
     scene.cyclist = new Cyclist({ getTime: () => context.currentTime, interval: .05, latency: .18,
       setInterval: (callback) => { scene.tick = callback; return ++this.sceneNumber; },
       clearInterval: () => { scene.tick = null; },
@@ -155,6 +153,7 @@ export class MusicEngine {
   }
   update(settings: Settings) {
     this.setVolume(settings.volume);
+    this.setReverb(settings.reverb);
     const scene = this.scene;
     if (!scene || !this.playing) return;
     for (const layer of LAYERS) this.ramp(scene.layers[layer].gain, settings.layers[layer] ? 1 : 0, .08);
@@ -174,6 +173,14 @@ export class MusicEngine {
   setVolume(volume: number) {
     if (this.context) this.ramp(this.master.gain, volumeGain(volume), .08);
   }
+  setReverb(amount: number) {
+    if (!this.context) return;
+    for (const scene of [...this.retired, ...(this.scene ? [this.scene] : [])]) {
+      this.ramp(scene.roomWet.gain, reverbGain(amount), .12);
+      scene.settings = { ...scene.settings, reverb: amount };
+      if (scene.pending) scene.pending.settings = { ...scene.pending.settings, reverb: amount };
+    }
+  }
   setTimer(minutes: number) {
     this.timerAt = minutes > 0 && this.context && this.playing ? this.context.currentTime + minutes * 60 : null;
   }
@@ -186,7 +193,7 @@ export class MusicEngine {
     return { playing: this.playing, state: this.context?.state ?? 'uninitialized', activeSources: (this.scene?.sources.size ?? 0)
       + Array.from(this.retired).reduce((sum, scene) => sum + scene.sources.size, 0), triggered: this.triggered,
       late: this.late, lastError: this.lastError, bar: this.bar, pending: this.pending, sampleRate: this.context?.sampleRate,
-      duckCount: this.duckCount, bassGain: this.scene?.bassDuck.gain.value ?? 1,
+      reverbWet: this.scene?.roomWet.gain.value ?? 0, duckCount: this.duckCount, bassGain: this.scene?.bassDuck.gain.value ?? 1,
       glueReduction: this.mastering?.glue.reduction ?? 0, limiterReduction: this.mastering?.limiter.reduction ?? 0 };
   }
   async stop() {
