@@ -5,7 +5,7 @@ const ko = {
   appName:'가릉빈가', home:'가릉빈가 홈', language:'언어', korean:'한국어', english:'영어',
   theme:'화면 테마', light:'밝은 테마', dark:'어두운 테마', system:'시스템 테마',
   lofi:'따뜻한 책상', ambient:'고요한 공간', dub:'늦은 밤', atmosphere:'음악 분위기', player:'음악 플레이어', waveform:'전체 출력 파형', sky:'소리에 반응하는 별하늘', chords:'코드 진행',
-  play:'재생', stop:'정지', playMusic:'음악 재생', stopMusic:'음악 정지', preparing:'준비 중', playing:'재생 중', pending:'다음 마디에 반영', regenerate:'새 흐름', save:'현재 음악 저장', share:'음악 링크 복사',
+  play:'재생', stop:'정지', playMusic:'음악 재생', stopMusic:'음악 정지', preparing:'준비 중', playing:'재생 중', pending:'다음 마디에 반영', regenerate:'새 흐름', save:'현재 8마디 저장', share:'음악 설정 링크 복사',
   groove:'리듬 패턴', straight:'포 온 더 플로어', dnb:'드럼 앤 베이스', focus:'집중 화면', full:'전체 화면', instruments:'악기', harmony:'화음', bass:'베이스', rhythm:'리듬', motif:'멜로디', timbre:'{part} 음색', legacy:'기존 음색',
   controls:'조절', reset:'기본값', resetLabel:'슬라이더를 기본값으로 복원', bpm:'템포', energy:'에너지', warmth:'온기', evolution:'변화', reverb:'리버브', volume:'볼륨', help:'{label} 설명',
   energyTip:'음표와 리듬의 밀도', warmthTip:'건반·멜로디의 고음을 부드럽게', evolutionTip:'모티프 변주의 폭과 빈도',
@@ -17,15 +17,15 @@ const ko = {
   description:'당신의 속도로 흐르는 음악. 로그인 없이 브라우저에서 만드는 무료 노동요.', album:'당신의 속도로 흐르는 음악',
   storageFailed:'브라우저 저장 공간을 사용할 수 없어 이번 설정은 저장되지 않았어요.', startFailed:'음악을 시작하지 못했어요. 다시 시도해 주세요.', changeFailed:'음악을 바꾸지 못했어요. 다시 재생해 주세요.',
   audioUnavailable:'오디오 엔진을 시작하지 못했어요. 최신 Chrome·Edge·Firefox에서 다시 시도해 주세요.', audioLocked:'오디오가 잠겨 있어요. 재생 버튼을 다시 눌러 주세요.', audioError:'음악 재생 중 오류가 생겼어요. 정지 후 다시 재생해 주세요.',
-  alreadySaved:'이미 저장한 흐름이에요.', savedLimit:'12개까지 저장할 수 있어요. 이전 흐름을 지우고 새로 저장해 주세요.', savedDone:'이 흐름을 저장했어요.', savedTemporary:'브라우저 저장 공간이 없어 새로고침하면 저장이 사라져요.', deleted:'저장한 흐름을 지웠어요.',
-  copied:'같은 음악으로 시작하는 링크를 복사했어요.', copyFailed:'링크를 복사하지 못했어요. 브라우저의 클립보드 권한을 확인해 주세요.', timerReady:'재생을 시작하면 {count}분 타이머가 시작돼요.', timerDone:'집중 시간이 끝났어요. 잠깐 쉬어가세요.', sharedLoaded:'공유한 흐름을 불러왔어요. 재생을 눌러 시작하세요.', resetDone:'현재 분위기의 슬라이더 기본값으로 복원했어요.',
+  alreadySaved:'이미 저장한 구절이에요.', savedLimit:'12개까지 저장할 수 있어요. 이전 구절을 지우고 새로 저장해 주세요.', savedDone:'지금 구절의 8마디를 저장했어요.', savedTemporary:'브라우저 저장 공간이 없어 새로고침하면 저장이 사라져요.', deleted:'저장한 구절을 지웠어요.',
+  copied:'음악 설정 링크를 복사했어요.', copyFailed:'링크를 복사하지 못했어요. 브라우저의 클립보드 권한을 확인해 주세요.', timerReady:'재생을 시작하면 {count}분 타이머가 시작돼요.', timerDone:'집중 시간이 끝났어요. 잠깐 쉬어가세요.', sharedLoaded:'공유한 흐름을 불러왔어요. 재생을 눌러 시작하세요.', resetDone:'현재 분위기의 슬라이더 기본값으로 복원했어요.',
 } as const;
 export type TextKey = keyof typeof ko;
 const en: Record<TextKey, string> = {
   appName:'Kalavinka', home:'Kalavinka home', language:'Language', korean:'Korean', english:'English',
   theme:'Theme', light:'Light theme', dark:'Dark theme', system:'System theme',
   lofi:'Warm desk', ambient:'Quiet space', dub:'After hours', atmosphere:'Music mood', player:'Music player', waveform:'Output waveform', sky:'Sound-reactive starfield', chords:'Chord progression',
-  play:'Play', stop:'Stop', playMusic:'Play music', stopMusic:'Stop music', preparing:'Preparing', playing:'Playing', pending:'Changes on the next bar', regenerate:'New flow', save:'Save this music', share:'Copy music link',
+  play:'Play', stop:'Stop', playMusic:'Play music', stopMusic:'Stop music', preparing:'Preparing', playing:'Playing', pending:'Changes on the next bar', regenerate:'New flow', save:'Save these 8 bars', share:'Copy music settings link',
   groove:'Rhythm pattern', straight:'Four on the floor', dnb:'Drum & bass', focus:'Focus view', full:'Full view', instruments:'Instruments', harmony:'Harmony', bass:'Bass', rhythm:'Rhythm', motif:'Melody', timbre:'{part} sound', legacy:'Legacy sound',
   controls:'Controls', reset:'Reset', resetLabel:'Reset sliders to defaults', bpm:'Tempo', energy:'Energy', warmth:'Warmth', evolution:'Variation', reverb:'Reverb', volume:'Volume', help:'About {label}',
   energyTip:'Density of notes and rhythm', warmthTip:'Soften highs in harmony and melody', evolutionTip:'Depth and frequency of motif variations',
@@ -37,8 +37,8 @@ const en: Record<TextKey, string> = {
   description:'Music at your pace. Free work music generated in your browser, with no sign-in.', album:'Music at your pace',
   storageFailed:'Browser storage is unavailable. These settings were not saved.', startFailed:'Could not start the music. Please try again.', changeFailed:'Could not change the music. Press Play to try again.',
   audioUnavailable:'Could not start the audio engine. Try a recent version of Chrome, Edge or Firefox.', audioLocked:'Audio is locked. Press Play again.', audioError:'An audio error occurred. Stop and press Play to try again.',
-  alreadySaved:'This flow is already saved.', savedLimit:'You can save up to 12 flows. Remove an older one to save another.', savedDone:'Flow saved.', savedTemporary:'Browser storage is unavailable. This saved flow will be lost on reload.', deleted:'Saved flow deleted.',
-  copied:'Copied a link that starts with the same music.', copyFailed:'Could not copy the link. Check your browser clipboard permissions.', timerReady:'The {count}-minute timer starts when you press Play.', timerDone:'Focus time is over. Take a short break.', sharedLoaded:'Shared flow loaded. Press Play to start.', resetDone:'Sliders reset to the current mood’s defaults.',
+  alreadySaved:'This phrase is already saved.', savedLimit:'You can save up to 12 phrases. Remove an older one to save another.', savedDone:'Eight-bar phrase saved.', savedTemporary:'Browser storage is unavailable. This saved phrase will be lost on reload.', deleted:'Saved phrase deleted.',
+  copied:'Music settings link copied.', copyFailed:'Could not copy the link. Check your browser clipboard permissions.', timerReady:'The {count}-minute timer starts when you press Play.', timerDone:'Focus time is over. Take a short break.', sharedLoaded:'Shared flow loaded. Press Play to start.', resetDone:'Sliders reset to the current mood’s defaults.',
 };
 export const messages = { ko, en };
 export function translate(language: Language, key: TextKey, values: Record<string, string | number> = {}): string {

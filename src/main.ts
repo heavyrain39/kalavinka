@@ -6,11 +6,13 @@ import { Starfield } from './starfield';
 import { recipeFor, hasEnding } from './harmony-v5';
 import { INSTRUMENTS, resolveDrumKit } from './instruments';
 import { MusicEngine } from './audio';
-import { LAYERS, PROFILES, normalizeSettings, upgradeSettings, regenerateSettings, selectProfile, progression, chordHold, musicScore, type Settings, type ProfileId, type Layer } from './music';
+import {capturePhrase,normalizePhrase,favoriteIdentity,playbackScore,compositionIdentity,type SavedPhrase} from './saved-phrase';
+import { LAYERS, PROFILES, normalizeSettings, upgradeSettings, regenerateSettings, selectProfile, progression, type Settings, type ProfileId, type Layer } from './music';
 
 const PORTFOLIO = 'https://heavyrain39.github.io/portfolio/';
 const STORAGE = 'worksong.v1';
-const FAVORITES = 'worksong.favorites.v2';
+const SELECTION = 'worksong.selection.v1';
+const FAVORITES = 'worksong.favorites.v3';
 const read = (key: string) => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, value: unknown) => { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } };
 let language: Language = browserLanguage(navigator.language);
@@ -19,18 +21,25 @@ const aria = (key: TextKey) => `data-i18n-aria="${key}" aria-label="${t(key)}"`;
 const label = (key: TextKey) => `<span data-i18n="${key}">${t(key)}</span>`;
 const saved = read(STORAGE);
 let settings = upgradeSettings(saved);
+let selectedPhrase:SavedPhrase|undefined;
+const savedSelection=read(SELECTION),savedPhrase=normalizePhrase(savedSelection?.phrase);
+if(savedPhrase&&JSON.stringify(normalizeSettings(savedSelection.settings))===JSON.stringify(normalizeSettings(saved))){
+  settings=normalizeSettings(savedSelection.settings);selectedPhrase=savedPhrase;
+}
 let shared = false;
 if (location.hash.startsWith('#mix=')) {
-  try { settings = normalizeSettings(JSON.parse(decodeURIComponent(location.hash.slice(5)))); shared = true; } catch { /* ignore invalid links */ }
+  try { settings = normalizeSettings(JSON.parse(decodeURIComponent(location.hash.slice(5))));selectedPhrase=undefined; shared = true; } catch { /* ignore invalid links */ }
 }
-interface Favorite { id: string; number: number; settings: Settings }
-const storedFavorites = read(FAVORITES);
+let selectedComposition=compositionIdentity(settings);
+interface Favorite { id: string; number: number; settings: Settings; phrase?:SavedPhrase }
+const currentFavorites=read(FAVORITES),previousFavorites=read('worksong.favorites.v2');
+const storedFavorites = Array.isArray(currentFavorites?.items)?currentFavorites:Array.isArray(previousFavorites?.items)?previousFavorites:null;
 const rawFavorites = storedFavorites?.items ?? read('worksong.favorites.v1');
 const validNumber = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) > 0 && Number(value) < Number.MAX_SAFE_INTEGER;
 const favoriteCounters = Object.fromEntries((Object.keys(PROFILES) as ProfileId[]).map(profile => [profile,
   validNumber(storedFavorites?.counters?.[profile]) ? storedFavorites.counters[profile] : 0,
 ])) as Record<ProfileId, number>;
-let favorites: Favorite[] = Array.isArray(rawFavorites) ? rawFavorites.slice(0, 12).filter((item) => item && typeof item.id === 'string' && /^[0-9]+$/.test(item.id)).map((item) => ({ id: item.id, number: validNumber(item.number) ? item.number : 0, settings: normalizeSettings(item.settings) })) : [];
+let favorites: Favorite[] = Array.isArray(rawFavorites) ? rawFavorites.slice(0, 12).filter((item) => item && typeof item.id === 'string' && /^[0-9]+$/.test(item.id)).map((item) => ({ id: item.id, number: validNumber(item.number) ? item.number : 0, settings: normalizeSettings(item.settings), phrase:normalizePhrase(item.phrase) })) : [];
 // Reserve existing numbers before assigning older, unnumbered saves in save order.
 for (const item of favorites) favoriteCounters[item.settings.profile] = Math.max(favoriteCounters[item.settings.profile], item.number);
 const usedNumbers: Record<ProfileId, Set<number>> = {lofi:new Set(), ambient:new Set(), dub:new Set()};
@@ -40,7 +49,7 @@ for (const item of [...favorites].reverse()) {
   usedNumbers[profile].add(item.number);
 }
 function storeFavorites() { return write(FAVORITES, {items:favorites, counters:favoriteCounters}); }
-// Keep the old array for compatibility; new items and counters persist atomically.
+// Keep v1/v2 backups intact; v3 saves the written phrase and counters atomically.
 storeFavorites();
 const favoriteName = (item: Favorite) => `${t(item.settings.profile)} (${item.number})`;
 const engine = new MusicEngine();
@@ -102,7 +111,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer" data-i18n="terms">${t('terms')}</a><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.12.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.13.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 let currentToast: {key: TextKey; values: Record<string,string|number>} | null = null;
@@ -111,7 +120,16 @@ function toast(key: TextKey, values: Record<string,string|number> = {}) {
   $('#toast').textContent = t(key,values); $('#toast').classList.add('visible');
   clearTimeout(toastTimeout); toastTimeout = window.setTimeout(() => { $('#toast').classList.remove('visible'); currentToast = null; }, 3600);
 }
-function persist() { if (!write(STORAGE, settings)) toast('storageFailed'); }
+function persist() {
+  pausedCapture=pausedCapture&&compositionIdentity(pausedCapture.value.settings)===compositionIdentity(settings)
+    ?{settingsKey:JSON.stringify(settings),value:{settings:structuredClone(settings),phrase:pausedCapture.value.phrase}}:undefined;
+  captureCache=undefined;
+  if(selectedPhrase&&selectedComposition!==compositionIdentity(settings))selectedPhrase=capturePhrase({settings,opening:true},selectedPhrase.sourceBar);
+  selectedComposition=compositionIdentity(settings);
+  if(location.hash.startsWith('#mix='))history.replaceState(null,'',location.pathname+location.search);
+  const stored=write(STORAGE,settings),selectionStored=write(SELECTION,selectedPhrase?{settings,phrase:selectedPhrase}:null);
+  if(!stored||!selectionStored)toast('storageFailed');
+}
 function renderSettings() {
   $<HTMLInputElement>('#bpm').max = settings.generatorVersion >= 3 ? '180' : '130';
   for (const key of ['bpm', 'energy', 'warmth', 'evolution', 'reverb', 'volume'] as const) {
@@ -138,15 +156,34 @@ function renderSettings() {
   renderChords(); renderFavorites();
 }
 let chordLabels = '';
-function renderChords(audible = settings, bar = 0) {
-  const chords = progression(audible, bar), labels = chords.map(c=>c.label).join('|');
-  if(labels === chordLabels) return;
-  chordLabels = labels;
-  $('#chords').innerHTML = chords.map((chord, i) => `<div class="chord-cell" data-chord="${i}"><span class="chord-name">${chord.label}</span><div class="chord-progress"></div></div>`).join('');
+let chordRuns:{label:string;start:number;length:number}[]=[];
+function renderChords(chords=currentCapture().phrase.chords) {
+  const labels=JSON.stringify(chords.map(c=>c.label));if(labels===chordLabels)return;chordLabels=labels;
+  chordRuns=[];chords.forEach((chord,i)=>{const last=chordRuns.at(-1);if(last?.label===chord.label)last.length++;else chordRuns.push({label:chord.label,start:i,length:1});});
+  const lane=$('#chords');lane.replaceChildren();lane.style.gridTemplateColumns=`repeat(${chordRuns.length},minmax(0,1fr))`;lane.classList.toggle('dense',chordRuns.length>4);
+  chordRuns.forEach((chord,i)=>{const cell=document.createElement('div');cell.className='chord-cell';cell.dataset.chord=String(i);
+    const name=document.createElement('span');name.className='chord-name';name.textContent=chord.label;name.title=chord.label;
+    const progress=document.createElement('div');progress.className='chord-progress';cell.append(name,progress);lane.append(cell);});
+}
+let captureCache:{key:string;value:ReturnType<MusicEngine['capture']>}|undefined;
+let pausedCapture:{settingsKey:string;value:ReturnType<MusicEngine['capture']>}|undefined;
+const favoriteKeys=new Map<string,string>();
+function currentCapture(){
+  const key=JSON.stringify([settings,selectedPhrase?.sourceBar,engine.playing,Math.floor(engine.bar/8),engine.revision,engine.pending]);
+  if(captureCache?.key!==key)captureCache={key,value:!engine.playing&&pausedCapture?.settingsKey===JSON.stringify(settings)
+    ?pausedCapture.value:engine.capture(settings,selectedPhrase)};
+  return captureCache.value;
+}
+let heartKey='';
+function renderSaveState(){
+  const capture=currentCapture();
+  if(heartKey===captureCache!.key)return;heartKey=captureCache!.key;
+  const exists=[...favoriteKeys.values()].includes(favoriteIdentity(capture.settings,capture.phrase));
+  $('#favorite').classList.toggle('is-saved',exists);$('#favorite').setAttribute('aria-pressed',String(exists));
 }
 function renderFavorites() {
-  const exists = favorites.some((item) => JSON.stringify(item.settings) === JSON.stringify(settings));
-  $('#favorite').classList.toggle('is-saved', exists);
+  favoriteKeys.clear();for(const item of favorites)favoriteKeys.set(item.id,favoriteIdentity(item.settings,item.phrase??capturePhrase({settings:item.settings,opening:true})));
+  heartKey='';renderSaveState();
   $('#favorites').innerHTML = favorites.length ? `<div class="favorite-grid">${favorites.map((item) => `<div class="favorite-item"><button class="favorite-load" data-load="${item.id}" aria-label="${t('loadSaved',{name:favoriteName(item),seed:item.settings.seed})}"><span>${favoriteName(item)}</span></button><button class="favorite-delete" data-delete="${item.id}" aria-label="${t('deleteSaved',{name:favoriteName(item),seed:item.settings.seed})}">×</button></div>`).join('')}</div>` : `<span class="collection-empty">—</span>`;
 }
 function renderPlayback() {
@@ -155,6 +192,7 @@ function renderPlayback() {
   $('#play').setAttribute('aria-label', playing ? t('stopMusic') : t('playMusic'));
   $<HTMLButtonElement>('#play').disabled = busy;
   $<HTMLButtonElement>('#regenerate').disabled = busy;
+  $<HTMLButtonElement>('#favorite').disabled = busy;
   $<HTMLButtonElement>('#reset-controls').disabled = busy;
   document.querySelectorAll<HTMLSelectElement>('[data-instrument], #groove').forEach(select => { select.disabled = busy; });
   document.body.classList.toggle('is-playing', playing);
@@ -165,16 +203,16 @@ async function togglePlayback() {
   busy = true; renderPlayback();
   try {
     if (engine.playing) await engine.stop();
-    else { await engine.start(settings); engine.setVolume(settings.volume); engine.setReverb(settings.reverb); engine.setTimer(timer); }
+    else { pausedCapture=undefined;captureCache=undefined;await engine.start(settings,selectedPhrase); engine.setVolume(settings.volume); engine.setReverb(settings.reverb); engine.setTimer(timer); }
   } catch (error) { await engine.stop(); toast(error instanceof Error && error.message === 'AUDIO_UNAVAILABLE' ? 'audioUnavailable' : error instanceof Error && error.message === 'AUDIO_LOCKED' ? 'audioLocked' : 'startFailed'); }
   finally { busy = false; renderPlayback(); updateMediaSession(); }
 }
-async function replace(next: Settings) {
+async function replace(next: Settings, phrase?:SavedPhrase) {
   if (busy) return;
-  settings = normalizeSettings(next); persist(); renderSettings();
+  settings = normalizeSettings(next); selectedPhrase=phrase;selectedComposition=compositionIdentity(settings);pausedCapture=undefined;captureCache=undefined;persist(); renderSettings();
   if (engine.playing) {
     busy = true; renderPlayback();
-    try { await engine.regenerate(settings); engine.setVolume(settings.volume); engine.setReverb(settings.reverb); } catch { await engine.stop(); toast('changeFailed'); }
+    try { await engine.regenerate(settings,selectedPhrase); engine.setVolume(settings.volume); engine.setReverb(settings.reverb); } catch { await engine.stop(); toast('changeFailed'); }
     finally { busy = false; renderPlayback(); }
   }
   updateMediaSession();
@@ -230,10 +268,11 @@ $('#groove').addEventListener('change', () => {
   void replace({ ...upgradeSettings(settings), groove, bpm: groove === 'dnb' ? 170 : PROFILES.dub.bpm });
 });
 $('#favorite').addEventListener('click', () => {
-  const same = JSON.stringify(settings);
-  if (favorites.some((item) => JSON.stringify(item.settings) === same)) { toast('alreadySaved'); return; }
+  if(busy)return;
+  const capture=currentCapture(),identity=favoriteIdentity(capture.settings,capture.phrase);
+  if([...favoriteKeys.values()].includes(identity)){toast('alreadySaved');return;}
   if (favorites.length >= 12) { toast('savedLimit'); return; }
-  favorites = [{ id: String(Date.now()), number: ++favoriteCounters[settings.profile], settings: structuredClone(settings) }, ...favorites];
+  favorites = [{ id: String(Date.now()), number: ++favoriteCounters[capture.settings.profile], ...structuredClone(capture) }, ...favorites];
   const stored = storeFavorites(); renderFavorites();
   toast(stored ? 'savedDone' : 'savedTemporary');
 });
@@ -242,7 +281,7 @@ $('#favorites').addEventListener('click', (event) => {
   if (!target) return;
   if (target.dataset.load) {
     const favorite = favorites.find((item) => item.id === target.dataset.load);
-    if (favorite) void replace(structuredClone(favorite.settings));
+    if (favorite) void replace(structuredClone(favorite.settings),favorite.phrase?structuredClone(favorite.phrase):undefined);
   }
   if (target.dataset.delete) {
     favorites = favorites.filter((item) => item.id !== target.dataset.delete);
@@ -291,7 +330,8 @@ document.addEventListener('keydown', (event) => {
     event.preventDefault(); void togglePlayback();
   }
 });
-engine.onStop = () => { renderPlayback(); updateMediaSession(); toast('timerDone'); };
+engine.onBeforeStop=()=>{captureCache=undefined;pausedCapture={settingsKey:JSON.stringify(settings),value:structuredClone(currentCapture())};};
+engine.onStop = () => {captureCache=undefined;renderPlayback(); updateMediaSession(); toast('timerDone'); };
 engine.onError = () => { toast('audioError'); renderPlayback(); };
 function updateMediaSession() {
   if (!('mediaSession' in navigator)) return;
@@ -338,22 +378,22 @@ function draw(timestamp: number) {
     context.strokeStyle = style.getPropertyValue('--line-strong'); context.beginPath(); context.moveTo(0, height / 2); context.lineTo(width, height / 2); context.stroke();
   }
   $('#elapsed').textContent = time(engine.elapsed);
-  const audible = engine.audibleSettings ?? settings;
-  const bar = engine.bar, hold = chordHold(audible), length = hold * 4;
-  const barWithin = bar % length;
-  renderChords(audible, bar);
-  $('#bar-label').textContent = engine.playing ? `${Math.floor(barWithin) + 1} / ${length}` : '';
+  const view=engine.harmonyWindow,barWithin=view?.bar??0;
+  renderChords(view?.chords??currentCapture().phrase.chords);renderSaveState();
+  $('#bar-label').textContent = engine.playing ? `${Math.floor(barWithin) + 1} / 8` : '';
   $('#status-text').textContent = busy ? t('preparing') : engine.playing ? engine.pending ? t('pending') : t('playing') : t('stop');
   for (const cell of document.querySelectorAll<HTMLElement>('[data-chord]')) {
-    const current = engine.playing && Math.floor(barWithin / hold) === Number(cell.dataset.chord);
+    const run=chordRuns[Number(cell.dataset.chord)];
+    const current=engine.playing&&barWithin>=run.start&&barWithin<run.start+run.length;
     cell.classList.toggle('current', current);
-    cell.style.setProperty('--chord-progress', current ? `${(barWithin % hold) / hold * 100}%` : '0%');
+    cell.style.setProperty('--chord-progress', current ? `${(barWithin-run.start)/run.length*100}%` : '0%');
   }
   $('#timer-left').textContent = engine.remaining === null ? timer ? `${timer}:00` : '' : time(engine.remaining);
 
 }
 // Read-only inspection surface for browser/audio verification; it is not needed by the player.
 Object.defineProperty(window, '__worksong', { value: { diagnostics: () => ({ ...engine.diagnostics(), peak, language, sky: starfield.diagnostics(), harmony: { recipe: (engine.audibleSettings ?? settings).generatorVersion >= 5 ? recipeFor(engine.audibleSettings ?? settings).id : null, ending: (engine.audibleSettings ?? settings).generatorVersion >= 5 && hasEnding(engine.audibleSettings ?? settings, engine.bar), chords: progression(engine.audibleSettings ?? settings, engine.bar).map(c=>c.label) }, settings: structuredClone(settings) }),
-  events: (begin: number, end: number) => musicScore(settings).onsets(begin, end).length } });
+  savedPhrase:()=>structuredClone(currentCapture()),
+  events: (begin: number, end: number) => playbackScore({settings,phrase:selectedPhrase,opening:true}).onsets(begin, end).length } });
 applyTheme(); applyLanguage(); requestAnimationFrame(draw);
 if (shared) toast('sharedLoaded');

@@ -3,7 +3,8 @@ import {prepareDrums, type DrumBank} from './drum-bank';
 import {createDrumBus, drumVoice, drumRoomGain, type DrumBus, type HatVoice} from './drums';
 import { ownVoice } from './source-lifecycle';
 import { Transport } from './transport';
-import { musicScore, LAYERS, type Layer, type MusicEvent, type Settings } from './music';
+import { LAYERS, type Layer, type MusicEvent, type Settings } from './music';
+import {playbackScore,playbackChord,capturePhrase,relativeEvent,compositionIdentity,type Playback,type SavedPhrase} from './saved-phrase';
 import clockUrl from './clock.worklet.js?url';
 import { scheduleDuck } from './duck';
 import { createMastering, volumeGain } from './mastering';
@@ -11,7 +12,7 @@ import { instrumentVoice } from './synth';
 import { createRoom, reverbGain } from './reverb';
 
 interface Scene {
-  settings: Settings; transport: Transport<Settings>; output: GainNode; input: GainNode;
+  settings: Settings; playback: Playback; transport: Transport<Playback>; output: GainNode; input: GainNode;
   layers: Record<Layer, GainNode>; nodes: AudioNode[]; sources: Set<AudioScheduledSourceNode>; cleanups: Set<() => void>;
   bassDuck: GainNode; liveRhythm: boolean; roomWet: GainNode; drums: DrumBus; hats: HatVoice[];
 }
@@ -19,7 +20,9 @@ export class MusicEngine {
   context: AudioContext | null = null;
   analyser: AnalyserNode | null = null;
   playing = false;
+  revision = 0;
   onStop: (() => void) | null = null;
+  onBeforeStop: (() => void) | null = null;
   onError: ((message: string) => void) | null = null;
   private master!: GainNode;
   private mastering: ReturnType<typeof createMastering> | null = null;
@@ -84,7 +87,7 @@ export class MusicEngine {
   }
   private destination!: AudioNode;
 
-  async start(settings: Settings) {
+  async start(settings: Settings, phrase?:SavedPhrase) {
     if (this.playing) return;
     const token = ++this.lifecycle;
     if (this.stopPromise) await this.stopPromise;
@@ -99,9 +102,9 @@ export class MusicEngine {
     this.startedAt = context.currentTime;
     this.playing = true;
     this.setVolume(settings.volume);
-    this.scene = this.makeScene(settings, .45);
+    this.scene = this.makeScene(settings, .45,phrase);this.revision++;
   }
-  private makeScene(settings: Settings, fade: number): Scene {
+  private makeScene(settings: Settings, fade: number, phrase?:SavedPhrase): Scene {
     const context = this.context!;
     const input = context.createGain();
     const output = context.createGain(); output.gain.value = 0;
@@ -125,9 +128,10 @@ export class MusicEngine {
       gain.connect(layer === 'bass' ? bassDuck : layer === 'rhythm' ? output : input); return [layer, gain];
     })) as Record<Layer, GainNode>;
     drums.output.connect(layers.rhythm);
-    const scene: Scene = { drums, hats: [], settings, output, input, layers, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), cleanups: new Set(),
+    const playback:Playback={settings:structuredClone(settings),phrase:phrase?structuredClone(phrase):undefined,opening:true};
+    const scene: Scene = { drums, hats: [], settings, playback, output, input, layers, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), cleanups: new Set(),
       nodes: [...drums.nodes, input, output, bassDuck, dry, ...room.nodes, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers)], transport: null! };
-    scene.transport = new Transport<Settings>({
+    scene.transport = new Transport<Playback>({
       clock: () => context.currentTime,
       onError: (error) => {
         this.lastError = String(error);
@@ -136,19 +140,20 @@ export class MusicEngine {
       trigger: (event, time, duration, bpm, render) => {
         if (time < context.currentTime - .015) { this.late++; return; }
         this.triggered++;
-        this.voice(scene, event, Math.max(time, context.currentTime + .003), duration, bpm, render);
+        this.voice(scene, event, Math.max(time, context.currentTime + .003), duration, bpm, render.settings);
       },
     });
-    scene.transport.start(musicScore(settings), settings.bpm, structuredClone(settings));
+    scene.transport.start(playbackScore(playback), settings.bpm, playback);
     output.gain.setValueAtTime(0, context.currentTime);
     output.gain.linearRampToValueAtTime(1, context.currentTime + fade);
     return scene;
   }
 
-  async regenerate(settings: Settings) {
+  async regenerate(settings: Settings,phrase?:SavedPhrase) {
     if (!this.playing) return;
     const old = this.scene;
-    this.scene = this.makeScene(settings, .65);
+    this.scene = this.makeScene(settings, .65,phrase);this.revision++;
+    this.startedAt=this.context!.currentTime;
     if (old) {
       this.retired.add(old);
       old.transport.stop();
@@ -164,10 +169,14 @@ export class MusicEngine {
     for (const layer of LAYERS) this.ramp(scene.layers[layer].gain, settings.layers[layer] ? 1 : 0, .08);
     scene.liveRhythm = settings.layers.rhythm;
     if (!scene.liveRhythm) this.ramp(scene.bassDuck.gain, 1, .03);
-    scene.transport.queue(musicScore(settings), settings.bpm, () => {
+    const playback:Playback={settings:structuredClone(settings),phrase:scene.playback.phrase,
+      opening:scene.playback.opening&&compositionIdentity(settings)===compositionIdentity(scene.playback.settings)};
+    scene.transport.queue(playbackScore(playback), settings.bpm, () => {
       // The audio for this boundary has already been reserved at the new tempo.
       scene.settings = { ...settings, reverb: scene.settings.reverb };
-    }, structuredClone(settings));
+      scene.playback=playback;
+    }, playback);
+    this.revision++;
   }
 
   setVolume(volume: number) {
@@ -189,10 +198,26 @@ export class MusicEngine {
   get bar() { return this.scene && this.playing ? this.scene.transport.position : 0; }
   get pending() { return !!this.scene?.transport.pending; }
   get audibleSettings() { return this.scene?.settings ?? null; }
+  capture(settings:Settings,phrase?:SavedPhrase):{settings:Settings;phrase:SavedPhrase}{
+    const scene=this.scene;
+    if(!scene||!this.playing)return {settings:structuredClone(settings),phrase:capturePhrase({settings,phrase,opening:true})};
+    const bar=this.bar,start=Math.floor(bar/8)*8,parts=scene.transport.window(start,start+8);
+    const audible=parts.find(p=>p.from<=bar&&p.to>bar)?.render??scene.playback;
+    return {settings:structuredClone({...parts.at(-1)!.render.settings,volume:settings.volume,reverb:settings.reverb,layers:settings.layers}),
+      phrase:{version:1,sourceBar:(scene.playback.phrase?.sourceBar??0)+start,
+        events:parts.flatMap(part=>part.score.onsets(part.from,part.to)).map(e=>relativeEvent(e,start)).sort((a,b)=>a.at-b.at),
+        chords:Array.from({length:8},(_,i)=>structuredClone(playbackChord(parts.find(p=>p.from<=start+i&&p.to>start+i)?.render??audible,start+i)))}};
+  }
+  get harmonyWindow(){
+    const scene=this.scene;if(!scene||!this.playing)return null;
+    const bar=this.bar,start=Math.floor(bar/8)*8,parts=scene.transport.window(start,start+8);
+    return {bar:bar-start,chords:Array.from({length:8},(_,i)=>playbackChord(parts.find(p=>p.from<=start+i&&p.to>start+i)?.render??scene.playback,start+i))};
+  }
   diagnostics() {
     return { playing: this.playing, state: this.context?.state ?? 'uninitialized', activeSources: (this.scene?.sources.size ?? 0)
       + Array.from(this.retired).reduce((sum, scene) => sum + scene.sources.size, 0), triggered: this.triggered,
       late: this.late, clockStalls: this.scene?.transport.stalled ?? 0, lastError: this.lastError, bar: this.bar, pending: this.pending, sampleRate: this.context?.sampleRate,
+      sourceBar:this.bar+(this.scene?.playback.phrase?.sourceBar??0),savedOpening:!!this.scene?.playback.phrase&&this.scene.playback.opening&&this.bar<8,
       reverbWet: this.scene?.roomWet.gain.value ?? 0, duckCount: this.duckCount, bassGain: this.scene?.bassDuck.gain.value ?? 1,
       drumBank: this.drumBank ? {sounds:this.drumBank.size, bytes:this.drumBank.bytes} : null,
       drumReduction: this.scene?.drums?.glue.reduction ?? 0,
@@ -202,6 +227,7 @@ export class MusicEngine {
     this.lifecycle++;
     if (this.stopPromise) return this.stopPromise;
     if (!this.context) return;
+    if(this.playing){try{this.onBeforeStop?.();}catch{/* Saving a view must never prevent audio cleanup. */}}
     this.playing = false; this.timerAt = null;
     const scenes = [...this.retired, ...(this.scene ? [this.scene] : [])];
     this.scene = null; this.retired.clear();

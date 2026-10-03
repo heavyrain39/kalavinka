@@ -40,6 +40,12 @@ export class Transport<T = undefined> {
   get position() { return this.sections.length ? Math.max(0, this.barAt(this.options.clock())) : 0; }
   get pending() { return this.sections.some(s => !s.active); }
 
+  /** Retained plans for the current eight-bar phrase, including its scheduled future. */
+  window(begin:number,end:number){
+    return this.sections.map((section,i)=>({from:Math.max(begin,section.bar),to:Math.min(end,this.sections[i+1]?.bar??end),score:section.score,render:section.render}))
+      .filter(part=>part.to>part.from);
+  }
+
   /** Replace an unreserved change, or append after all audio already reserved. */
   queue(score: Score, bpm: number, activate: () => void, render: T = undefined as T): number {
     this.checkTempo(bpm);
@@ -83,8 +89,9 @@ export class Transport<T = undefined> {
         }
       }
       this.cursor = Math.max(this.cursor, end);
-      // Keep only the audible section and queued future sections, even over long sessions.
-      while (this.sections.length > 1 && this.sections[1].active) this.sections.shift();
+      // Retain only the current phrase's history so a save preserves edits already heard.
+      const phraseStart=Math.floor(this.position/8)*8;
+      while (this.sections.length > 1 && this.sections[1].active&&this.sections[1].bar<=phraseStart) this.sections.shift();
     } catch (error) {
       this.stop(); this.options.onError(error);
     }
