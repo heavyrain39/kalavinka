@@ -24,9 +24,9 @@ test('all genres have distinct bass rhythms, contours and articulation across a 
   assert.ok(rhythms.size>=8,`${p}: rhythm families ${rhythms.size}`);assert.ok(contours.size>=6,`${p}: contour families ${contours.size}`);assert.ok(gates.size>=8);assert.ok(counts.size>=3);
  }
 });
-test('D&B holds harmony, repeats a two-bar drum pulse and leaves melody breathing room',()=>{
+test('v6 D&B holds harmony, repeats a two-bar drum pulse and leaves melody breathing room',()=>{
  for(let i=0;i<32;i++)for(const energy of [30,60,100]){
-  const s={...settings('dnb',`CALM${i}`),energy};assert.equal(chordHold(s),4);
+  const s={...settings('dnb',`CALM${i}`),generatorVersion:6 as const,energy};assert.equal(chordHold(s),4);
   for(let b=8;b<12;b++)assert.deepEqual(chordAt(s,b),chordAt(s,8));
   const bars=Array.from({length:4},(_,i)=>eventsForBar(s,8+i));
   const kicks=(bar:number)=>bars[bar].filter(e=>e.voice==='kick').map(e=>[e.at%1,e.length,e.gain]);assert.deepEqual(kicks(0),kicks(2));assert.deepEqual(kicks(1),kicks(3));

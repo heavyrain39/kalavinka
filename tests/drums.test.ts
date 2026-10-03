@@ -6,7 +6,7 @@ import {renderDrum,DRUM_KITS,DRUM_SOUNDS} from '../src/drum-bank';
 test('v6 preserves harmony, bass, kick placements and main backbeats while adding bounded drum expression',()=>{
  let ghosts=0,opens=0,halves=0;
  for(const profile of ['lofi','ambient','dub'] as const)for(const groove of ['straight','dnb'] as const)for(let seed=0;seed<8;seed++) {
-  const s:Settings={...selectProfile(DEFAULTS,profile),groove,seed:`DRUM${seed}`,energy:80,bpm:groove==='dnb'?170:108};
+  const s:Settings={...selectProfile(DEFAULTS,profile),groove,seed:`DRUM${seed}`,energy:80,generatorVersion:6,bpm:groove==='dnb'?170:108};
   for(let bar=0;bar<64;bar++) {
    const before=eventsForBar({...s,generatorVersion:5},bar),after=eventsForBar(s,bar);
    assert.deepEqual(after.filter(e=>e.layer!=='rhythm'),before.filter(e=>e.layer!=='rhythm'));

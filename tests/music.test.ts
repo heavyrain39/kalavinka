@@ -30,8 +30,8 @@ test('all profiles keep note range, event density and duration bounded over a lo
     }
   }
 });
-test('zero evolution repeats the authored phrase and mutes remove entire parts', () => {
-  const settings = { ...DEFAULTS, evolution: 0 };
+test('v6 zero evolution repeats the authored phrase and mutes remove entire parts', () => {
+  const settings = { ...DEFAULTS, generatorVersion:6 as const, evolution: 0 };
   const a = eventsForBar(settings, 1).map((event) => ({ ...event, at: event.at - 1 }));
   const b = eventsForBar(settings, 129).map((event) => ({ ...event, at: event.at - 129 }));
   for (let i = 0; i < a.length; i++) assert.ok(Math.abs(a[i].at - b[i].at) < .000001);

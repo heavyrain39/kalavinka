@@ -38,6 +38,7 @@ export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, ti
     decay = hold / (event.voice === 'hat' ? 4 : 3.5);
     level = id === 'r-brush' ? .78 : id === 'r-click' ? .80 : 1;
   }
+  if(event.layer==='motif'&&event.release!==undefined)release=Math.min(release,Math.max(.025,event.release));
   hold = Math.max(hold, attack + .012);
   const end = time + hold + release;
   const amplitude = event.gain * level * (.97 + variation * .06) / Math.max(1, event.notes.length);

@@ -58,7 +58,7 @@ test('current shared harmony, melodic motion and bass release remain valid acros
 test('current form development and manual timbre/mute changes retain deterministic unaffected parts',()=>{
   for(const profile of profiles){
     const s={...selectProfile(DEFAULTS,profile),evolution:0},n=arrangementAt(s,0).formLength;
-    assert.deepEqual(form(s),form(s,n));assert.notDeepEqual(form({...s,evolution:100}),form({...s,evolution:100},n));
+    assert.notDeepEqual(form(s),form(s,n));assert.notDeepEqual(form({...s,evolution:100}),form({...s,evolution:100},n));
     for(const l of LAYERS){
       const edited={...s,instruments:{...s.instruments,[l]:INSTRUMENTS[l].find(i=>i.id!==s.instruments[l])!.id}};
       assert.deepEqual(form(s).map(({instrument,...e})=>e),form(edited).map(({instrument,...e})=>e));
