@@ -27,7 +27,7 @@ export function renderDrum(rate:number,kit:string,mode:DrumMode,sound:DrumSound,
     :sound==='open'?(dnb?.30:.44):sound==='half'?.18:sound==='closed'?.09:sound==='tom'?.38:.13;
   const count=Math.ceil(rate*duration),output=new Float32Array(count),sr=rate*2;
   const aa1=lowpass(sr,rate*.40),aa2=lowpass(sr,rate*.40),dc=highpass(sr,20);
-  const color=lowpass(sr,brush?6500:tape?8000:12000);
+  const color=lowpass(sr,brush?(sound==='kick'?9000:6500):tape?(sound==='kick'?10500:8000):12000);
   const wireHP=highpass(sr,brush?900:1400),crackHP=highpass(sr,2200),hatHP=highpass(sr,brush?4500:6200);
   let rng=hash(`${kit}:${mode}:${sound}:${variant}`)||1;
   const noise=()=>{rng^=rng<<13;rng^=rng>>>17;rng^=rng<<5;return (rng>>>0)/2147483648-1;};
@@ -42,10 +42,13 @@ export function renderDrum(rate:number,kit:string,mode:DrumMode,sound:DrumSound,
       // Stable low fundamental; a fast punch and a slower body pitch fall.
       const frequency=fundamental+90*Math.exp(-t/.006)+42*Math.exp(-t/.027);
       phase+=2*Math.PI*frequency/sr;
-      const body=Math.sin(phase)*attack(t,.0015)*Math.exp(-t/(dnb?.042:minimal?.045:.067));
+      const bodyDecay=brush?(dnb?.034:.047):tape?(dnb?.036:.052):dnb?.042:minimal?.045:.067;
+      const body=Math.sin(phase)*attack(t,brush?.0009:tape?.001:.0015)*Math.exp(-t/bodyDecay);
       const punch=Math.sin(phase*2)*attack(t,.0008)*Math.exp(-t/.016)*(.12+v*.12);
-      const click=crackHP(n)*attack(t,.0005)*Math.exp(-t/.004)*(.06+v*.12)*(brush?.45:1);
-      x=Math.tanh((body+punch)*(tape?1.65:1.25))/(tape?1.45:1.2)+click;
+      const click=crackHP(n)*attack(t,.0005)*Math.exp(-t/.004)*(.06+v*.12)*(brush?.85:tape?1.2:1);
+      // Let the beater speak above the low body without flattening its attack.
+      const beater=(brush||tape)?Math.sin(2*Math.PI*(brush?1700:2400)*t)*attack(t,.0003)*Math.exp(-t/.002)*(.025+v*.035):0;
+      x=Math.tanh((body+punch)*1.25)/1.2*(brush?.96:tape?.94:1)+click+beater;
     } else if(sound==='snare') {
       const body=(Math.sin(2*Math.PI*(brush?172:electro?194:184)*rr*t)*.52*Math.exp(-t/.040)
         +Math.sin(2*Math.PI*327*rr*t)*.24*Math.exp(-t/.027))*attack(t,.0009);
