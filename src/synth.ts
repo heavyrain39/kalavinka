@@ -1,5 +1,6 @@
 // Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import type { MusicEvent } from './music';
+import { scheduleEnvelope } from './envelope';
 import { ownVoice } from './source-lifecycle';
 import { random } from './seed';
 
@@ -40,19 +41,7 @@ export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, ti
   hold = Math.max(hold, attack + .012);
   const end = time + hold + release;
   const amplitude = event.gain * level * (.97 + variation * .06) / Math.max(1, event.notes.length);
-  const epsilon = 1e-6;
-  gain.gain.setValueAtTime(0, time);
-  gain.gain.linearRampToValueAtTime(amplitude, time + attack);
-  // Two slopes for breath/sustained sounds; uninterrupted natural decay for strikes.
-  const decayEnd = Math.min(hold, attack + .18);
-  if (sustain) {
-    gain.gain.exponentialRampToValueAtTime(Math.max(epsilon, amplitude * sustain), time + decayEnd);
-    gain.gain.exponentialRampToValueAtTime(Math.max(epsilon, amplitude * sustain * .90), time + hold);
-  } else {
-    gain.gain.exponentialRampToValueAtTime(Math.max(epsilon, amplitude * Math.exp(-(hold - attack) / decay)), time + hold);
-  }
-  gain.gain.exponentialRampToValueAtTime(epsilon, end);
-  gain.gain.linearRampToValueAtTime(0, end + .005);
+  scheduleEnvelope(gain.gain, { time, amplitude, attack, hold, decay, sustain, release, bass });
   if (!percussion) {
     const brightness = Math.min(context.sampleRate * .45, filter.frequency.value * (.8 + velocity * .35));
     filter.frequency.setValueAtTime(brightness, time);

@@ -1,5 +1,7 @@
 // Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import './style.css';
+import {browserLanguage, translate, instrumentName, type Language, type TextKey} from './i18n';
+import {resetSliders} from './controls';
 import { Starfield } from './starfield';
 import { recipeFor, hasEnding } from './harmony-v5';
 import { INSTRUMENTS } from './instruments';
@@ -11,6 +13,10 @@ const STORAGE = 'worksong.v1';
 const FAVORITES = 'worksong.favorites.v1';
 const read = (key: string) => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, value: unknown) => { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } };
+let language: Language = browserLanguage(navigator.language);
+const t = (key: TextKey, values: Record<string, string | number> = {}) => translate(language, key, values);
+const aria = (key: TextKey) => `data-i18n-aria="${key}" aria-label="${t(key)}"`;
+const label = (key: TextKey) => `<span data-i18n="${key}">${t(key)}</span>`;
 const saved = read(STORAGE);
 let settings = upgradeSettings(saved);
 let shared = false;
@@ -39,58 +45,56 @@ const profileGraphic = (id: ProfileId) => id === 'lofi'
   : id === 'ambient'
   ? '<path d="M8 16c8-8 16-8 24 0s16 8 24 0M8 24c8-8 16-8 24 0s16 8 24 0M8 32c8-8 16-8 24 0s16 8 24 0"/>'
   : '<path d="M12 20v8m10-15v22m10-29v36m10-29v22m10-15v8"/>';
-const layerNames: Record<Layer, string> = { harmony: '화음', bass: '베이스', rhythm: '리듬', motif: '멜로디' };
+const FADERS = [
+  ['bpm',50,180,'BPM',''], ['energy',0,100,'%','energyTip'], ['warmth',0,100,'%','warmthTip'],
+  ['evolution',0,100,'%','evolutionTip'], ['reverb',0,100,'%',''], ['volume',0,100,'%',''],
+] as const;
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <header class="site-header">
-    <a class="wordmark" href="${location.pathname}" aria-label="Kalavinka · 가릉빈가 홈"><span class="brand-name" aria-hidden="true"><span class="brand-en" lang="en">Kalavinka</span><span class="brand-ko" lang="ko">가릉빈가</span></span><span class="brand-cross" aria-hidden="true">+</span></a>
-    <div class="theme-switch" role="group" aria-label="화면 테마"><button data-theme="light" aria-label="밝은 테마">◑</button><button data-theme="dark" aria-label="어두운 테마">◐</button><button data-theme="system" aria-label="시스템 테마">◒</button></div>
+    <a class="wordmark" href="${location.pathname}" ${aria('home')}><span class="brand-name" aria-hidden="true"><span class="brand-en" lang="en">Kalavinka</span><span class="brand-ko" lang="ko">가릉빈가</span></span><span class="brand-cross" aria-hidden="true">+</span></a>
+    <div class="header-actions"><div class="language-switch" role="group" ${aria('language')}><button data-language="ko" ${aria('korean')}>KO</button><button data-language="en" ${aria('english')}>EN</button></div><div class="theme-switch" role="group" ${aria('theme')}><button data-theme="light" ${aria('light')}>◑</button><button data-theme="dark" ${aria('dark')}>◐</button><button data-theme="system" ${aria('system')}>◒</button></div></div>
   </header>
   <main class="workspace">
     <div class="console-grid">
       <aside class="panel atmosphere-panel">
-        <div class="profile-list" role="group" aria-label="음악 분위기">${(Object.keys(PROFILES) as ProfileId[]).map((id) => `<button class="profile" data-profile="${id}" aria-pressed="false"><svg class="profile-art" viewBox="0 0 64 48" aria-hidden="true">${profileGraphic(id)}</svg><span class="profile-name">${PROFILES[id].name}</span><span class="profile-indicator" aria-hidden="true"></span></button>`).join('')}</div>
+        <div class="profile-list" role="group" ${aria('atmosphere')}>${(Object.keys(PROFILES) as ProfileId[]).map((id) => `<button class="profile" data-profile="${id}" aria-pressed="false"><svg class="profile-art" viewBox="0 0 64 48" aria-hidden="true">${profileGraphic(id)}</svg><span class="profile-name" data-i18n="${id}">${t(id)}</span><span class="profile-indicator" aria-hidden="true"></span></button>`).join('')}</div>
       </aside>
-      <section class="panel player-panel" aria-label="음악 플레이어">
+      <section class="panel player-panel" ${aria('player')}>
         <div class="deck">
-          <div class="deck-top"><h1 id="now-title">Warm desk</h1><span class="mono" id="elapsed">00:00</span></div>
-          <div class="scope-wrap"><canvas id="scope" aria-label="전체 출력 파형"></canvas></div>
-          <div class="playback-info"><span id="status-text" role="status">정지</span><span class="mono" id="bar-label"></span></div>
-          <div class="chord-lane" id="chords" aria-label="코드 진행"></div>
+          <div class="deck-top"><h1 id="now-title"></h1><span class="mono" id="elapsed">00:00</span></div>
+          <div class="scope-wrap"><canvas id="scope" ${aria('waveform')}></canvas></div>
+          <div class="playback-info"><span id="status-text" role="status"></span><span class="mono" id="bar-label"></span></div>
+          <div class="chord-lane" id="chords" ${aria('chords')}></div>
           <div class="transport">
-            <button class="play-button" id="play" aria-label="음악 재생">${icon('play')}<span>재생</span></button>
-            <button class="compact-btn regenerate" id="regenerate">${icon('refresh')}<span>새 흐름</span></button>
-            <button class="icon-button tip" id="favorite" aria-label="현재 음악 저장">${icon('save')}<span class="tooltip" role="tooltip">현재 음악 저장</span></button>
-            <button class="icon-button tip" id="share" aria-label="현재 음악 링크 복사">${icon('share')}<span class="tooltip" role="tooltip">음악 링크 복사</span></button>
+            <button class="play-button" id="play">${icon('play')}${label('play')}</button>
+            <button class="compact-btn regenerate" id="regenerate">${icon('refresh')}${label('regenerate')}</button>
+            <button class="icon-button tip" id="favorite" ${aria('save')}>${icon('save')}<span class="tooltip" role="tooltip" data-i18n="save">${t('save')}</span></button>
+            <button class="icon-button tip" id="share" ${aria('share')}>${icon('share')}<span class="tooltip" role="tooltip" data-i18n="share">${t('share')}</span></button>
           </div>
-          <div class="player-bottom"><select id="groove" class="instrument-select groove-select" aria-label="리듬 패턴"><option value="straight">Four on the floor</option><option value="dnb">Drum &amp; bass</option></select><button class="text-button" id="focus" aria-pressed="false">${icon('focus')}<span>집중 화면</span></button></div>
+          <div class="player-bottom"><select id="groove" class="instrument-select groove-select" ${aria('groove')}><option value="straight" data-i18n="straight">${t('straight')}</option><option value="dnb" data-i18n="dnb">${t('dnb')}</option></select><button class="text-button" id="focus" aria-pressed="false">${icon('focus')}<span>${t('focus')}</span></button></div>
         </div>
-        <div class="layer-grid" role="group" aria-label="악기">${LAYERS.map((layer) => `<div class="part"><button class="layer" data-layer="${layer}" aria-pressed="true"><span>${layerNames[layer]}</span><span class="switch" aria-hidden="true"></span></button><select class="instrument-select" data-instrument="${layer}" aria-label="${layerNames[layer]} 음색"></select></div>`).join('')}</div>
+        <div class="layer-grid" role="group" ${aria('instruments')}>${LAYERS.map((layer) => `<div class="part"><button class="layer" data-layer="${layer}" aria-pressed="true">${label(layer)}<span class="switch" aria-hidden="true"></span></button><select class="instrument-select" data-instrument="${layer}" aria-label="${t('timbre',{part:t(layer)})}"></select></div>`).join('')}</div>
       </section>
-      <aside class="right-column"><div class="panel starfield"><canvas id="starfield" role="img" aria-label="소리에 반응하는 별하늘"></canvas></div><section class="panel controls-panel">
-        <div class="panel-head"><h2>조절</h2></div>
-        <div class="fader-list">${[
-          ['bpm', '템포', 50, 180, 'BPM', ''],
-          ['energy', '에너지', 0, 100, '%', '음표와 리듬의 밀도'],
-          ['warmth', '온기', 0, 100, '%', '높을수록 부드러운 음색'],
-          ['evolution', '변화', 0, 100, '%', '다음 구간에서 프레이즈가 변할 확률'],
-          ['reverb', '리버브', 0, 100, '%', ''],
-          ['volume', '볼륨', 0, 100, '%', ''],
-        ].map(([key, label, min, max, unit, tip]) => `<div class="fader"><div class="fader-heading"><label for="${key}">${label}</label>${tip ? `<button class="help tip" aria-label="${label} 설명" aria-describedby="${key}-tip">?<span id="${key}-tip" class="tooltip" role="tooltip">${tip}</span></button>` : ''}<span class="fader-value"><output id="${key}-value" for="${key}"></output><span class="unit">${unit}</span></span></div><input id="${key}" type="range" min="${min}" max="${max}" step="1"/></div>`).join('')}</div>
-        <div class="timer-section"><div class="timer-head"><span>타이머</span><span class="mono" id="timer-left"></span></div><div class="timer-options" role="group" aria-label="집중 타이머"><button data-timer="0" aria-pressed="true">계속</button><button data-timer="25" aria-pressed="false">25분</button><button data-timer="50" aria-pressed="false">50분</button></div></div>
+      <aside class="right-column"><div class="panel starfield"><canvas id="starfield" role="img" ${aria('sky')}></canvas></div><section class="panel controls-panel">
+        <div class="panel-head controls-head"><h2 data-i18n="controls">${t('controls')}</h2><button class="text-button" id="reset-controls" ${aria('resetLabel')}>${label('reset')}</button></div>
+        <div class="fader-list">${FADERS.map(([key,min,max,unit,tip]) => `<div class="fader"><div class="fader-heading"><label for="${key}" data-i18n="${key}">${t(key)}</label>${tip ? `<button class="help tip" data-help="${key}" aria-label="${t('help',{label:t(key)})}" aria-describedby="${key}-tip">?<span id="${key}-tip" class="tooltip" role="tooltip" data-i18n="${tip}">${t(tip)}</span></button>` : ''}<span class="fader-value"><output id="${key}-value" for="${key}"></output><span class="unit">${unit}</span></span></div><input id="${key}" type="range" min="${min}" max="${max}" step="1"/></div>`).join('')}</div>
+        <div class="timer-section"><div class="timer-head">${label('timer')}<span class="mono" id="timer-left"></span></div><div class="timer-options" role="group" ${aria('focusTimer')}><button data-timer="0" aria-pressed="true" data-i18n="continuous">${t('continuous')}</button><button data-timer="25" aria-pressed="false" data-i18n-minutes="25">${t('minutes',{count:25})}</button><button data-timer="50" aria-pressed="false" data-i18n-minutes="50">${t('minutes',{count:50})}</button></div></div>
       </section></aside>
     </div>
-    <section class="panel saved-panel"><h2>저장한 음악</h2><div id="favorites"></div></section>
+    <section class="panel saved-panel"><h2 data-i18n="saved">${t('saved')}</h2><div id="favorites"></div></section>
   </main>
-  <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" aria-label="Yakshawan 개발자 포트폴리오">Yakshawan</a></span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer">이용 조건</a><button class="text-button" id="about">앱 정보</button></div></footer>
+  <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer" data-i18n="terms">${t('terms')}</a><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2>Kalavinka · 가릉빈가</h2><button id="close-about" class="icon-button" aria-label="닫기">×</button></div><p>30종 코드 진행에 화음, 프레이즈, 베이스와 리듬을 배치합니다. 구간 끝의 코드 변형과 간헐적인 드럼 필인이 이어집니다. 비트가 쉬는 구간과 아르페지오가 이어지고, 변화 값을 높이면 다음 편곡에서 프레이즈가 더 자주 바뀝니다.</p><p>음악은 브라우저에서 합성하고 EQ·컴프레션·피크 제어로 전체 출력을 다듬습니다. 설정과 저장한 음악은 이 브라우저에 보관되며 공유 링크에는 음악 설정이 담깁니다. 기존에 저장한 음악과 링크는 이전 생성 규칙으로 재생됩니다.</p><p>Space: 재생·정지. 탭을 닫거나 기기가 잠자기에 들어가면 재생이 멈출 수 있습니다.</p><p>v0.9.1 · © 2026 Yakshawan · All rights reserved.</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">외부 구성요소 ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">개발자 포트폴리오 ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.10.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
-function toast(message: string) {
-  $('#toast').textContent = message; $('#toast').classList.add('visible');
-  clearTimeout(toastTimeout); toastTimeout = window.setTimeout(() => $('#toast').classList.remove('visible'), 3600);
+let currentToast: {key: TextKey; values: Record<string,string|number>} | null = null;
+function toast(key: TextKey, values: Record<string,string|number> = {}) {
+  currentToast = {key,values};
+  $('#toast').textContent = t(key,values); $('#toast').classList.add('visible');
+  clearTimeout(toastTimeout); toastTimeout = window.setTimeout(() => { $('#toast').classList.remove('visible'); currentToast = null; }, 3600);
 }
-function persist() { if (!write(STORAGE, settings)) toast('브라우저 저장 공간을 사용할 수 없어 이번 설정은 저장되지 않았어요.'); }
+function persist() { if (!write(STORAGE, settings)) toast('storageFailed'); }
 function renderSettings() {
   $<HTMLInputElement>('#bpm').max = settings.generatorVersion >= 3 ? '180' : '130';
   for (const key of ['bpm', 'energy', 'warmth', 'evolution', 'reverb', 'volume'] as const) {
@@ -107,12 +111,13 @@ function renderSettings() {
   }
   for (const select of document.querySelectorAll<HTMLSelectElement>('[data-instrument]')) {
     const layer = select.dataset.instrument as Layer;
-    select.innerHTML = (settings.generatorVersion < 3 ? '<option value="legacy">기존 음색</option>' : '') + INSTRUMENTS[layer].map(i => `<option value="${i.id}">${i.name}</option>`).join('');
+    select.innerHTML = (settings.generatorVersion < 3 ? `<option value="legacy">${t('legacy')}</option>` : '') + INSTRUMENTS[layer].map(i => `<option value="${i.id}">${instrumentName(i.id,language)}</option>`).join('');
     select.value = settings.instruments[layer];
+    select.setAttribute('aria-label',t('timbre',{part:t(layer)}));
   }
   $<HTMLSelectElement>('#groove').hidden = settings.profile !== 'dub';
   $<HTMLSelectElement>('#groove').value = settings.groove;
-  $('#now-title').textContent = PROFILES[settings.profile].name;
+  $('#now-title').textContent = t(settings.profile);
   renderChords(); renderFavorites();
 }
 let chordLabels = '';
@@ -125,17 +130,18 @@ function renderChords(audible = settings, bar = 0) {
 function renderFavorites() {
   const exists = favorites.some((item) => JSON.stringify(item.settings) === JSON.stringify(settings));
   $('#favorite').classList.toggle('is-saved', exists);
-  $('#favorites').innerHTML = favorites.length ? `<div class="favorite-grid">${favorites.map((item) => `<div class="favorite-item"><button class="favorite-load" data-load="${item.id}" aria-label="${PROFILES[item.settings.profile].name} ${item.settings.seed} 불러오기"><span>${PROFILES[item.settings.profile].name}</span></button><button class="favorite-delete" data-delete="${item.id}" aria-label="${PROFILES[item.settings.profile].name} ${item.settings.seed} 저장 삭제">×</button></div>`).join('')}</div>` : `<span class="collection-empty">—</span>`;
+  $('#favorites').innerHTML = favorites.length ? `<div class="favorite-grid">${favorites.map((item) => `<div class="favorite-item"><button class="favorite-load" data-load="${item.id}" aria-label="${t('loadSaved',{name:t(item.settings.profile),seed:item.settings.seed})}"><span>${t(item.settings.profile)}</span></button><button class="favorite-delete" data-delete="${item.id}" aria-label="${t('deleteSaved',{name:t(item.settings.profile),seed:item.settings.seed})}">×</button></div>`).join('')}</div>` : `<span class="collection-empty">—</span>`;
 }
 function renderPlayback() {
   const playing = engine.playing;
-  $('#play').innerHTML = `${icon(playing ? 'pause' : 'play')}<span>${busy ? '준비 중' : playing ? '정지' : '재생'}</span>`;
-  $('#play').setAttribute('aria-label', playing ? '음악 정지' : '음악 재생');
+  $('#play').innerHTML = `${icon(playing ? 'pause' : 'play')}<span>${busy ? t('preparing') : playing ? t('stop') : t('play')}</span>`;
+  $('#play').setAttribute('aria-label', playing ? t('stopMusic') : t('playMusic'));
   $<HTMLButtonElement>('#play').disabled = busy;
   $<HTMLButtonElement>('#regenerate').disabled = busy;
+  $<HTMLButtonElement>('#reset-controls').disabled = busy;
   document.querySelectorAll<HTMLSelectElement>('[data-instrument], #groove').forEach(select => { select.disabled = busy; });
   document.body.classList.toggle('is-playing', playing);
-  $('#status-text').textContent = busy ? '준비 중' : playing ? '재생 중' : '정지';
+  $('#status-text').textContent = busy ? t('preparing') : playing ? t('playing') : t('stop');
 }
 async function togglePlayback() {
   if (busy) return;
@@ -143,7 +149,7 @@ async function togglePlayback() {
   try {
     if (engine.playing) await engine.stop();
     else { await engine.start(settings); engine.setVolume(settings.volume); engine.setReverb(settings.reverb); engine.setTimer(timer); }
-  } catch (error) { await engine.stop(); toast(error instanceof Error ? error.message : '음악을 시작하지 못했어요. 다시 시도해 주세요.'); }
+  } catch (error) { await engine.stop(); toast(error instanceof Error && error.message === 'AUDIO_UNAVAILABLE' ? 'audioUnavailable' : error instanceof Error && error.message === 'AUDIO_LOCKED' ? 'audioLocked' : 'startFailed'); }
   finally { busy = false; renderPlayback(); updateMediaSession(); }
 }
 async function replace(next: Settings) {
@@ -151,11 +157,31 @@ async function replace(next: Settings) {
   settings = normalizeSettings(next); persist(); renderSettings();
   if (engine.playing) {
     busy = true; renderPlayback();
-    try { await engine.regenerate(settings); engine.setVolume(settings.volume); engine.setReverb(settings.reverb); } catch { await engine.stop(); toast('음악을 바꾸지 못했어요. 다시 재생해 주세요.'); }
+    try { await engine.regenerate(settings); engine.setVolume(settings.volume); engine.setReverb(settings.reverb); } catch { await engine.stop(); toast('changeFailed'); }
     finally { busy = false; renderPlayback(); }
   }
   updateMediaSession();
 }
+function applyLanguage() {
+  document.documentElement.lang = language;
+  document.title = t('appName');
+  document.querySelector('meta[name="description"]')?.setAttribute('content',t('description'));
+  document.querySelectorAll<HTMLElement>('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n as TextKey); });
+  document.querySelectorAll<HTMLElement>('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label',t(el.dataset.i18nAria as TextKey)));
+  document.querySelectorAll<HTMLElement>('[data-i18n-minutes]').forEach(el => { el.textContent = t('minutes',{count:el.dataset.i18nMinutes!}); });
+  document.querySelectorAll<HTMLElement>('[data-help]').forEach(el => el.setAttribute('aria-label',t('help',{label:t(el.dataset.help as TextKey)})));
+  document.querySelectorAll<HTMLElement>('[data-language]').forEach(el => el.setAttribute('aria-pressed',String(el.dataset.language === language)));
+  $('#focus').innerHTML = `${icon('focus')}<span>${focusMode ? t('full') : t('focus')}</span>`;
+  if (currentToast) $('#toast').textContent = t(currentToast.key,currentToast.values);
+  renderSettings(); renderPlayback(); updateMediaSession();
+}
+document.querySelectorAll<HTMLButtonElement>('[data-language]').forEach(button => button.addEventListener('click', () => {
+  language = button.dataset.language as Language; applyLanguage();
+}));
+$('#reset-controls').addEventListener('click', () => {
+  if (busy) return;
+  settings = resetSliders(settings); engine.update(settings); persist(); renderSettings(); toast('resetDone');
+});
 $('#play').addEventListener('click', () => void togglePlayback());
 $('#regenerate').addEventListener('click', () => { void replace(regenerateSettings(settings)); });
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-profile]')) button.addEventListener('click', () => {
@@ -188,11 +214,11 @@ $('#groove').addEventListener('change', () => {
 });
 $('#favorite').addEventListener('click', () => {
   const same = JSON.stringify(settings);
-  if (favorites.some((item) => JSON.stringify(item.settings) === same)) { toast('이미 저장한 흐름이에요.'); return; }
-  if (favorites.length >= 12) { toast('12개까지 저장할 수 있어요. 이전 흐름을 지우고 새로 저장해 주세요.'); return; }
+  if (favorites.some((item) => JSON.stringify(item.settings) === same)) { toast('alreadySaved'); return; }
+  if (favorites.length >= 12) { toast('savedLimit'); return; }
   favorites = [{ id: String(Date.now()), settings: structuredClone(settings) }, ...favorites];
   const stored = write(FAVORITES, favorites); renderFavorites();
-  toast(stored ? '이 흐름을 저장했어요.' : '브라우저 저장 공간이 없어 새로고침하면 저장이 사라져요.');
+  toast(stored ? 'savedDone' : 'savedTemporary');
 });
 $('#favorites').addEventListener('click', (event) => {
   const target = (event.target as HTMLElement).closest<HTMLButtonElement>('button');
@@ -203,24 +229,24 @@ $('#favorites').addEventListener('click', (event) => {
   }
   if (target.dataset.delete) {
     favorites = favorites.filter((item) => item.id !== target.dataset.delete);
-    write(FAVORITES, favorites); renderFavorites(); toast('저장한 흐름을 지웠어요.');
+    write(FAVORITES, favorites); renderFavorites(); toast('deleted');
   }
 });
 $('#share').addEventListener('click', async () => {
   const url = new URL(location.href); url.hash = `mix=${encodeURIComponent(JSON.stringify(settings))}`;
-  try { await navigator.clipboard.writeText(url.href); toast('같은 음악으로 시작하는 링크를 복사했어요.'); }
+  try { await navigator.clipboard.writeText(url.href); toast('copied'); }
   catch { const input = document.createElement('textarea'); input.value = url.href; document.body.append(input); input.select();
-    const copied = document.execCommand('copy'); input.remove(); toast(copied ? '음악 링크를 복사했어요.' : '링크를 복사하지 못했어요. 브라우저의 클립보드 권한을 확인해 주세요.'); }
+    const copied = document.execCommand('copy'); input.remove(); toast(copied ? 'copied' : 'copyFailed'); }
 });
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-timer]')) button.addEventListener('click', () => {
   timer = Number(button.dataset.timer); engine.setTimer(timer);
   document.querySelectorAll('[data-timer]').forEach((item) => item.setAttribute('aria-pressed', String(Number((item as HTMLElement).dataset.timer) === timer)));
-  if (!engine.playing && timer) toast(`재생을 시작하면 ${timer}분 타이머가 시작돼요.`);
+  if (!engine.playing && timer) toast('timerReady',{count:timer});
 });
 $('#focus').addEventListener('click', () => {
   focusMode = !focusMode; document.body.classList.toggle('focus-mode', focusMode);
   $('#focus').setAttribute('aria-pressed', String(focusMode));
-  $('#focus').innerHTML = `${icon('focus')}<span>${focusMode ? '전체 화면' : '집중 화면'}</span>`;
+  $('#focus').innerHTML = `${icon('focus')}<span>${focusMode ? t('full') : t('focus')}</span>`;
 });
 const systemDark = matchMedia('(prefers-color-scheme: dark)');
 let theme = read('worksong.theme') ?? 'dark';
@@ -248,11 +274,11 @@ document.addEventListener('keydown', (event) => {
     event.preventDefault(); void togglePlayback();
   }
 });
-engine.onStop = () => { renderPlayback(); updateMediaSession(); toast('집중 시간이 끝났어요. 잠깐 쉬어가세요.'); };
-engine.onError = (message) => { toast(message); renderPlayback(); };
+engine.onStop = () => { renderPlayback(); updateMediaSession(); toast('timerDone'); };
+engine.onError = () => { toast('audioError'); renderPlayback(); };
 function updateMediaSession() {
   if (!('mediaSession' in navigator)) return;
-  navigator.mediaSession.metadata = new MediaMetadata({ title: PROFILES[settings.profile].name, artist: 'Kalavinka', album: '당신의 속도로 흐르는 음악' });
+  navigator.mediaSession.metadata = new MediaMetadata({ title: t(settings.profile), artist: t('appName'), album: t('album') });
   navigator.mediaSession.playbackState = engine.playing ? 'playing' : 'paused';
   for (const action of ['play', 'pause', 'stop'] as MediaSessionAction[]) {
     try { navigator.mediaSession.setActionHandler(action, () => { if ((action === 'play') !== engine.playing) void togglePlayback(); }); } catch { /* unsupported media key */ }
@@ -300,7 +326,7 @@ function draw(timestamp: number) {
   const barWithin = bar % length;
   renderChords(audible, bar);
   $('#bar-label').textContent = engine.playing ? `${Math.floor(barWithin) + 1} / ${length}` : '';
-  $('#status-text').textContent = busy ? '준비 중' : engine.playing ? engine.pending ? '다음 마디에 반영' : '재생 중' : '정지';
+  $('#status-text').textContent = busy ? t('preparing') : engine.playing ? engine.pending ? t('pending') : t('playing') : t('stop');
   for (const cell of document.querySelectorAll<HTMLElement>('[data-chord]')) {
     const current = engine.playing && Math.floor(barWithin / hold) === Number(cell.dataset.chord);
     cell.classList.toggle('current', current);
@@ -310,7 +336,7 @@ function draw(timestamp: number) {
 
 }
 // Read-only inspection surface for browser/audio verification; it is not needed by the player.
-Object.defineProperty(window, '__worksong', { value: { diagnostics: () => ({ ...engine.diagnostics(), peak, sky: starfield.diagnostics(), harmony: { recipe: (engine.audibleSettings ?? settings).generatorVersion >= 5 ? recipeFor(engine.audibleSettings ?? settings).id : null, ending: (engine.audibleSettings ?? settings).generatorVersion >= 5 && hasEnding(engine.audibleSettings ?? settings, engine.bar), chords: progression(engine.audibleSettings ?? settings, engine.bar).map(c=>c.label) }, settings: structuredClone(settings) }),
+Object.defineProperty(window, '__worksong', { value: { diagnostics: () => ({ ...engine.diagnostics(), peak, language, sky: starfield.diagnostics(), harmony: { recipe: (engine.audibleSettings ?? settings).generatorVersion >= 5 ? recipeFor(engine.audibleSettings ?? settings).id : null, ending: (engine.audibleSettings ?? settings).generatorVersion >= 5 && hasEnding(engine.audibleSettings ?? settings, engine.bar), chords: progression(engine.audibleSettings ?? settings, engine.bar).map(c=>c.label) }, settings: structuredClone(settings) }),
   events: (begin: number, end: number) => musicScore(settings).onsets(begin, end).length } });
-applyTheme(); renderSettings(); renderPlayback(); requestAnimationFrame(draw);
-if (shared) toast('공유한 흐름을 불러왔어요. 재생을 눌러 시작하세요.');
+applyTheme(); applyLanguage(); requestAnimationFrame(draw);
+if (shared) toast('sharedLoaded');

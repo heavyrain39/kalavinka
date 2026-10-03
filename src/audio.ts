@@ -73,7 +73,7 @@ export class MusicEngine {
       };
     } catch (error) {
       await context.close(); this.context = null;
-      throw new Error('이 브라우저에서 오디오 엔진을 시작하지 못했습니다. 최신 Chrome·Edge·Firefox에서 다시 시도해 주세요.', { cause: error });
+      throw new Error('AUDIO_UNAVAILABLE', { cause: error });
     }
     // Keep the graph source independent of the UI and avoid default synthesizer/eval imports.
     this.destination = this.mastering.input;
@@ -89,7 +89,7 @@ export class MusicEngine {
     const context = this.context!;
     await context.resume();
     if (token !== this.lifecycle) return;
-    if (context.state !== 'running') throw new Error('오디오가 잠겨 있습니다. 재생 버튼을 다시 눌러 주세요.');
+    if (context.state !== 'running') throw new Error('AUDIO_LOCKED');
     if (this.playing) return;
     this.triggered = 0; this.late = 0; this.lastError = null; this.duckCount = 0;
     this.startedAt = context.currentTime;
@@ -125,7 +125,7 @@ export class MusicEngine {
       clock: () => context.currentTime,
       onError: (error) => {
         this.lastError = String(error);
-        void this.stop().then(() => this.onError?.('음악 재생 중 오류가 생겼습니다. 정지 후 다시 재생해 주세요.'));
+        void this.stop().then(() => this.onError?.('AUDIO_PLAYBACK'));
       },
       trigger: (event, time, duration, bpm, render) => {
         if (time < context.currentTime - .015) { this.late++; return; }
@@ -247,7 +247,7 @@ export class MusicEngine {
     gain.gain.exponentialRampToValueAtTime(Math.max(.00001, amplitude * sustain), time + Math.min(hold, attack + (pad ? .4 : .24)));
     gain.gain.setValueAtTime(Math.max(.00001, amplitude * sustain), time + hold);
     gain.gain.exponentialRampToValueAtTime(.00001, end);
-    gain.gain.setValueAtTime(0, end + .005);
+    gain.gain.linearRampToValueAtTime(0, end + .005);
 
     const osc = (frequency: number, type: OscillatorType = 'sine', detune = 0, level = 1) => {
       const source = context.createOscillator(); source.type = type;
