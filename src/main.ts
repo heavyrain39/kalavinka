@@ -82,7 +82,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><a href="https://strudel.cc" target="_blank" rel="noopener noreferrer">Strudel © contributors</a><div><a href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 · AGPL-3.0</a><button class="text-button" id="about">앱 정보</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2>WORKSONG</h2><button id="close-about" class="icon-button" aria-label="닫기">×</button></div><p>장르별 32·64마디 편곡에 화음, 프레이즈, 베이스와 리듬을 배치합니다. 비트가 쉬는 구간과 아르페지오가 이어지고, 변화 값을 높이면 다음 편곡에서 프레이즈가 더 자주 바뀝니다.</p><p>음악은 브라우저에서 합성하고 EQ·컴프레션·피크 제어로 전체 출력을 다듬습니다. 설정과 저장한 음악은 이 브라우저에 보관되며 공유 링크에는 음악 설정이 담깁니다. 기존에 저장한 음악과 링크는 이전 생성 규칙으로 재생됩니다.</p><p>Space: 재생·정지. 탭을 닫거나 기기가 잠자기에 들어가면 재생이 멈출 수 있습니다.</p><p>v0.7.0 · Strudel © contributors · AGPL-3.0-or-later</p><a class="inline-link" href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 코드 ${icon('arrow')}</a></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2>WORKSONG</h2><button id="close-about" class="icon-button" aria-label="닫기">×</button></div><p>장르별 32·64마디 편곡에 화음, 프레이즈, 베이스와 리듬을 배치합니다. 비트가 쉬는 구간과 아르페지오가 이어지고, 변화 값을 높이면 다음 편곡에서 프레이즈가 더 자주 바뀝니다.</p><p>음악은 브라우저에서 합성하고 EQ·컴프레션·피크 제어로 전체 출력을 다듬습니다. 설정과 저장한 음악은 이 브라우저에 보관되며 공유 링크에는 음악 설정이 담깁니다. 기존에 저장한 음악과 링크는 이전 생성 규칙으로 재생됩니다.</p><p>Space: 재생·정지. 탭을 닫거나 기기가 잠자기에 들어가면 재생이 멈출 수 있습니다.</p><p>v0.7.1 · Strudel © contributors · AGPL-3.0-or-later</p><a class="inline-link" href="${SOURCE}" target="_blank" rel="noopener noreferrer">소스 코드 ${icon('arrow')}</a></dialog>
 `;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 function toast(message: string) {

@@ -215,7 +215,7 @@ body { isolation: isolate; background-image: none; }
 body::before {
   content: ''; position: fixed; inset: 0 -80px 0 0; z-index: -1; pointer-events: none;
   background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg,var(--line) 1px,transparent 1px);
-  background-size: 80px 80px; animation: gridSlide 24s linear infinite; will-change: transform;
+  background-size: 80px 80px; animation: gridSlide 7.5s linear infinite; will-change: transform;
 }
 @keyframes gridSlide { from { transform: translateX(0); } to { transform: translateX(-80px); } }
 .profile { align-items: center; text-align: center; }
