@@ -4,7 +4,7 @@ import {browserLanguage, translate, instrumentName, type Language, type TextKey}
 import {resetSliders} from './controls';
 import { Starfield } from './starfield';
 import { recipeFor, hasEnding } from './harmony-v5';
-import { INSTRUMENTS } from './instruments';
+import { INSTRUMENTS, resolveDrumKit } from './instruments';
 import { MusicEngine } from './audio';
 import { LAYERS, PROFILES, normalizeSettings, upgradeSettings, regenerateSettings, selectProfile, progression, chordHold, musicScore, type Settings, type ProfileId, type Layer } from './music';
 
@@ -102,7 +102,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer" data-i18n="terms">${t('terms')}</a><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.11.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.11.1 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 let currentToast: {key: TextKey; values: Record<string,string|number>} | null = null;
@@ -128,8 +128,8 @@ function renderSettings() {
   }
   for (const select of document.querySelectorAll<HTMLSelectElement>('[data-instrument]')) {
     const layer = select.dataset.instrument as Layer;
-    select.innerHTML = (settings.generatorVersion < 3 ? `<option value="legacy">${t('legacy')}</option>` : '') + INSTRUMENTS[layer].map(i => `<option value="${i.id}">${instrumentName(i.id,language)}</option>`).join('');
-    select.value = settings.instruments[layer];
+    select.innerHTML = (settings.generatorVersion < 3 && layer !== 'rhythm' ? `<option value="legacy">${t('legacy')}</option>` : '') + INSTRUMENTS[layer].map(i => `<option value="${i.id}">${instrumentName(i.id,language)}</option>`).join('');
+    select.value = layer === 'rhythm' ? resolveDrumKit(settings.instruments[layer], settings.profile) : settings.instruments[layer];
     select.setAttribute('aria-label',t('timbre',{part:t(layer)}));
   }
   $<HTMLSelectElement>('#groove').hidden = settings.profile !== 'dub';

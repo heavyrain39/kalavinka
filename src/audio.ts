@@ -13,7 +13,7 @@ import { createRoom, reverbGain } from './reverb';
 interface Scene {
   settings: Settings; transport: Transport<Settings>; output: GainNode; input: GainNode;
   layers: Record<Layer, GainNode>; nodes: AudioNode[]; sources: Set<AudioScheduledSourceNode>; cleanups: Set<() => void>;
-  bassDuck: GainNode; liveRhythm: boolean; roomWet: GainNode; drums: DrumBus | null; hats: HatVoice[];
+  bassDuck: GainNode; liveRhythm: boolean; roomWet: GainNode; drums: DrumBus; hats: HatVoice[];
 }
 export class MusicEngine {
   context: AudioContext | null = null;
@@ -119,14 +119,14 @@ export class MusicEngine {
     delayFilter.connect(delayWet).connect(output);
     output.connect(this.destination);
     const bassDuck = context.createGain(); bassDuck.connect(input);
-    const drums = settings.generatorVersion >= 6 ? createDrumBus(context, settings) : null;
+    const drums = createDrumBus(context, settings);
     const layers = Object.fromEntries(LAYERS.map((layer) => {
       const gain = context.createGain(); gain.gain.value = settings.layers[layer] ? 1 : 0;
-      gain.connect(layer === 'bass' ? bassDuck : layer === 'rhythm' && drums ? output : input); return [layer, gain];
+      gain.connect(layer === 'bass' ? bassDuck : layer === 'rhythm' ? output : input); return [layer, gain];
     })) as Record<Layer, GainNode>;
-    drums?.output.connect(layers.rhythm);
+    drums.output.connect(layers.rhythm);
     const scene: Scene = { drums, hats: [], settings, output, input, layers, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), cleanups: new Set(),
-      nodes: [...(drums?.nodes ?? []), input, output, bassDuck, dry, ...room.nodes, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers)], transport: null! };
+      nodes: [...drums.nodes, input, output, bassDuck, dry, ...room.nodes, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers)], transport: null! };
     scene.transport = new Transport<Settings>({
       clock: () => context.currentTime,
       onError: (error) => {
@@ -177,7 +177,7 @@ export class MusicEngine {
     if (!this.context) return;
     for (const scene of [...this.retired, ...(this.scene ? [this.scene] : [])]) {
       this.ramp(scene.roomWet.gain, reverbGain(amount), .12);
-      if (scene.drums) this.ramp(scene.drums.wet.gain, drumRoomGain(amount), .12);
+      this.ramp(scene.drums.wet.gain, drumRoomGain(amount), .12);
       scene.settings = { ...scene.settings, reverb: amount };
     }
   }
@@ -230,7 +230,7 @@ export class MusicEngine {
       scheduleDuck(scene.bassDuck.gain, time, event.duck, bpm, context.currentTime);
       this.duckCount++;
     }
-    if (render.generatorVersion >= 6 && event.layer === 'rhythm' && scene.drums) {
+    if (event.layer === 'rhythm') {
       drumVoice(context, this.drumBank, scene.drums, scene.hats, event, time, render, scene.sources, scene.cleanups);
       return;
     }

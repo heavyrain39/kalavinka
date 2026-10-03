@@ -1,6 +1,8 @@
 // Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import type {MusicEvent, Settings} from './music';
 import {DrumBank, type DrumSound} from './drum-bank';
+import {resolveDrumKit} from './instruments';
+import {hash} from './seed';
 import {ownVoice} from './source-lifecycle';
 
 export function createDrumBus(context:BaseAudioContext,settings:Settings) {
@@ -52,7 +54,9 @@ export function drumVoice(context:BaseAudioContext,bank:DrumBank,bus:DrumBus,hat
     hats.length=0;
   }
   const sources:AudioBufferSourceNode[]=[],nodes:AudioNode[]=[gain,pan];let end=time;
-  for(const layer of bank.get(event.instrument??'r-tape',mode,sound,event.velocity??.7,event.variation??0)) {
+  const velocity=event.velocity??Math.max(.2,Math.min(1,event.gain/(kick?.32:snare?.075:hat?.035:.06)));
+  const variant=event.variation??hash(`${settings.seed}:${event.voice}:${event.at}`)%2;
+  for(const layer of bank.get(resolveDrumKit(event.instrument,settings.profile),mode,sound,velocity,variant)) {
     if(layer.weight<=0)continue;
     if(!layer.buffer)throw Error('Drum bank not prepared');
     const source=context.createBufferSource(),weight=context.createGain();source.buffer=layer.buffer;weight.gain.value=layer.weight;

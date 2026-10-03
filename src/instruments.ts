@@ -33,3 +33,7 @@ export function normalizeInstruments(input: unknown, profile: ProfileId, seed: s
     INSTRUMENTS[layer].some((item) => item.id === supplied[layer]) ? supplied[layer] : fallback[layer]])) as InstrumentMix;
 }
 export const legacyInstruments = (): InstrumentMix => ({ harmony: 'legacy', bass: 'legacy', rhythm: 'legacy', motif: 'legacy' });
+
+// Old scores predate selectable kits. Resolve their sound without rewriting the score.
+export const resolveDrumKit = (id: string | undefined, profile: ProfileId): string =>
+  INSTRUMENTS.rhythm.some(kit => kit.id === id) ? id! : {lofi:'r-tape', ambient:'r-brush', dub:'r-electro'}[profile];
