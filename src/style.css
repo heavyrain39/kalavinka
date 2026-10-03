@@ -31,6 +31,15 @@ h1,h2,p { margin: 0; }
 .mono,.unit { font-family: var(--font-mono); }
 .site-header { height: 60px; padding: 0 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); background: var(--header-bg); }
 .wordmark { font-family: var(--font-logo); font-size: 26px; font-weight: 850; letter-spacing: -.055em; line-height: 1; }
+.brand-name { display: inline-grid; }
+.brand-en,.brand-ko { grid-area: 1 / 1; transition: opacity 160ms ease; }
+.brand-ko { font-family: var(--font-body); letter-spacing: -.045em; opacity: 0; }
+.wordmark:focus-visible .brand-en { opacity: 0; }
+.wordmark:focus-visible .brand-ko { opacity: 1; }
+@media (hover: hover) {
+  .wordmark:hover .brand-en { opacity: 0; }
+  .wordmark:hover .brand-ko { opacity: 1; }
+}
 .brand-cross { font-family: var(--font-mono); font-size: 16px; margin-left: 5px; vertical-align: top; font-weight: 400; }
 .theme-switch { display: flex; border: 1px solid var(--line); }
 .theme-switch button { width: 28px; height: 27px; background: transparent; border: 0; color: var(--text-dim); font-size: 16px; }

@@ -31,7 +31,7 @@ export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, ti
   }
   if (percussion) {
     attack = .002; release = .025;
-    hold = event.voice === 'kick' ? (id === 'r-click' ? .13 : id === 'r-brush' ? .18 : .24)
+    hold = event.voice === 'tom' ? .23 : event.voice === 'rim' ? .075 : event.voice === 'kick' ? (id === 'r-click' ? .13 : id === 'r-brush' ? .18 : .24)
       : event.voice === 'snare' ? (id === 'r-brush' ? .22 : id === 'r-click' ? .07 : .16) : id === 'r-brush' ? .10 : .065;
     decay = hold / (event.voice === 'hat' ? 4 : 3.5);
     level = id === 'r-brush' ? .78 : id === 'r-click' ? .80 : 1;
@@ -97,6 +97,14 @@ export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, ti
       filter.frequency.value = id === 'r-click' ? 950 : 500;
       noise(700, .10, .008, true);
       if (id === 'r-electro') osc(bottom, 'triangle', .13, 0, .12);
+    } else if (event.voice === 'tom') {
+      const f=440*2**(((event.notes[0]??48)-69)/12),body=osc(f*1.35);
+      body.frequency.exponentialRampToValueAtTime(f,time+.045);
+      osc(f*1.58,'sine',.20,0,.05);noise(1200,.09,.018,true);
+      filter.frequency.value=id==='r-brush'?1600:2300;
+    } else if (event.voice === 'rim') {
+      osc(780,'sine',.55,0,.014);osc(1260,'sine',.32,0,.008);noise(2300,.2,.009,true);
+      filter.frequency.value=id==='r-brush'?2700:4600;
     } else if (event.voice === 'snare') {
       noise(id === 'r-brush' ? 650 : id === 'r-click' ? 2100 : 1200, id === 'r-brush' ? .85 : .7);
       if (id !== 'r-brush') { osc(id === 'r-click' ? 400 : 185, 'sine', .28, 0, .055); osc(330, 'sine', .10, 0, .025); }

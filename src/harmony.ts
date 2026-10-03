@@ -1,6 +1,7 @@
 // Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
 import type { Settings, Chord } from './music';
 import { hash } from './seed';
+import { scaleFor } from './harmony-v5';
 const NAMES = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'];
 const QUALITY = { m7: [0, 3, 7, 10], maj7: [0, 4, 7, 11], '7sus4': [0, 5, 7, 10] };
 type Degree = [number, keyof typeof QUALITY];
@@ -16,6 +17,7 @@ const MAJOR: Degree[][] = [
 ];
 export const tonicFor = (settings: Settings) => 48 + hash(settings.seed) % 12;
 export function diatonicPitches(settings: Settings, low: number, high: number): number[] {
+  if (settings.generatorVersion >= 5) return scaleFor(settings, low, high);
   const scale = settings.profile === 'ambient' ? [0,2,4,5,7,9,11] : [0,2,3,5,7,8,10];
   return Array.from({length: high-low+1}, (_,i)=>low+i).filter(n=>scale.includes((n-tonicFor(settings)%12+12)%12));
 }

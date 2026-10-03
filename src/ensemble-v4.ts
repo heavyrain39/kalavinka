@@ -5,9 +5,7 @@ import { diatonicPitches, pitchesOf } from './harmony';
 import { hash, random } from './seed';
 import { gridTime } from './timing';
 import { kickSteps } from './groove';
-import { bassPhrase } from './bass';
-import { hasEnding, nextHarmonyBoundary } from './harmony-v5';
-import { addFill } from './fills';
+import { bassPhrase } from './bass-v4';
 export { gridTime } from './timing';
 
 // A maximally even binary pulse distribution (rotation-equivalent Euclidean rhythm).
@@ -57,25 +55,15 @@ function compilePhrase(settings: Settings, start: number): MusicEvent[] {
     const snares=a.beatless||open||energy<.12?[]:[4,12];
     kicks.forEach((step,i)=>add('kick','rhythm',bar,step,.085,[],dub?.27:.235,{duck:dub?(thin?.25:.48):!thin&&part%2===0&&i===0?.15:0}));
     snares.forEach(step=>add('snare','rhythm',bar,step,.035,[],.05));
-
+    if((dnb?bar%8===7:part===3)&&energy>.7&&!a.beatless&&!open) add('snare','rhythm',bar,15,.02,[],.019);
     let hats=a.beatless?[]:evenPulses((thin||open?2:3)+Math.floor(energy*(open?1:4)),16,(rotation+part%2*2)%4);
     if(dnb&&!a.beatless&&!open) hats=evenPulses(thin?4:8,16,0);
     if(ambient && energy>.55 && a.section==='return' && part===3) hats=[8];
     hats.forEach((step,i)=>add('hat','rhythm',bar,step,.018,[],i%2?.018:.025,{pan:i%2?.16:-.16}));
 
-    addFill(settings,bar,events);
-
     // Offbeat chord punctuation leaves space for a shared kick/bass/melody downbeat.
-    const chordSteps=hasEnding(settings,bar)?[0]:dnb?(part%2===0?[0]:[]):ambient?part%2===0?[0]:[]:a.beatless?[0]:dub?thin?[6]:[2,10]:part%2?[2,10]:[2];
-    chordSteps.forEach((step,i)=>{
-      const at=gridTime(settings,bar,step),normal=dnb?1.65:ambient?1.72:a.beatless?.78:dub?.13:i?.20:.32;
-      // Leave room for the instrument's release before an actual harmonic change.
-      const release=.60;
-      const budget=nextHarmonyBoundary(settings,at)-at-release*settings.bpm/240;
-      if(budget<.025)return; // A late stab must not ring across the new chord at fast tempos.
-      const length=Math.round(Math.min(normal,budget)*1e8)/1e8;
-      add(ambient||a.beatless||dnb?'pad':'keys','harmony',bar,step,length,chord.notes,i?.075:ambient?.105:.12);
-    });
+    const chordSteps=dnb?(part%2===0?[0]:[]):ambient?part%2===0?[0]:[]:a.beatless?[0]:dub?thin?[6]:[2,10]:part%2?[2,10]:[2];
+    chordSteps.forEach((step,i)=>add(ambient||a.beatless||dnb?'pad':'keys','harmony',bar,step,dnb?1.65:ambient?1.72:a.beatless?.78:dub?.13:i?.20:.32,chord.notes,i?.075:ambient?.105:.12));
 
     if(energy<.08) continue;
     // A, A′, development, cadence share the same pulse signature and contour.
@@ -157,7 +145,7 @@ function compilePhrase(settings: Settings, start: number): MusicEvent[] {
       cutoff:3400-settings.warmth*20,role,resolvesTo});
   }
   // Shared density budget: remove an optional hat when two salient layers already attack.
-  const result=events.filter(e=>dnb||e.voice!=='hat'||e.fill!==undefined||events.filter(other=>other!==e&&other.voice!=='hat'&&Math.abs(other.at-e.at)<.025).length<2);
+  const result=events.filter(e=>dnb||e.voice!=='hat'||events.filter(other=>other!==e&&other.voice!=='hat'&&Math.abs(other.at-e.at)<.025).length<2);
   return result.sort((a,b)=>a.at-b.at);
 }
 

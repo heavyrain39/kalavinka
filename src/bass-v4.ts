@@ -1,11 +1,10 @@
 // Copyright (C) 2026 Yakshawan. SPDX-License-Identifier: AGPL-3.0-or-later
-import { chordAt, type Settings, type MusicEvent } from './music';
+import { chordAt, chordHold, type Settings, type MusicEvent } from './music';
 import { arrangementAt } from './arrangement';
 import { pitchesOf } from './harmony';
 import { hash } from './seed';
 import { gridTime } from './timing';
 import { kickSteps } from './groove';
-import { nextHarmonyBoundary } from './harmony-v5';
 
 // Each family is a four-bar A/B/A/B′ riff, not independently ranked random hits.
 const RIFFS = [
@@ -73,7 +72,7 @@ export function bassPhrase(settings: Settings, start: number): MusicEvent[] {
   }
   // Monophonic gates stop before the next onset AND the next harmonic boundary.
   for(let i=0;i<result.length;i++) {
-    const e=result[i], boundary=nextHarmonyBoundary(settings,e.at);
+    const e=result[i], hold=chordHold(settings), boundary=(Math.floor(e.at/hold)+1)*hold;
     const available=Math.min(result[i+1]?.at??start+4,boundary,start+4)-e.at;
     e.length=Math.round(Math.max(.02,Math.min(e.length,available-.08*settings.bpm/240))*1e8)/1e8;
   }

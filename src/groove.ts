@@ -7,9 +7,9 @@ export function kickSteps(settings: Settings, bar: number): number[] {
   if(a.beatless||a.section==='open')return [];
   if(settings.profile==='dub') {
     if(settings.groove==='dnb') {
-      // A repeated two-bar break; only the eighth bar gets an optional fill.
+      // A repeated two-bar break. Legacy scores retain their eighth-bar kick fill.
       if(thin)return [0,10];
-      if(a.localBar%8===7&&settings.energy>70)return [0,6,14];
+      if(settings.generatorVersion<5&&a.localBar%8===7&&settings.energy>70)return [0,6,14];
       return a.localBar%2 ? [0,6,10] : [0,10];
     }
     return thin?[0,8]:[0,4,8,12];
