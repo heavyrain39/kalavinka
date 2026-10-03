@@ -44,7 +44,7 @@ export function normalizeSettings(input: unknown): Settings {
     typeof s[key] === 'number' && Number.isFinite(s[key]) ? Math.round(clamp(s[key]!, lo, hi)) : DEFAULTS[key];
   return {
     generatorVersion: 1,
-    profile: s.profile && s.profile in PROFILES && Object.hasOwn(PROFILES, s.profile) ? s.profile : 'lofi',
+    profile: typeof s.profile === 'string' && Object.hasOwn(PROFILES, s.profile) ? s.profile : 'lofi',
     seed: typeof s.seed === 'string' && /^[A-Z0-9]{4,16}$/.test(s.seed) ? s.seed : DEFAULTS.seed,
     bpm: number('bpm', 50, 130), energy: number('energy', 0, 100), warmth: number('warmth', 0, 100),
     evolution: number('evolution', 0, 100), volume: number('volume', 0, 100),

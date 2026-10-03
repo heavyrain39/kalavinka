@@ -43,4 +43,5 @@ test('stored and shared settings cannot introduce code, invalid numbers, or prot
   assert.equal(normalized.profile, 'lofi'); assert.equal(normalized.seed, DEFAULTS.seed);
   assert.equal(normalized.bpm, DEFAULTS.bpm); assert.equal(normalized.volume, 100); assert.equal(normalized.energy, 0);
   assert.deepEqual(normalizeSettings({ ...DEFAULTS, generatorVersion: 99 }), DEFAULTS);
+  assert.equal(normalizeSettings({ profile: { toString: 'invalid' } }).profile, 'lofi');
 });
