@@ -203,3 +203,8 @@ dialog p { color: var(--text-dim); font-size: 12px; margin: 16px 0; word-break: 
 .groove-select[hidden] { display: none; }
 @media (min-width: 901px) and (max-height: 650px) { .scope-wrap { min-height: 44px; } .deck-top { margin-bottom: 8px; } .layer-grid { padding: 8px; } }
 @media (max-width: 650px) { .layer-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .instrument-select { font-size: 11px; } }
+@media (min-width: 901px) and (max-height: 650px) {
+  .fader-list { gap: 7px; padding-top: 10px; padding-bottom: 10px; }
+  .fader-heading { margin-bottom: 0; }
+  .timer-section { padding-top: 8px; padding-bottom: 8px; }
+}
