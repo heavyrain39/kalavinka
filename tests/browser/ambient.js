@@ -3,7 +3,7 @@ async(page)=>{
  try{
   const p=await context.newPage();p.on('pageerror',e=>errors.push(String(e)));
   await p.goto('http://127.0.0.1:5173/');await p.waitForFunction(()=>!!window.__worksong);
-  if(!(await p.locator('#about-dialog').textContent()).includes('v0.23.0'))throw Error('stale release');
+  if(!(await p.locator('#about-dialog').textContent()).includes('v0.23.1'))throw Error('stale release');
   await p.locator('[data-profile="ambient"]').click();
   const initial=await p.evaluate(()=>window.__worksong.diagnostics().settings);
   if(initial.reverb!==76||initial.generatorVersion!==16)throw Error('ambient preset');
