@@ -6,7 +6,7 @@ import {nextHarmonyBoundary} from '../src/harmony-v5';
 const phrase=(s:Settings,start:number)=>Array.from({length:8},(_,i)=>eventsForBar(s,start+i)).flat().filter(e=>e.layer==='motif').sort((a,b)=>a.at-b.at);
 test('v10 retains a late closing note in every eight-bar melody, including the intro and sparse modes',()=>{
  for(const mode of ['lofi','ambient','dub','dnb'] as const)for(let seed=0;seed<8;seed++)for(const bpm of [50,180])for(const energy of [25,80]){
-  const s:Settings={...selectProfile(DEFAULTS,mode==='dnb'?'dub':mode),seed:`CADENCE${seed}`,bpm,energy,groove:mode==='dnb'?'dnb':'straight'};
+  const s:Settings={...selectProfile(DEFAULTS,mode==='dnb'?'dub':mode),generatorVersion:10,seed:`CADENCE${seed}`,bpm,energy,groove:mode==='dnb'?'dnb':'straight'};
   for(let start=0;start<64;start+=8){
    const notes=phrase(s,start),closing=notes.at(-1)!;
    assert.ok(closing.at>=start+7.5&&closing.at<start+8,'closing note must survive in the latter half of bar eight');

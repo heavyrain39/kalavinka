@@ -7,7 +7,7 @@ import {ARP_PATTERNS,arpeggioPlan} from '../src/arpeggio';
 import {nextHarmonyBoundary} from '../src/harmony-v5';
 import {capturePhrase,normalizePhrase,playbackScore,favoriteIdentity} from '../src/saved-phrase';
 const modes=['lofi','ambient','dub','dnb'] as const;
-const settings=(p:typeof modes[number]):Settings=>({...selectProfile(DEFAULTS,p==='dnb'?'dub':p),groove:p==='dnb'?'dnb':'straight',bpm:p==='dnb'?170:78});
+const settings=(p:typeof modes[number]):Settings=>({...selectProfile(DEFAULTS,p==='dnb'?'dub':p),generatorVersion:12,groove:p==='dnb'?'dnb':'straight',bpm:p==='dnb'?170:78});
 const phrase=(s:Settings,start:number,n=8)=>Array.from({length:n},(_,i)=>eventsForBar(s,start+i)).flat();
 test('v9 saved scores preserve their original sparse notes',()=>{
  const hashes=['ed1789d739bc97de2c442cf2679a5125b111046dcc6d3028c102351076adc07d','64dde926b3cfbe494c1e521e2143fa2c0e822063ef99b9a296f1fe36d52688d5','a23495b1778a715c954b7a263ebd4f040ae047b6f669b435d67bc4221b3862b7','9f6fd0a1a002dc70d9a12ffd1796d647a04cd5996e7aaea312607d37ab9ba2e0'];

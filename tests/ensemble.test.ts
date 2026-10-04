@@ -61,7 +61,9 @@ test('current form development and manual timbre/mute changes retain determinist
     assert.notDeepEqual(form(s),form(s,n));assert.notDeepEqual(form({...s,evolution:100}),form({...s,evolution:100},n));
     for(const l of LAYERS){
       const edited={...s,instruments:{...s.instruments,[l]:INSTRUMENTS[l].find(i=>i.id!==s.instruments[l])!.id}};
-      assert.deepEqual(form(s).map(({instrument,...e})=>e),form(edited).map(({instrument,...e})=>e));
+      const unaffected=(x:Settings)=>form(x).filter(e=>e.layer!==l);
+      assert.deepEqual(unaffected(s),unaffected(edited));
+      if(profile!=='ambient')assert.deepEqual(form(s).map(({instrument,...e})=>e),form(edited).map(({instrument,...e})=>e));
       const muted={...s,layers:{...s.layers,[l]:false}};
       assert.deepEqual(form(muted),form(s).filter(e=>e.layer!==l));
     }

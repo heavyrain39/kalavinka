@@ -9,12 +9,13 @@ import clockUrl from './clock.worklet.js?url';
 import { scheduleDuck } from './duck';
 import { createMastering, volumeGain } from './mastering';
 import { instrumentVoice } from './synth';
-import { createRoom, reverbGain } from './reverb';
+import { createRoom, createAmbientImpulse, reverbGain } from './reverb';
 
 // Lift the sparse arpeggio above masking by the chord/bass bus (+7.2 dB).
 const layerGain = (s:Settings, layer:AudioLayer) => layerEnabled(s,layer) ? layer==='arpeggio' ? 2.3 : 1 : 0;
 
 interface Scene {
+  disposed?:boolean; retirement?:ReturnType<typeof setTimeout>;
   settings: Settings; playback: Playback; transport: Transport<Playback>; output: GainNode; input: GainNode;
   layers: Record<AudioLayer, GainNode>; nodes: AudioNode[]; sources: Set<AudioScheduledSourceNode>; cleanups: Set<() => void>;
   meters: Record<AudioLayer, {node:AnalyserNode; samples:Float32Array<ArrayBuffer>}>;
@@ -36,6 +37,7 @@ export class MusicEngine {
   private drumBank!: DrumBank;
   private noise!: AudioBuffer;
   private impulse!: AudioBuffer;
+  private ambientImpulse?: AudioBuffer;
   private startedAt = 0;
   private lifecycle = 0;
   private initPromise: Promise<void> | null = null;
@@ -111,23 +113,26 @@ export class MusicEngine {
   }
   private makeScene(settings: Settings, fade: number, phrase?:SavedPhrase): Scene {
     const context = this.context!;
+    const ambient=settings.profile==='ambient'&&settings.generatorVersion>=13;
     const input = context.createGain();
     const output = context.createGain(); output.gain.value = 0;
     const dry = context.createGain(); dry.gain.value = settings.profile === 'ambient' ? .8 : 1;
-    const room = createRoom(context, this.impulse, settings.reverb);
+    if(ambient&&!this.ambientImpulse)this.ambientImpulse=createAmbientImpulse(context);
+    const room = createRoom(context, ambient?this.ambientImpulse!:this.impulse, settings.reverb,ambient);
     input.connect(dry).connect(output);
-    input.connect(room.input); room.wet.connect(output);
+    if(!ambient)input.connect(room.input);room.wet.connect(output);
     const halfTime = settings.generatorVersion >= 4 && settings.profile === 'dub' && settings.groove === 'dnb';
     const delay = context.createDelay(2); delay.delayTime.value = 60 / settings.bpm * (halfTime ? 1.5 : .75);
     const delayFilter = context.createBiquadFilter(); delayFilter.type = 'lowpass'; delayFilter.frequency.value = 1700;
     const feedback = context.createGain(); feedback.gain.value = .27;
-    const delayWet = context.createGain(); delayWet.gain.value = halfTime ? .09 : settings.profile === 'dub' ? .19 : .075;
+    const delayWet = context.createGain(); delayWet.gain.value = ambient?0:halfTime ? .09 : settings.profile === 'dub' ? .19 : .075;
     const delayHp = context.createBiquadFilter(); delayHp.type = 'highpass'; delayHp.frequency.value = 220;
     input.connect(delay).connect(delayHp).connect(delayFilter).connect(feedback).connect(delay);
     delayFilter.connect(delayWet).connect(output);
     output.connect(this.destination);
     const bassDuck = context.createGain();
     const drums = createDrumBus(context, settings);
+    const sends:GainNode[]=[];
     const meters = Object.fromEntries(AUDIO_LAYERS.map(layer=>{
       const node=context.createAnalyser();node.fftSize=256;
       return [layer,{node,samples:new Float32Array(256)}];
@@ -138,10 +143,14 @@ export class MusicEngine {
       else gain.connect(meters[layer].node);
       meters[layer].node.connect(layer==='rhythm'?output:input);return [layer,gain];
     })) as Record<AudioLayer, GainNode>;
+    if(ambient)for(const layer of ['harmony','bass','motif','arpeggio'] as const){
+      const send=context.createGain();send.gain.value={harmony:.78,bass:.08,motif:1,arpeggio:.62}[layer];
+      meters[layer].node.connect(send).connect(room.input);sends.push(send);
+    }
     drums.output.connect(layers.rhythm);
     const playback:Playback={settings:structuredClone(settings),phrase:phrase?structuredClone(phrase):undefined,opening:true};
     const scene: Scene = { drums, hats: [], settings, playback, output, input, layers, meters, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), cleanups: new Set(),
-      nodes: [...drums.nodes, input, output, bassDuck, dry, ...room.nodes, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers), ...Object.values(meters).map(m=>m.node)], transport: null! };
+      nodes: [...drums.nodes, input, output, bassDuck, dry, ...room.nodes, ...sends, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers), ...Object.values(meters).map(m=>m.node)], transport: null! };
     scene.transport = new Transport<Playback>({
       clock: () => context.currentTime,
       onError: (error) => {
@@ -164,13 +173,14 @@ export class MusicEngine {
   async regenerate(settings: Settings,phrase?:SavedPhrase) {
     if (!this.playing) return;
     const old = this.scene;
-    this.scene = this.makeScene(settings, .65,phrase);this.revision++;
+    const fade=(settings.profile==='ambient'&&settings.generatorVersion>=13)||(old?.settings.profile==='ambient'&&old.settings.generatorVersion>=13)?1.6:.65;
+    this.scene = this.makeScene(settings, fade,phrase);this.revision++;
     this.startedAt=this.context!.currentTime;
     if (old) {
       this.retired.add(old);
       old.transport.stop();
-      this.ramp(old.output.gain, 0, .65);
-      setTimeout(() => { this.dispose(old); this.retired.delete(old); }, 900);
+      this.ramp(old.output.gain, 0, fade);
+      old.retirement=setTimeout(() => { this.dispose(old); this.retired.delete(old); }, (fade+.25)*1000);
     }
   }
   update(settings: Settings) {
@@ -178,6 +188,8 @@ export class MusicEngine {
     this.setReverb(settings.reverb);
     const scene = this.scene;
     if (!scene || !this.playing) return;
+    const ambient=(s:Settings)=>s.profile==='ambient'&&s.generatorVersion>=13;
+    if(ambient(scene.settings)!==ambient(settings)){void this.regenerate(settings);return;}
     for (const layer of AUDIO_LAYERS) this.ramp(scene.layers[layer].gain, layerGain(settings, layer), .08);
     scene.liveRhythm = settings.layers.rhythm;
     if (!scene.liveRhythm) this.ramp(scene.bassDuck.gain, 1, .03);
@@ -269,6 +281,8 @@ export class MusicEngine {
     return this.stopPromise;
   }
   private dispose(scene: Scene) {
+    if(scene.disposed)return;scene.disposed=true;
+    if(scene.retirement)clearTimeout(scene.retirement);
     scene.transport.stop();
     for (const cleanup of scene.cleanups) cleanup();
     for (const node of scene.nodes) node.disconnect();
@@ -289,7 +303,7 @@ export class MusicEngine {
       return;
     }
     if (event.instrument) {
-      instrumentVoice(context, event, time, duration, this.noise, scene.layers[event.layer], scene.sources, scene.cleanups);
+      instrumentVoice(context, event, time, duration, this.noise, scene.layers[event.layer], scene.sources, scene.cleanups,render.profile==='ambient'&&render.generatorVersion>=13);
       return;
     }
     const gain = context.createGain();

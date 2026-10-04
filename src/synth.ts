@@ -1,17 +1,18 @@
 // Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import type { MusicEvent } from './music';
-import { scheduleEnvelope } from './envelope';
+import { scheduleEnvelope, scheduleAmbientEnvelope } from './envelope';
 import { ownVoice } from './source-lifecycle';
 import { random } from './seed';
 
 // Small, locally synthesized palettes. Struck bodies decay continuously; sustained
 // instruments keep a breath/bow envelope. The score and bass gate remain unchanged.
 export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, time: number, duration: number,
-  noiseBuffer: AudioBuffer, destination: AudioNode, active: Set<AudioScheduledSourceNode>, cleanups?: Set<() => void>) {
+  noiseBuffer: AudioBuffer, destination: AudioNode, active: Set<AudioScheduledSourceNode>, cleanups?: Set<() => void>, ambient=false) {
   const id = event.instrument!, percussion = event.layer === 'rhythm', bass = event.layer === 'bass';
   if ((!percussion && !event.notes.length) || !Number.isFinite(event.gain) || event.gain <= 0 || !Number.isFinite(duration) || duration <= 0) return;
+  if(ambient&&event.gain<1e-7)return;
   const variation = random(id, `${event.at}:${event.notes.join(',')}:${event.voice}`);
-  const velocity = Math.min(1, Math.max(.15, event.gain / (bass ? .18 : event.layer === 'harmony' ? .12 : .075)));
+  const velocity = Math.min(1, Math.max(.15, event.velocity??event.gain / (bass ? .18 : event.layer === 'harmony' ? .12 : .075)));
   const gain = context.createGain(), filter = context.createBiquadFilter(), pan = context.createStereoPanner();
   filter.type = 'lowpass'; filter.frequency.value = event.cutoff; filter.Q.value = .55; pan.pan.value = event.pan;
   gain.connect(filter).connect(pan).connect(destination);
@@ -39,10 +40,20 @@ export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, ti
     level = id === 'r-brush' ? .78 : id === 'r-click' ? .80 : 1;
   }
   if((event.layer==='motif'||event.layer==='arpeggio')&&event.release!==undefined)release=Math.min(release,Math.max(.025,event.release));
+  if(ambient&&!percussion&&!bass){
+    if(id==='h-pad'){attack=Math.min(.95,duration*.25);sustain=.78;release=1.6;level=.82;}
+    if(id==='h-organ'){attack=Math.min(.35,duration*.2);release=1.1;}
+    if(id==='h-felt'){attack=.012;decay=2.1;release=.8;}
+    if(id==='h-electric'){attack=.016;decay=2;release=.7;}
+    if(id==='m-bell'){attack=.009;decay=1.9;release=1.25;level=.78;}
+    if(id==='m-marimba'){attack=.006;decay=.48;release=.42;}
+    if(id==='m-flute'){attack=Math.min(.11,duration*.25);release=.38;}
+    if(event.release!==undefined)release=Math.max(.025,event.release);
+  }
   hold = Math.max(hold, attack + .012);
   const end = time + hold + release;
   const amplitude = event.gain * level * (.97 + variation * .06) / Math.max(1, event.notes.length);
-  scheduleEnvelope(gain.gain, { time, amplitude, attack, hold, decay, sustain, release, bass });
+  (ambient&&!percussion&&!bass?scheduleAmbientEnvelope:scheduleEnvelope)(gain.gain, { time, amplitude, attack, hold, decay, sustain, release, bass });
   if (!percussion) {
     const brightness = Math.min(context.sampleRate * .45, filter.frequency.value * (.8 + velocity * .35));
     filter.frequency.setValueAtTime(brightness, time);
@@ -119,15 +130,16 @@ export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, ti
         vibrato(carriers, 2.5, 5.1); break;
       }
       case 'h-pad': {
-        const carriers = [osc(f, 'triangle', .40, -4 + detune), osc(f, 'sine', .45, 4 + detune), osc(f * 2, 'sine', .09, 1)];
-        vibrato(carriers, 3, .7 + variation * .15); break;
+        const carriers = [osc(f, 'triangle', ambient?.22:.40, -4 + detune), osc(f, 'sine', ambient?.62:.45, 4 + detune), osc(f * 2, 'sine', .09, 1)];
+        vibrato(carriers, ambient?1.6:3, ambient?.045+variation*.035:.7 + variation * .15); break;
       }
       case 'b-sub': osc(f, 'sine'); break;
       case 'b-round': osc(f, 'sine', .78); osc(f, 'triangle', .22, 0, .5); break;
       case 'b-pluck': fm(f, 1, .75, .065, .8); osc(f * 2, 'sine', .18, 0, .10); break;
       case 'b-analog': osc(f, 'sawtooth', .26, -3); osc(f, 'triangle', .3, 3); osc(f, 'sine', .44); break;
       case 'm-bell':
-        osc(f, 'sine', .76, detune); osc(f * 2.756, 'sine', .15, detune, .38); osc(f * 5.404, 'sine', .055, detune, .16); break;
+        osc(f, 'sine', .76, detune); osc(f * 2.756, 'sine', ambient?.10:.15, detune, ambient?.62:.38); osc(f * 5.404, 'sine', ambient?.035:.055, detune, ambient?.23:.16);
+        if(ambient)osc(f*2.003,'sine',.055,detune,.9);break;
       case 'm-marimba':
         osc(f, 'sine', .80, detune); osc(f * 3.99, 'sine', .17, detune, .045); osc(f * 10, 'sine', .025, detune, .018);
         noise(1200, .022, .01, true); break;
