@@ -9,7 +9,7 @@ async(page)=>{
   if(old.s.generatorVersion!==6)throw Error('saved version');
   await p.locator('#play').click();await p.waitForFunction(()=>window.__worksong.diagnostics().playing&&window.__worksong.diagnostics().triggered>8&&!document.getElementById('play').disabled);
   await p.locator('#play').click();await p.waitForFunction(()=>!document.getElementById('play').disabled);
-  await p.locator('[data-profile="dub"]').click();await p.locator('#groove').selectOption('dnb');
+  await p.locator('[data-profile="dub"]').click();await p.locator('[data-groove="dnb"]').click();
   await p.locator('#play').click();await p.waitForFunction(()=>window.__worksong.diagnostics().playing&&window.__worksong.diagnostics().triggered>12&&!document.getElementById('play').disabled);
   await p.evaluate(()=>{const e=document.getElementById('evolution');e.value='100';e.dispatchEvent(new Event('input',{bubbles:true}));});
   await p.waitForFunction(()=>window.__worksong.diagnostics().triggered>45);

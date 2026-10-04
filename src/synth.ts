@@ -3,11 +3,13 @@ import type { MusicEvent } from './music';
 import { scheduleEnvelope, scheduleAmbientEnvelope } from './envelope';
 import { ownVoice } from './source-lifecycle';
 import { random } from './seed';
+import {nylonVoice} from './nylon';
 
 // Small, locally synthesized palettes. Struck bodies decay continuously; sustained
 // instruments keep a breath/bow envelope. The score and bass gate remain unchanged.
 export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, time: number, duration: number,
   noiseBuffer: AudioBuffer, destination: AudioNode, active: Set<AudioScheduledSourceNode>, cleanups?: Set<() => void>, ambient=false) {
+  if(event.instrument==='m-nylon'){nylonVoice(context,event,time,duration,destination,active,cleanups);return;}
   const id = event.instrument!, percussion = event.layer === 'rhythm', bass = event.layer === 'bass';
   if ((!percussion && !event.notes.length) || !Number.isFinite(event.gain) || event.gain <= 0 || !Number.isFinite(duration) || duration <= 0) return;
   if(ambient&&event.gain<1e-7)return;

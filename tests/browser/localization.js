@@ -24,7 +24,7 @@ async(page)=>{
     }
    }
    await p.locator('#play').click();await p.waitForFunction(()=>!window.__worksong.diagnostics().playing&&!document.getElementById('play').disabled);
-   await p.locator('[data-profile="dub"]').click();await p.locator('#groove').selectOption('dnb');
+   await p.locator('[data-profile="dub"]').click();await p.locator('[data-groove="dnb"]').click();
    await p.locator('[data-layer="bass"]').click();await p.locator('[data-instrument="motif"]').selectOption('m-flute');
    await p.evaluate(()=>{for(const id of ['bpm','energy','warmth','evolution','reverb','volume']){const el=document.getElementById(id);el.value=id==='bpm'?'95':'90';el.dispatchEvent(new Event('input',{bubbles:true}));}});
    const composition=await p.evaluate(()=>window.__worksong.diagnostics().settings);

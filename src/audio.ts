@@ -9,6 +9,7 @@ import clockUrl from './clock.worklet.js?url';
 import { scheduleDuck } from './duck';
 import { createMastering, volumeGain } from './mastering';
 import { instrumentVoice } from './synth';
+import {prepareNylon} from './nylon';
 import { createRoom, createAmbientImpulse, reverbGain } from './reverb';
 
 // Lift the sparse arpeggio above masking by the chord/bass bus (+7.2 dB).
@@ -101,6 +102,8 @@ export class MusicEngine {
     await this.init();
     if (token !== this.lifecycle) return;
     const context = this.context!;
+    if(settings.instruments.arpeggio==='m-nylon')await prepareNylon(context);
+    if(token!==this.lifecycle)return;
     await context.resume();
     if (token !== this.lifecycle) return;
     if (context.state !== 'running') throw new Error('AUDIO_LOCKED');

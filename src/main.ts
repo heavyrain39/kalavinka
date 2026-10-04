@@ -2,6 +2,7 @@
 import './style.css';
 import {browserLanguage, translate, instrumentName, type Language, type TextKey} from './i18n';
 import {resetSliders} from './controls';
+import {validFavoriteNumber, nextFavoriteNumber, reconcileFavoriteNumbers} from './favorite-numbers';
 import { Starfield } from './starfield';
 import { recipeFor, hasEnding } from './harmony-v5';
 import { INSTRUMENTS, defaultArpeggioInstrument, resolveDrumKit } from './instruments';
@@ -13,6 +14,7 @@ const PORTFOLIO = 'https://heavyrain39.github.io/portfolio/';
 const STORAGE = 'worksong.v1';
 const SELECTION = 'worksong.selection.v1';
 const FAVORITES = 'worksong.favorites.v3';
+const KEEP_INSTRUMENTS = 'worksong.keep-instruments.v1';
 const read = (key: string) => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, value: unknown) => { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } };
 let language: Language = browserLanguage(navigator.language);
@@ -20,6 +22,7 @@ const t = (key: TextKey, values: Record<string, string | number> = {}) => transl
 const aria = (key: TextKey) => `data-i18n-aria="${key}" aria-label="${t(key)}"`;
 const label = (key: TextKey) => `<span data-i18n="${key}">${t(key)}</span>`;
 const saved = read(STORAGE);
+let keepInstruments=read(KEEP_INSTRUMENTS)===true;
 let settings = upgradeSettings(saved);
 let selectedPhrase:SavedPhrase|undefined;
 const savedSelection=read(SELECTION),savedPhrase=normalizePhrase(savedSelection?.phrase);
@@ -35,19 +38,8 @@ interface Favorite { id: string; number: number; settings: Settings; phrase?:Sav
 const currentFavorites=read(FAVORITES),previousFavorites=read('worksong.favorites.v2');
 const storedFavorites = Array.isArray(currentFavorites?.items)?currentFavorites:Array.isArray(previousFavorites?.items)?previousFavorites:null;
 const rawFavorites = storedFavorites?.items ?? read('worksong.favorites.v1');
-const validNumber = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) > 0 && Number(value) < Number.MAX_SAFE_INTEGER;
-const favoriteCounters = Object.fromEntries((Object.keys(PROFILES) as ProfileId[]).map(profile => [profile,
-  validNumber(storedFavorites?.counters?.[profile]) ? storedFavorites.counters[profile] : 0,
-])) as Record<ProfileId, number>;
-let favorites: Favorite[] = Array.isArray(rawFavorites) ? rawFavorites.slice(0, 12).filter((item) => item && typeof item.id === 'string' && /^[0-9]+$/.test(item.id)).map((item) => ({ id: item.id, number: validNumber(item.number) ? item.number : 0, settings: normalizeSettings(item.settings), phrase:normalizePhrase(item.phrase) })) : [];
-// Reserve existing numbers before assigning older, unnumbered saves in save order.
-for (const item of favorites) favoriteCounters[item.settings.profile] = Math.max(favoriteCounters[item.settings.profile], item.number);
-const usedNumbers: Record<ProfileId, Set<number>> = {lofi:new Set(), ambient:new Set(), dub:new Set()};
-for (const item of [...favorites].reverse()) {
-  const profile = item.settings.profile;
-  if (!item.number || usedNumbers[profile].has(item.number)) item.number = ++favoriteCounters[profile];
-  usedNumbers[profile].add(item.number);
-}
+let favorites: Favorite[] = Array.isArray(rawFavorites) ? rawFavorites.slice(0, 12).filter((item) => item && typeof item.id === 'string' && /^[0-9]+$/.test(item.id)).map((item) => ({ id: item.id, number: validFavoriteNumber(item.number) ? item.number : 0, settings: normalizeSettings(item.settings), phrase:normalizePhrase(item.phrase) })) : [];
+const favoriteCounters = reconcileFavoriteNumbers(favorites,storedFavorites?.counters);
 function storeFavorites() { return write(FAVORITES, {items:favorites, counters:favoriteCounters}); }
 // Keep v1/v2 backups intact; v3 saves the written phrase and counters atomically.
 storeFavorites();
@@ -99,9 +91,15 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
             <button class="icon-button tip" id="favorite" ${aria('save')}>${icon('save')}<span class="tooltip" role="tooltip" data-i18n="save">${t('save')}</span></button>
             <button class="icon-button tip" id="share" ${aria('share')}>${icon('share')}<span class="tooltip" role="tooltip" data-i18n="share">${t('share')}</span></button>
           </div>
-          <div class="player-bottom"><select id="groove" class="instrument-select groove-select" ${aria('groove')}><option value="straight" data-i18n="straight">${t('straight')}</option><option value="dnb" data-i18n="dnb">${t('dnb')}</option></select><button class="text-button" id="focus" aria-pressed="false">${icon('focus')}<span>${t('focus')}</span></button></div>
+          <div class="player-bottom"><button class="text-button" id="focus" aria-pressed="false">${icon('focus')}<span>${t('focus')}</span></button></div>
         </div>
+        <section class="instrument-panel" ${aria('instruments')}>
+          <div class="instrument-toolbar"><h2 data-i18n="instruments">${t('instruments')}</h2>
+            <div id="groove-control" class="groove-control" role="group" ${aria('groove')} hidden><button data-groove="straight" aria-pressed="true" data-i18n="straight">${t('straight')}</button><button data-groove="dnb" aria-pressed="false" data-i18n="dnb">${t('dnb')}</button></div>
+            <button id="keep-instruments" class="instrument-lock tip" aria-pressed="false" ${aria('keepInstruments')} aria-describedby="keep-instruments-tip">${label('keepInstruments')}<span class="switch" aria-hidden="true"></span><span class="tooltip" id="keep-instruments-tip" role="tooltip" data-i18n="keepInstrumentsTip">${t('keepInstrumentsTip')}</span></button>
+          </div>
         <div class="layer-grid" role="group" ${aria('instruments')}>${AUDIO_LAYERS.map((layer) => `<div class="part"><button class="layer" ${layer === 'arpeggio' ? 'id="arpeggio"' : ''} data-layer="${layer}" aria-pressed="true">${label(layer)}<span class="switch" aria-hidden="true"></span></button><select class="instrument-select" data-instrument="${layer}" aria-label="${t('timbre',{part:t(layer)})}"></select></div>`).join('')}</div>
+        </section>
       </section>
       <aside class="right-column"><div class="panel starfield"><canvas id="starfield" role="img" ${aria('sky')}></canvas></div><section class="panel controls-panel">
         <div class="panel-head controls-head"><h2 data-i18n="controls">${t('controls')}</h2><button class="text-button" id="reset-controls" ${aria('resetLabel')}>${label('reset')}</button></div>
@@ -113,7 +111,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer" data-i18n="terms">${t('terms')}</a><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.23.2 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.24.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 // Keep the crawlable, static overview in the compact footer after the player mounts.
 document.querySelector('footer > div')!.append(document.querySelector('.app-overview')!);
@@ -156,8 +154,9 @@ function renderSettings() {
     select.value = layer === 'rhythm' ? resolveDrumKit(settings.instruments[layer], settings.profile) : layer === 'arpeggio' ? settings.instruments.arpeggio ?? defaultArpeggioInstrument(settings.profile) : settings.instruments[layer];
     select.setAttribute('aria-label',t('timbre',{part:t(layer)}));
   }
-  $<HTMLSelectElement>('#groove').hidden = settings.profile !== 'dub';
-  $<HTMLSelectElement>('#groove').value = settings.groove;
+  $('#groove-control').hidden = settings.profile !== 'dub';
+  document.querySelectorAll<HTMLButtonElement>('[data-groove]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.groove===settings.groove)));
+  $('#keep-instruments').setAttribute('aria-pressed',String(keepInstruments));
   $('#now-title').textContent = t(settings.profile);
   renderChords(); renderFavorites();
 }
@@ -202,7 +201,7 @@ function renderPlayback() {
   $<HTMLButtonElement>('#arpeggio').disabled = busy;
   $<HTMLInputElement>('#melodyRepetition').disabled = busy;
   $<HTMLButtonElement>('#reset-controls').disabled = busy;
-  document.querySelectorAll<HTMLSelectElement>('[data-instrument], #groove').forEach(select => { select.disabled = busy; });
+  document.querySelectorAll<HTMLSelectElement|HTMLButtonElement>('[data-instrument], [data-groove], #keep-instruments').forEach(control => { control.disabled = busy; });
   document.body.classList.toggle('is-playing', playing);
   $('#status-text').textContent = busy ? t('preparing') : playing ? t('playing') : t('stop');
 }
@@ -246,7 +245,13 @@ $('#reset-controls').addEventListener('click', () => {
   settings = resetSliders(settings); engine.update(settings); persist(); renderSettings(); toast('resetDone');
 });
 $('#play').addEventListener('click', () => void togglePlayback());
-$('#regenerate').addEventListener('click', () => { void replace(regenerateSettings(settings)); });
+$('#regenerate').addEventListener('click', () => { void replace(regenerateSettings(settings,undefined,keepInstruments)); });
+$('#keep-instruments').addEventListener('click',()=>{
+  if(busy)return;
+  keepInstruments=!keepInstruments;
+  $('#keep-instruments').setAttribute('aria-pressed',String(keepInstruments));
+  if(!write(KEEP_INSTRUMENTS,keepInstruments))toast('storageFailed');
+});
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-profile]')) button.addEventListener('click', () => {
   if (button.dataset.profile !== settings.profile) void replace(selectProfile(settings, button.dataset.profile as ProfileId));
 });
@@ -275,16 +280,19 @@ for (const select of document.querySelectorAll<HTMLSelectElement>('[data-instrum
   if (next.generatorVersion !== settings.generatorVersion) { void replace(next); return; }
   settings = next; engine.update(settings); persist(); renderSettings();
 });
-$('#groove').addEventListener('change', () => {
-  const groove = $<HTMLSelectElement>('#groove').value as Settings['groove'];
+document.querySelectorAll<HTMLButtonElement>('[data-groove]').forEach(button=>button.addEventListener('click', () => {
+  if(busy||settings.profile!=='dub'||button.dataset.groove===settings.groove)return;
+  const groove = button.dataset.groove as Settings['groove'];
   void replace({ ...upgradeSettings(settings), groove, bpm: groove === 'dnb' ? 170 : PROFILES.dub.bpm });
-});
+}));
 $('#favorite').addEventListener('click', () => {
   if(busy)return;
   const capture=currentCapture(),identity=favoriteIdentity(capture.settings,capture.phrase);
   if([...favoriteKeys.values()].includes(identity)){toast('alreadySaved');return;}
   if (favorites.length >= 12) { toast('savedLimit'); return; }
-  favorites = [{ id: String(Date.now()), number: ++favoriteCounters[capture.settings.profile], ...structuredClone(capture) }, ...favorites];
+  const profile=capture.settings.profile;
+  favoriteCounters[profile]=nextFavoriteNumber(favoriteCounters[profile],new Set(favorites.filter(item=>item.settings.profile===profile).map(item=>item.number)));
+  favorites = [{ id: String(Date.now()), number: favoriteCounters[profile], ...structuredClone(capture) }, ...favorites];
   const stored = storeFavorites(); renderFavorites();
   toast(stored ? 'savedDone' : 'savedTemporary');
 });

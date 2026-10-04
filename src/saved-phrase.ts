@@ -44,7 +44,7 @@ export function normalizePhrase(value:unknown):SavedPhrase|undefined{
       ||!finite(e.at,0,8)||e.at===8||!finite(e.length,.0001,8)||!pitches(e.notes)
       ||e.layer!=='rhythm'&&!e.notes.length||!finite(e.gain,0,1)||!finite(e.pan,-1,1)||!finite(e.cutoff,20,24000))return;
     const event:MusicEvent={at:e.at,length:e.length,voice:e.voice,layer:e.layer,notes:[...e.notes],gain:e.gain,pan:e.pan,cutoff:e.cutoff};
-    if(e.instrument!==undefined){if(e.instrument!=='legacy'&&!INSTRUMENTS[e.layer==='arpeggio'?'motif':e.layer].some(i=>i.id===e.instrument))return;event.instrument=e.instrument;}
+    if(e.instrument!==undefined){if(e.instrument!=='legacy'&&!INSTRUMENTS[e.layer].some(i=>i.id===e.instrument))return;event.instrument=e.instrument;}
     for(const [key,hi] of [['duck',1],['velocity',1],['release',4],['variation',1],['fill',100],['resolvesTo',127]] as const){
       if(e[key]!==undefined){if(!finite(e[key],0,hi)||(['variation','fill','resolvesTo'].includes(key)&&!Number.isInteger(e[key])))return;event[key]=e[key];}
     }

@@ -35,7 +35,9 @@ test('all arpeggio timbres preserve the written pattern, save exactly, and chang
    const selected=normalizeSettings({...s,instruments:{...s.instruments,arpeggio:id}});
    const events=phrase(selected,0,32),arp=events.filter(e=>e.layer==='arpeggio');
    assert.ok(arp.length&&arp.every(e=>e.instrument===id));
-   assert.deepEqual(events.map(e=>e.layer==='arpeggio'?{...e,instrument:defaultArpeggioInstrument(s.profile)}:e),original);
+   assert.deepEqual(events.filter(e=>e.layer!=='arpeggio'),original.filter(e=>e.layer!=='arpeggio'));
+   if(id==='m-nylon')assert.deepEqual(arp.map(e=>[e.at,e.notes.map(n=>n+12)]),original.filter(e=>e.layer==='arpeggio').map(e=>[e.at,e.notes]));
+   else assert.deepEqual(events.map(e=>e.layer==='arpeggio'?{...e,instrument:defaultArpeggioInstrument(s.profile)}:e),original);
    const start=Math.floor(arp[0].at/8)*8,clip=capturePhrase({settings:selected,opening:true},start);
    assert.equal(favoriteIdentity(selected,clip),favoriteIdentity(normalizeSettings(JSON.parse(JSON.stringify(selected))),normalizePhrase(JSON.parse(JSON.stringify(clip)))!));
    assert.notEqual(regenerateSettings(selected,'NEWARP').instruments.arpeggio,id);

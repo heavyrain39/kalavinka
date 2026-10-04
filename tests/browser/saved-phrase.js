@@ -11,7 +11,7 @@ async(page)=>{
   await p.reload();
   const legacy=await p.evaluate(()=>JSON.parse(localStorage.getItem('worksong.favorites.v3')).items[0]);
   if(legacy.number!==17||legacy.settings.generatorVersion!==6||legacy.phrase)throw Error('legacy migration');
-  await p.locator('[data-profile="dub"]').click();await p.locator('#groove').selectOption('dnb');
+  await p.locator('[data-profile="dub"]').click();await p.locator('[data-groove="dnb"]').click();
   await p.evaluate(()=>{const b=document.getElementById('bpm');b.value='180';b.dispatchEvent(new Event('input',{bubbles:true}));});
   await p.locator('#play').click();await p.waitForFunction(()=>window.__worksong.diagnostics().bar>1&&!document.getElementById('play').disabled);
   await p.locator('#favorite').click();

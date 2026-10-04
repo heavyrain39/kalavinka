@@ -35,7 +35,7 @@ async(page)=>{
   const independent=await p.evaluate(()=>window.__worksong.diagnostics());
   if(independent.settings.layers.motif||!independent.settings.arpeggio||independent.late||independent.lastError)throw Error('independent '+JSON.stringify(independent));
   await p.locator('#play').click();await p.waitForFunction(()=>!document.getElementById('play').disabled);
-  await p.locator('[data-profile="dub"]').click();await p.locator('#groove').selectOption('dnb');
+  await p.locator('[data-profile="dub"]').click();await p.locator('[data-groove="dnb"]').click();
   const layouts=[];
   for(const language of ['ko','en']){await p.locator(`[data-language="${language}"]`).click();for(const [width,height] of [[1440,900],[1024,768],[768,1024],[390,844],[320,740]]){
    await p.setViewportSize({width,height});

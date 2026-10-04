@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {browserLanguage, messages, translate, instrumentName} from '../src/i18n.ts';
 import {resetSliders} from '../src/controls.ts';
-import {DEFAULTS, LAYERS, normalizeSettings, selectProfile, type ProfileId} from '../src/music.ts';
+import {DEFAULTS, AUDIO_LAYERS, normalizeSettings, selectProfile, type ProfileId} from '../src/music.ts';
 import {INSTRUMENTS} from '../src/instruments.ts';
 
 test('only a Korean primary browser locale starts in Korean', () => {
@@ -17,7 +17,7 @@ test('all copy and instrument choices have complete English translations', () =>
     assert.doesNotMatch(messages.en[key], /[가-힣]/);
     assert.deepEqual(messages.en[key].match(/\{\w+\}/g)?.sort(), messages.ko[key].match(/\{\w+\}/g)?.sort());
   }
-  for (const layer of LAYERS) for (const instrument of INSTRUMENTS[layer]) {
+  for (const layer of AUDIO_LAYERS) for (const instrument of INSTRUMENTS[layer]) {
     assert.notEqual(instrumentName(instrument.id,'en'),'Legacy sound');
     assert.notEqual(instrumentName(instrument.id,'ko'),'기존 음색');
   }

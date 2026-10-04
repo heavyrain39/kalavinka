@@ -9,7 +9,7 @@ export const INSTRUMENTS = {
   bass: [{ id: 'b-round', name: '라운드' }, { id: 'b-sub', name: '서브' }, { id: 'b-pluck', name: '플럭 베이스' }, { id: 'b-analog', name: '아날로그' }],
   rhythm: [{ id: 'r-brush', name: '브러시' }, { id: 'r-tape', name: '테이프 킷' }, { id: 'r-electro', name: '일렉트로' }, { id: 'r-click', name: '미니멀 킷' }],
   motif: [{ id: 'm-bell', name: '벨' }, { id: 'm-marimba', name: '마림바' }, { id: 'm-flute', name: '소프트 플루트' }, { id: 'm-pluck', name: '플럭' }],
-  arpeggio: [{ id: 'm-bell', name: '벨' }, { id: 'm-marimba', name: '마림바' }, { id: 'm-flute', name: '소프트 플루트' }, { id: 'm-pluck', name: '플럭' }],
+  arpeggio: [{ id: 'm-bell', name: '벨' }, { id: 'm-marimba', name: '마림바' }, { id: 'm-flute', name: '소프트 플루트' }, { id: 'm-pluck', name: '플럭' }, { id: 'm-nylon', name: '나일론 기타' }],
 } as const;
 const weights: Record<ProfileId, Record<Layer, number[]>> = {
   lofi: { harmony: [4, 5, 2, 1], bass: [4, 2, 4, 1], rhythm: [4, 5, 1, 2], motif: [2, 4, 3, 3] },
@@ -28,7 +28,8 @@ export function chooseInstruments(profile: ProfileId, seed: string, previous?: I
     for (const candidate of candidates) { pick -= candidate.weight; if (pick < 0) { mix[layer] = candidate.id; break; } }
   }
   const preferred = defaultArpeggioInstrument(profile);
-  const candidates = INSTRUMENTS.arpeggio.filter(i => i.id !== mix.motif
+  // Keep historical seeded choices stable; new timbres are explicit palette choices.
+  const candidates = INSTRUMENTS.arpeggio.filter(i => i.id !== 'm-nylon' && i.id !== mix.motif
     && (!previous || i.id !== (previous.arpeggio ?? preferred)));
   mix.arpeggio = !previous && preferred !== mix.motif ? preferred
     : candidates[Math.floor(random(seed, 'instrument:arpeggio') * candidates.length)].id;

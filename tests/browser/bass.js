@@ -3,11 +3,11 @@ async(page)=>{
  try{
   const p=await context.newPage();p.on('pageerror',e=>errors.push(String(e)));
   await p.goto('http://127.0.0.1:5173/');await p.waitForFunction(()=>!!window.__worksong);
-  if(!(await p.locator('#about-dialog').textContent()).includes('v0.23.2'))throw Error('stale release');
+  if(!(await p.locator('#about-dialog').textContent()).includes('v0.24.0'))throw Error('stale release');
   const results=[];
   for(const mode of ['lofi','ambient','dub','dnb']){
    await p.locator(`[data-profile="${mode==='dnb'?'dub':mode}"]`).click();
-   if(mode==='dnb')await p.locator('#groove').selectOption('dnb');
+   if(mode==='dnb')await p.locator('[data-groove="dnb"]').click();
    await p.locator('#melodyRepetition').focus();await p.locator('#melodyRepetition').press('Home');await p.locator('#melodyRepetition').press('ArrowRight');
    await p.evaluate(()=>{const e=document.getElementById('bpm');e.value='180';e.dispatchEvent(new Event('input',{bubbles:true}));});
    await p.locator('#play').click();await p.waitForFunction(()=>window.__worksong.diagnostics().bar>8.1);

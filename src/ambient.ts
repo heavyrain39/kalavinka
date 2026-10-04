@@ -28,6 +28,7 @@ export function ambientEvents(s:Settings,bar:number,events:MusicEvent[]):MusicEv
   return [...events.filter(e=>e.layer!=='harmony').map(e=>{
     if(e.layer!=='motif'&&e.layer!=='arpeggio')return e;
     const arp=e.layer==='arpeggio',id=e.instrument??s.instruments[e.layer];
+    if(id==='m-nylon')return {...e,gain:e.gain*.82}; // Keep the guitar's written chord/rest damping.
     let release=id==='m-bell'?(arp?.85:1.25):id==='m-marimba'?.42:id==='m-flute'?.38:.55;
     if(e.role==='neighbor')release=.07;
     const boundary=nextHarmonyBoundary(s,e.at),next=chordAt(s,boundary);

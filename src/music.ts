@@ -87,8 +87,11 @@ export function upgradeSettings(input: unknown): Settings {
   const s = normalizeSettings(input);
   return s.generatorVersion === 16 ? s : { ...s, generatorVersion: 16, melodyRepetition:repetitionLevel(s), arpeggio: s.arpeggio !== false, instruments: s.generatorVersion >= 3 ? s.instruments : chooseInstruments(s.profile, s.seed) };
 }
-export function regenerateSettings(settings: Settings, seed = newSeed()): Settings {
-  return { ...settings, generatorVersion: 16, melodyRepetition:repetitionLevel(settings), arpeggio: settings.arpeggio !== false, seed, instruments: chooseInstruments(settings.profile, seed, settings.instruments) };
+export function regenerateSettings(settings: Settings, seed = newSeed(), keepInstruments = false): Settings {
+  // Pre-palette favorites need their original engine to retain their legacy sounds.
+  return { ...settings, generatorVersion: keepInstruments&&settings.generatorVersion<3?settings.generatorVersion:16,
+    melodyRepetition:repetitionLevel(settings), arpeggio: keepInstruments?layerEnabled(settings,'arpeggio'):settings.arpeggio!==false, seed,
+    instruments: keepInstruments ? {...settings.instruments} : chooseInstruments(settings.profile, seed, settings.instruments) };
 }
 
 const NAMES = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'];

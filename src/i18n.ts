@@ -2,6 +2,7 @@
 export type Language = 'ko' | 'en';
 export const browserLanguage = (language: string): Language => /^ko(?:-|$)/i.test(language) ? 'ko' : 'en';
 const ko = {
+  keepInstruments:'악기 유지', keepInstrumentsTip:'새 흐름을 눌러도 현재 악기 음색을 유지합니다.',
   pageTitle:'가릉빈가 Kalavinka — 무료 절차적 노동요 생성기',
   overviewTitle:'가릉빈가 소개와 사용법',
   overviewIntro:'가릉빈가(Kalavinka)는 작업과 공부할 때 들을 무료 절차적 음악 생성기입니다. 로그인이나 음악 생성 API 없이 Web Audio 엔진이 브라우저에서 보컬 없는 배경 음악을 합성합니다.',
@@ -35,6 +36,7 @@ const ko = {
 } as const;
 export type TextKey = keyof typeof ko;
 const en: Record<TextKey, string> = {
+  keepInstruments:'Keep sounds', keepInstrumentsTip:'Keep the current instrument sounds when creating a new flow.',
   pageTitle:'Kalavinka — Free generative work music',
   overviewTitle:'About Kalavinka and how to listen',
   overviewIntro:'Kalavinka is a free procedural music generator for work and study. Its Web Audio engine synthesizes instrumental background music in your browser, without sign-in or a music generation API.',
@@ -74,6 +76,6 @@ const sounds: Record<string, readonly [string,string]> = {
  'h-felt':['펠트 건반','Felt keys'], 'h-electric':['일렉 피아노','Electric piano'], 'h-organ':['오르간','Organ'], 'h-pad':['스트링 패드','String pad'],
  'b-round':['라운드','Round'], 'b-sub':['서브','Sub'], 'b-pluck':['플럭 베이스','Plucked bass'], 'b-analog':['아날로그','Analog'],
  'r-brush':['브러시','Brush'], 'r-tape':['테이프 킷','Tape kit'], 'r-electro':['일렉트로','Electro'], 'r-click':['미니멀 킷','Minimal kit'],
- 'm-bell':['벨','Bell'], 'm-marimba':['마림바','Marimba'], 'm-flute':['소프트 플루트','Soft flute'], 'm-pluck':['플럭','Pluck'],
+ 'm-bell':['벨','Bell'], 'm-marimba':['마림바','Marimba'], 'm-flute':['소프트 플루트','Soft flute'], 'm-pluck':['플럭','Pluck'], 'm-nylon':['나일론 기타','Nylon guitar'],
 };
 export const instrumentName = (id: string, language: Language) => sounds[id]?.[language === 'ko' ? 0 : 1] ?? translate(language,'legacy');
