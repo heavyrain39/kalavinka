@@ -1,5 +1,4 @@
 // Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
-import { melodySentence as legacyMelodySentence } from './melody-v7';
 import { chordAt, type Settings, type MusicEvent } from './music';
 import { arrangementAt } from './arrangement';
 import { pitchesOf, diatonicPitches } from './harmony';
@@ -40,7 +39,6 @@ function motif(s:Settings,chapter:number): Gesture[] {
 
 /** Absolute-time composition: seek, cache eviction and mute never change the melody. */
 export function melodySentence(s:Settings,start:number,backing:MusicEvent[]): MusicEvent[] {
-  if(s.generatorVersion<10)return legacyMelodySentence(s,start,backing);
   if(s.energy<8)return [];
   const ambient=s.profile==='ambient',dnb=s.profile==='dub'&&s.groove==='dnb';
   const chapter=Math.floor(start/chapterBars(s)),sentence=Math.floor((start%chapterBars(s))/8);
@@ -57,8 +55,7 @@ export function melodySentence(s:Settings,start:number,backing:MusicEvent[]): Mu
     let gestures=source.map(g=>({...g}));
     if(stage===1){gestures[gestures.length-1].degree-=1;gestures[gestures.length-1].gate=.9;}
     if(stage===2)gestures=gestures.map((g,i)=>({...g,degree:g.degree+(i<3?1:2),step:clamp(g.step+(turn&&g.step<26?turn:0),0,31)}));
-    if(stage===3)gestures=gestures.map((g,i)=>({...g,degree:Math.round(g.degree*.5),
-      step:i===gestures.length-1?Math.max(24,g.step):g.step,gate:i===gestures.length-1?.92:i===0?.5:.85}));
+    if(stage===3)gestures=gestures.filter(g=>g.step<=20).map((g,i)=>({...g,degree:Math.round(g.degree*.5),gate:i===0?.5:.85}));
     // A small, phrase-local edit grows the theme without replacing its rhythmic signature.
     if(sentence>0&&stage===1&&random(s.seed,`edit:${chapter}:${sentence}`)<.3+s.evolution*.004)
       gestures=gestures.filter(g=>g.slot!==1);
@@ -69,7 +66,7 @@ export function melodySentence(s:Settings,start:number,backing:MusicEvent[]): Mu
     for(let i=0;i<gestures.length;i++){
       const g=gestures[i],bar=start+stage*2+Math.floor(g.step/16),step=g.step%16;
       const form=arrangementAt(s,bar),chord=chordAt(s,bar),at=gridTime(s,bar,step);
-      if(form.section==='intro'&&i===gestures.length-1&&stage===1)continue;
+      if(form.section==='intro'&&i===gestures.length-1&&stage%2===1)continue;
       const last=i===gestures.length-1,cadence=stage===3&&last;
       const arp=form.arpeggio&&(!dnb||form.section==='open');
       const target=scale[clamp(home+g.degree+(stage===2&&s.evolution>=50?Math.max(0,turn):0),0,scale.length-1)];
@@ -77,7 +74,7 @@ export function melodySentence(s:Settings,start:number,backing:MusicEvent[]): Mu
       const nextAt=next?gridTime(s,start+stage*2+Math.floor(next.step/16),next.step%16):start+stage*2+2;
       const available=nextAt-at;
       // Reserve the instrument release before harmonic changes (140 ms in the previous engine).
-      const length=Math.min(cadence?available:ambient?.8:dnb?.68:.48,available*g.gate,available-.025*s.bpm/240,nextHarmonyBoundary(s,at)-at-.14*s.bpm/240);
+      const length=Math.min(ambient?.8:dnb?.68:.48,available*g.gate,available-.025*s.bpm/240,nextHarmonyBoundary(s,at)-at-.14*s.bpm/240);
       if(length<.035)continue;
       const bass=backing.filter(e=>e.layer==='bass'&&e.at<at+length&&e.at+e.length>at);
       const candidates=pitchesOf(chord,62,81).filter(n=>Math.abs(n-scale[home])<=4&&Math.abs(n-previous)<=7

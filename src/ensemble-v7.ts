@@ -5,7 +5,7 @@ import {melodySentence} from './melody';
 const cache=new Map<string,MusicEvent[]>();
 export function narrativeEvents(s:Settings,bar:number):MusicEvent[]{
   const start=bar-bar%8;
-  const key=[s.seed,s.profile,s.groove,s.bpm,s.energy,s.warmth,s.evolution,start].join(':');
+  const key=[s.generatorVersion>=10?10:7,s.seed,s.profile,s.groove,s.bpm,s.energy,s.warmth,s.evolution,start].join(':');
   let events=cache.get(key);
   if(!events){
     const backing=Array.from({length:8},(_,i)=>ensembleEvents({...s,generatorVersion:6},start+i)).flat().filter(e=>e.layer!=='motif');

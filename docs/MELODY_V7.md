@@ -28,3 +28,13 @@ Composition is indexed by absolute bars, never by a mutable random stream or gro
 Release checks: 45 Node tests passed. A 30-progression mix render passed, and a focused 16-case render (four melodic instruments × lo-fi/ambient/house/D&B, with actual neighbour pairs) produced finite output with maximum sample peak 0.84956 and no remaining voices/cleanup callbacks. The browser playback check preserved a v6 favorite and played v7 D&B through a live Variation change with zero reported late events. These sample peaks are not true-peak measurements.
 
 These are musical heuristics and safety properties, not an objective score for catchiness or beauty. The eight-bar arc deliberately remains recognizable; long listening and comparative human listening remain the way to tune its musical character.
+
+## Closing-note correction · v0.16.0 / generator v10
+
+Two rules caused an incomplete eighth bar: stage 3 removed all gestures after step 20 of its two-bar span, and the intro then omitted the last gesture of odd stages. Together they could remove the intended closing note and leave a long empty ending.
+
+V10 retains the final two-bar gesture sequence, places its last note in the latter half of bar eight, and exempts the final cadence from intro omission. Its gate sustains toward the phrase boundary, still respecting chord changes, the following note and the instrument's release. Sparse ambient/D&B arrangements also retain this closing note. The other stages keep their existing thematic development.
+
+`src/melody-v7.ts` preserves the v7–v9 algorithm; the narrative cache distinguishes old and new melodic versions. Fingerprints and mixed-version queries verify that reading an old favorite cannot reuse a new cached cadence or vice versa.
+
+57 Node tests passed, including a 1,024-phrase cadence corpus across four modes, eight seeds, two tempos and two energies. Every tested phrase retains a late closing note whose dry release ends near the phrase boundary without overlap. Browser replay verifies the written cadence and 32 evenly spaced arpeggio notes in the first eight-bar save, then plays through the final bar without late events. Production build and license audit passed.

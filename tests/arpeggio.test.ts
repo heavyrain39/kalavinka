@@ -9,6 +9,13 @@ import {capturePhrase,normalizePhrase,playbackScore,favoriteIdentity} from '../s
 const modes=['lofi','ambient','dub','dnb'] as const;
 const settings=(p:typeof modes[number]):Settings=>({...selectProfile(DEFAULTS,p==='dnb'?'dub':p),groove:p==='dnb'?'dnb':'straight',bpm:p==='dnb'?170:78});
 const phrase=(s:Settings,start:number,n=8)=>Array.from({length:n},(_,i)=>eventsForBar(s,start+i)).flat();
+test('v9 saved scores preserve their original sparse notes',()=>{
+ const hashes=['ed1789d739bc97de2c442cf2679a5125b111046dcc6d3028c102351076adc07d','64dde926b3cfbe494c1e521e2143fa2c0e822063ef99b9a296f1fe36d52688d5','a23495b1778a715c954b7a263ebd4f040ae047b6f669b435d67bc4221b3862b7','9f6fd0a1a002dc70d9a12ffd1796d647a04cd5996e7aaea312607d37ab9ba2e0'];
+ modes.forEach((mode,i)=>{
+  const old={...settings(mode),generatorVersion:9 as const};
+  assert.equal(createHash('sha256').update(JSON.stringify(Array.from({length:64},(_,b)=>eventsForBar(old,b)))).digest('hex'),hashes[i]);
+ });
+});
 test('v9 introduces arpeggio in the third bar while v8 saved scores retain their original entries',()=>{
  const hashes=['1244da253f03f792961e6f0ef413d84c9b2331f275ebf74ab5129940b7f18a72','3763c0638612397c4e17301b4ce05928e8bcec23702cc67223ee0ea890805c3b','ebd0bef67b3b8944d72c86d54413386790ffef10e2863d8eea51cfed9e6e4acf','5d04e69360810adefb6b92e4060a0ba5036c8ce23380cb8537a1a16fc0791b4b'];
  modes.forEach((mode,i)=>{
@@ -36,14 +43,14 @@ test('all arpeggio timbres preserve the written pattern, save exactly, and chang
   assert.equal(normalizeSettings({...s,instruments:{...s.instruments,arpeggio:'b-sub'}}).instruments.arpeggio,undefined);
  }
 });
-test('v7 saved scores remain exact and v8 only adds the independent arpeggio',()=>{
+test('v7 saved scores remain exact and new arpeggio/cadence leave accompaniment intact',()=>{
  const hashes=['7591817d17b69b3d963de25ee664c13c7e0bc164861ed1a3316cd968bf59cc1d','0a2fed0e7f078f4f44b54f5658d162b261f2e2cfd9368684eaab43d49a37d447','301ddb5e751f9d7941dd055ca2bec1a79aba5113f3403e964a9bc3fb575d817a','d832955dd7544c92ac39d468c81ff7b3c6530085c6a6033c7c0ddd8227cf0f01'];
  modes.forEach((p,i)=>{
   const s=settings(p),old={...s,generatorVersion:7 as const};
   assert.equal(createHash('sha256').update(JSON.stringify(Array.from({length:64},(_,b)=>eventsForBar(old,b)))).digest('hex'),hashes[i]);
   assert.equal(normalizeSettings(old).arpeggio,undefined);
-  assert.deepEqual(phrase(s,0,64).filter(e=>e.layer!=='arpeggio'),phrase(old,0,64));
-  assert.deepEqual(phrase({...s,arpeggio:false},0,64),phrase(old,0,64));
+  assert.deepEqual(phrase(s,0,64).filter(e=>e.layer!=='arpeggio'&&e.layer!=='motif'),phrase(old,0,64).filter(e=>e.layer!=='motif'));
+  assert.deepEqual(phrase({...s,arpeggio:false},0,64),phrase(s,0,64).filter(e=>e.layer!=='arpeggio'));
  });
 });
 test('twelve distinct patterns rotate between sparse episodes and remain chord-bound at both tempo limits',()=>{
@@ -56,7 +63,11 @@ test('twelve distinct patterns rotate between sparse episodes and remain chord-b
    const plan=arpeggioPlan(s,ep*span),notes=phrase(s,ep*span,span).filter(e=>e.layer==='arpeggio');
    assert.notEqual(plan.pattern,lastPattern);if(ep<12)seen.add(plan.pattern);
    assert.ok(plan.start-lastEnd>=(ep===0?2:6));lastEnd=plan.end;lastPattern=plan.pattern;
-   assert.ok(notes.length>=8&&notes.length<=12);
+   assert.equal(notes.length,(plan.end-plan.start)*(mode==='dnb'?4:8));
+   const step=mode==='dnb'?.25:.125;
+   for(let n=1;n<notes.length;n++)assert.equal(notes[n].at-notes[n-1].at,step,'steady arpeggio clock');
+   const period=ARP_PATTERNS[plan.pattern].length;
+   for(let n=period;n<notes.length;n++)if(chordAt(s,Math.floor(notes[n].at)).label===chordAt(s,Math.floor(notes[n-period].at)).label)assert.deepEqual(notes[n].notes,notes[n-period].notes,'the same ordered pattern repeats under the same chord');
    for(let i=0;i<notes.length;i++){
     const e=notes[i];assert.ok(e.at>=plan.start&&e.at<plan.end);
     assert.ok(e.notes[0]>=60&&e.notes[0]<=78&&e.gain<=.019);

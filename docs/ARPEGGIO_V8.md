@@ -34,3 +34,11 @@ New compositions introduce the first episode in bar 3 in every mode, then use th
 54 Node tests and the production build passed. Forty offline renders cover four sounds in both After hours rhythms, comparing full mix, isolated part, previous bus level, mute and melody. At the tested default tempos the new first onset is 4.58 seconds for house and 3 seconds for D&B. The measured part increased 7.23 dB while staying 3.65–11.71 dB below the isolated melody RMS. Sixteen additional stress renders cover all four modes at maximum energy/reverb/volume (maximum full-mix sample peak .84530). Mute output was zero and voices cleaned up. These measurements do not guarantee audibility on every speaker or every generated mix.
 
 Live browser checks assert actual arpeggio dispatches by bar 4, exact saved-note/sound replay and independent mute, with no late events. The read-only diagnostic counter distinguishes arpeggio dispatch from other voices; it is not exposed as product UI.
+
+## Repeating sequencer · v0.16.0 / generator v10
+
+V8/v9's sparse chord-tone gestures did not establish a clear continuous arpeggio. V10 uses one fixed clock through the active episode: eight evenly spaced notes per bar, or four at D&B half-time. The selected 4- or 6-note contour repeats without phase resets at bar lines. Chord changes replace the pitches while retaining the ordered contour and clock. Melody overlap can reduce gain slightly but cannot delay or omit a step. Short gates and 40 ms releases leave each attack distinct.
+
+The twelve-pattern rotation, rests between episodes, independent sound selector, early first entrance and saved-note replay remain. The denser part has a lower per-note level in ambient/D&B to stay behind the lead. V8/v9 implementation is preserved in `src/arpeggio-v9.ts`; V9 score fingerprints still match in all four modes.
+
+Tests assert every interval, repeated ordered pitches under unchanged chords, exact event counts, release clearance and saved replay. Full validation also covers the corrected melodic cadence described in `MELODY_V7.md`.

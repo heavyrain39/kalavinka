@@ -10,6 +10,10 @@ async(page)=>{
   await p.locator('#play').click();await p.waitForFunction(()=>window.__worksong.diagnostics().playing&&window.__worksong.diagnostics().bar>3.2);
   if((await p.evaluate(()=>window.__worksong.diagnostics())).arpeggioTriggered<1)throw Error('no live arp triggers by fourth bar');
   const captured=await p.evaluate(()=>window.__worksong.savedPhrase());
+  const closing=captured.phrase.events.filter(e=>e.layer==='motif').at(-1);
+  if(!closing||closing.at<7.5)throw Error('missing last-bar cadence');
+  const arpNotes=captured.phrase.events.filter(e=>e.layer==='arpeggio');
+  if(arpNotes.some((e,i)=>i>0&&Math.abs(e.at-arpNotes[i-1].at-.125)>1e-7))throw Error('uneven arpeggio steps');
   const serial=events=>JSON.stringify(events.map(e=>Object.fromEntries(Object.entries(e).sort(([a],[b])=>a.localeCompare(b)))));
   const arp=captured.phrase.events.filter(e=>e.layer==='arpeggio');if(!arp.length||!arp.every(e=>e.instrument==='m-flute'))throw Error('selected arp sound');
   await p.locator('#favorite').click();
@@ -23,6 +27,7 @@ async(page)=>{
   await p.locator('#play').click();await p.waitForFunction(()=>window.__worksong.diagnostics().playing&&window.__worksong.diagnostics().bar>.3&&!document.getElementById('play').disabled);
   const replay=await p.evaluate(()=>window.__worksong.savedPhrase());
   if(serial(replay.phrase.events.filter(e=>e.layer==='arpeggio'))!==serial(arp))throw Error('arp playback mismatch');
+  await p.waitForFunction(()=>window.__worksong.diagnostics().bar>7.9);
   await p.locator('#arpeggio').click();await p.waitForFunction(()=>!window.__worksong.diagnostics().pending);
   if((await p.evaluate(()=>window.__worksong.diagnostics())).settings.arpeggio!==false)throw Error('toggle off');
   await p.locator('[data-layer="motif"]').click();await p.locator('#arpeggio').click();await p.waitForFunction(()=>!window.__worksong.diagnostics().pending);
