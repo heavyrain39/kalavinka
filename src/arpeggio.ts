@@ -13,7 +13,8 @@ export const ARP_PATTERNS = [
 export function arpeggioPlan(s:Settings,bar:number){
   const stretch=s.profile==='ambient'||s.groove==='dnb'?2:1;
   const episode=Math.floor(bar/(16*stretch));
-  const start=episode*16*stretch+(8+2*(hash(`${s.seed}:arp-entry:${episode}`)%2))*stretch;
+  // Establish the optional part early; later episodes retain the sparse arrangement.
+  const start=s.generatorVersion>=9&&episode===0?2:episode*16*stretch+(8+2*(hash(`${s.seed}:arp-entry:${episode}`)%2))*stretch;
   // A seeded permutation visits all twelve before repeating, with no identical neighbours.
   const order=ARP_PATTERNS.map((_,i)=>i).sort((a,b)=>hash(`${s.seed}:arp-order:${a}`)-hash(`${s.seed}:arp-order:${b}`)||a-b);
   return {episode,start,end:start+4*stretch,stretch,pattern:order[episode%order.length]};

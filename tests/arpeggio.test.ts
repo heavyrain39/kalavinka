@@ -9,6 +9,18 @@ import {capturePhrase,normalizePhrase,playbackScore,favoriteIdentity} from '../s
 const modes=['lofi','ambient','dub','dnb'] as const;
 const settings=(p:typeof modes[number]):Settings=>({...selectProfile(DEFAULTS,p==='dnb'?'dub':p),groove:p==='dnb'?'dnb':'straight',bpm:p==='dnb'?170:78});
 const phrase=(s:Settings,start:number,n=8)=>Array.from({length:n},(_,i)=>eventsForBar(s,start+i)).flat();
+test('v9 introduces arpeggio in the third bar while v8 saved scores retain their original entries',()=>{
+ const hashes=['1244da253f03f792961e6f0ef413d84c9b2331f275ebf74ab5129940b7f18a72','3763c0638612397c4e17301b4ce05928e8bcec23702cc67223ee0ea890805c3b','ebd0bef67b3b8944d72c86d54413386790ffef10e2863d8eea51cfed9e6e4acf','5d04e69360810adefb6b92e4060a0ba5036c8ce23380cb8537a1a16fc0791b4b'];
+ modes.forEach((mode,i)=>{
+  const s=settings(mode),old={...s,generatorVersion:8 as const};
+  assert.equal(createHash('sha256').update(JSON.stringify(Array.from({length:64},(_,b)=>eventsForBar(old,b)))).digest('hex'),hashes[i]);
+  assert.equal(normalizeSettings(old).generatorVersion,8);
+  for(let seed=0;seed<24;seed++){
+   const next={...s,seed:`EARLY${seed}`},arp=phrase(next,0).filter(e=>e.layer==='arpeggio');
+   assert.ok(arp[0].at>=2&&arp[0].at<3,mode+' first entry');
+  }
+ });
+});
 test('all arpeggio timbres preserve the written pattern, save exactly, and change on regeneration',()=>{
  for(const mode of modes){
   const s=settings(mode),original=phrase(s,0,32);
@@ -43,7 +55,7 @@ test('twelve distinct patterns rotate between sparse episodes and remain chord-b
   for(let ep=0;ep<13;ep++){
    const plan=arpeggioPlan(s,ep*span),notes=phrase(s,ep*span,span).filter(e=>e.layer==='arpeggio');
    assert.notEqual(plan.pattern,lastPattern);if(ep<12)seen.add(plan.pattern);
-   assert.ok(plan.start-lastEnd>=6);lastEnd=plan.end;lastPattern=plan.pattern;
+   assert.ok(plan.start-lastEnd>=(ep===0?2:6));lastEnd=plan.end;lastPattern=plan.pattern;
    assert.ok(notes.length>=8&&notes.length<=12);
    for(let i=0;i<notes.length;i++){
     const e=notes[i];assert.ok(e.at>=plan.start&&e.at<plan.end);

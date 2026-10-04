@@ -7,7 +7,8 @@ async(page)=>{
   await p.locator('[data-instrument="arpeggio"]').selectOption('m-flute');
   await p.evaluate(()=>{const b=document.getElementById('bpm');b.value='180';b.dispatchEvent(new Event('input',{bubbles:true}));});
   if(await p.locator('#arpeggio').getAttribute('aria-pressed')!=='true')throw Error('default toggle');
-  await p.locator('#play').click();await p.waitForFunction(()=>window.__worksong.diagnostics().playing&&window.__worksong.diagnostics().bar>8.2);
+  await p.locator('#play').click();await p.waitForFunction(()=>window.__worksong.diagnostics().playing&&window.__worksong.diagnostics().bar>3.2);
+  if((await p.evaluate(()=>window.__worksong.diagnostics())).arpeggioTriggered<1)throw Error('no live arp triggers by fourth bar');
   const captured=await p.evaluate(()=>window.__worksong.savedPhrase());
   const serial=events=>JSON.stringify(events.map(e=>Object.fromEntries(Object.entries(e).sort(([a],[b])=>a.localeCompare(b)))));
   const arp=captured.phrase.events.filter(e=>e.layer==='arpeggio');if(!arp.length||!arp.every(e=>e.instrument==='m-flute'))throw Error('selected arp sound');

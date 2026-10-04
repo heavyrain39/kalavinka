@@ -6,7 +6,7 @@ async(page)=>{
   for(const mode of ['lofi','ambient','dub','dnb']){
    const s={...selectProfile(DEFAULTS,mode==='dnb'?'dub':mode),seed:'ARPRENDER',bpm:180,energy:100,evolution:100,reverb:100,volume:100,groove:mode==='dnb'?'dnb':'straight'};
    s.instruments={...s.instruments,arpeggio:'m-flute'};
-   const score=musicScore(s),start=mode==='ambient'||mode==='dnb'?16:8,events=score.onsets(start,start+8),metrics={};
+   const score=musicScore(s),start=0,events=score.onsets(start,start+8),metrics={};
    for(const part of ['full','arp','muted','melody']){
     const ctx=new OfflineAudioContext(2,48000*13,48000),master=createMastering(ctx);master.volume.gain.value=1;
     const engine=new MusicEngine();engine.context=ctx;engine.destination=master.input;engine.noise=prepared.noise;engine.impulse=prepared.impulse;engine.drumBank=prepared.drumBank;

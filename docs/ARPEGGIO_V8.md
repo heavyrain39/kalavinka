@@ -24,3 +24,13 @@ Hearts retain the actual arpeggio notes, timing, duration, sound, gain, pan and 
 The timing and level checks establish bounded behavior, not subjective musical quality across every possible seed.
 
 V0.14.1 checks: 53 Node tests passed, including all four arpeggio timbres, save/normalize round trips and regeneration. Browser checks select Soft flute, save it, reload it and verify both the dropdown and actual saved notes. Responsive layouts cover 1440, 1024, 768, 390 and 320 px in Korean and English.
+
+## Audibility correction · v0.15.0 / generator v9
+
+The original entrance waited until bars 9/11 (house) or 17/21 (D&B), and the part was easily masked at its original level. A nonzero isolated render was insufficient evidence of useful presence in the full mix.
+
+New compositions introduce the first episode in bar 3 in every mode, then use the existing sparse later episodes. V8 score fingerprints and saved note timing remain unchanged. The arpeggio bus receives a 2.3 multiplier (+7.23 dB), including playback of older saved arpeggio notes. The raised bus level is applied consistently at creation and live updates; mute still ramps to zero. Existing saved openings retain their written entrances; New Flow starts a v9 composition.
+
+54 Node tests and the production build passed. Forty offline renders cover four sounds in both After hours rhythms, comparing full mix, isolated part, previous bus level, mute and melody. At the tested default tempos the new first onset is 4.58 seconds for house and 3 seconds for D&B. The measured part increased 7.23 dB while staying 3.65–11.71 dB below the isolated melody RMS. Sixteen additional stress renders cover all four modes at maximum energy/reverb/volume (maximum full-mix sample peak .84530). Mute output was zero and voices cleaned up. These measurements do not guarantee audibility on every speaker or every generated mix.
+
+Live browser checks assert actual arpeggio dispatches by bar 4, exact saved-note/sound replay and independent mute, with no late events. The read-only diagnostic counter distinguishes arpeggio dispatch from other voices; it is not exposed as product UI.

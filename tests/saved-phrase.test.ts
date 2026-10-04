@@ -6,7 +6,7 @@ import {Transport} from '../src/transport';
 import {Score} from '../src/score';
 
 test('eight-bar saves freeze explicit notes/chords and continue at the original following bar',()=>{
- for(const generatorVersion of [1,2,3,4,5,6,7,8] as const)for(const profile of ['lofi','ambient','dub'] as const){
+ for(const generatorVersion of [1,2,3,4,5,6,7,8,9] as const)for(const profile of ['lofi','ambient','dub'] as const){
   const s:Settings={...selectProfile(DEFAULTS,profile),generatorVersion};
   const clip=capturePhrase({settings:s,opening:true},24),copy=normalizePhrase(JSON.parse(JSON.stringify(clip)));
   assert.ok(copy,`${generatorVersion}/${profile}`);

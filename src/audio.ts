@@ -11,6 +11,9 @@ import { createMastering, volumeGain } from './mastering';
 import { instrumentVoice } from './synth';
 import { createRoom, reverbGain } from './reverb';
 
+// Lift the sparse arpeggio above masking by the chord/bass bus (+7.2 dB).
+const layerGain = (s:Settings, layer:AudioLayer) => layerEnabled(s,layer) ? layer==='arpeggio' ? 2.3 : 1 : 0;
+
 interface Scene {
   settings: Settings; playback: Playback; transport: Transport<Playback>; output: GainNode; input: GainNode;
   layers: Record<AudioLayer, GainNode>; nodes: AudioNode[]; sources: Set<AudioScheduledSourceNode>; cleanups: Set<() => void>;
@@ -38,6 +41,7 @@ export class MusicEngine {
   private stopPromise: Promise<void> | null = null;
   private timerAt: number | null = null;
   private triggered = 0;
+  private arpeggioTriggered = 0;
   private late = 0;
   private lastError: string | null = null;
   private duckCount = 0;
@@ -98,7 +102,7 @@ export class MusicEngine {
     if (token !== this.lifecycle) return;
     if (context.state !== 'running') throw new Error('AUDIO_LOCKED');
     if (this.playing) return;
-    this.triggered = 0; this.late = 0; this.lastError = null; this.duckCount = 0;
+    this.triggered = 0; this.arpeggioTriggered = 0; this.late = 0; this.lastError = null; this.duckCount = 0;
     this.startedAt = context.currentTime;
     this.playing = true;
     this.setVolume(settings.volume);
@@ -124,7 +128,7 @@ export class MusicEngine {
     const bassDuck = context.createGain(); bassDuck.connect(input);
     const drums = createDrumBus(context, settings);
     const layers = Object.fromEntries(AUDIO_LAYERS.map((layer) => {
-      const gain = context.createGain(); gain.gain.value = layerEnabled(settings, layer) ? 1 : 0;
+      const gain = context.createGain(); gain.gain.value = layerGain(settings, layer);
       gain.connect(layer === 'bass' ? bassDuck : layer === 'rhythm' ? output : input); return [layer, gain];
     })) as Record<AudioLayer, GainNode>;
     drums.output.connect(layers.rhythm);
@@ -140,6 +144,7 @@ export class MusicEngine {
       trigger: (event, time, duration, bpm, render) => {
         if (time < context.currentTime - .015) { this.late++; return; }
         this.triggered++;
+        if(event.layer==='arpeggio')this.arpeggioTriggered++;
         this.voice(scene, event, Math.max(time, context.currentTime + .003), duration, bpm, render.settings);
       },
     });
@@ -166,7 +171,7 @@ export class MusicEngine {
     this.setReverb(settings.reverb);
     const scene = this.scene;
     if (!scene || !this.playing) return;
-    for (const layer of AUDIO_LAYERS) this.ramp(scene.layers[layer].gain, layerEnabled(settings, layer) ? 1 : 0, .08);
+    for (const layer of AUDIO_LAYERS) this.ramp(scene.layers[layer].gain, layerGain(settings, layer), .08);
     scene.liveRhythm = settings.layers.rhythm;
     if (!scene.liveRhythm) this.ramp(scene.bassDuck.gain, 1, .03);
     const playback:Playback={settings:structuredClone(settings),phrase:scene.playback.phrase,
@@ -215,7 +220,7 @@ export class MusicEngine {
   }
   diagnostics() {
     return { playing: this.playing, state: this.context?.state ?? 'uninitialized', activeSources: (this.scene?.sources.size ?? 0)
-      + Array.from(this.retired).reduce((sum, scene) => sum + scene.sources.size, 0), triggered: this.triggered,
+      + Array.from(this.retired).reduce((sum, scene) => sum + scene.sources.size, 0), triggered: this.triggered, arpeggioTriggered: this.arpeggioTriggered,
       late: this.late, clockStalls: this.scene?.transport.stalled ?? 0, lastError: this.lastError, bar: this.bar, pending: this.pending, sampleRate: this.context?.sampleRate,
       sourceBar:this.bar+(this.scene?.playback.phrase?.sourceBar??0),savedOpening:!!this.scene?.playback.phrase&&this.scene.playback.opening&&this.bar<8,
       reverbWet: this.scene?.roomWet.gain.value ?? 0, duckCount: this.duckCount, bassGain: this.scene?.bassDuck.gain.value ?? 1,
