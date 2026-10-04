@@ -1,5 +1,5 @@
 // Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
-import { chordAt, hash, random, clamp, type Settings, type MusicEvent, type Chord } from './music';
+import { chordAt, layerEnabled, hash, random, clamp, type Settings, type MusicEvent, type Chord } from './music';
 
 export type Section = 'intro' | 'groove' | 'open' | 'return';
 export interface Arrangement {
@@ -188,5 +188,5 @@ export function arrangementEvents(settings: Settings, bar: number): MusicEvent[]
   } else {
     result.push(...melodyPhrase(settings, bar - bar % 4).filter((event) => Math.floor(event.at) === bar));
   }
-  return result.filter((event) => settings.layers[event.layer]).sort((x, y) => x.at - y.at);
+  return result.filter((event) => layerEnabled(settings,event.layer)).sort((x, y) => x.at - y.at);
 }

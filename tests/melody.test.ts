@@ -5,7 +5,7 @@ import {DEFAULTS,selectProfile,eventsForBar,normalizeSettings,chordAt,type Setti
 import {chapterBars} from '../src/melody';
 import {nextHarmonyBoundary} from '../src/harmony-v5';
 const modes=['lofi','ambient','dub','dnb'] as const;
-const settings=(p:typeof modes[number]):Settings=>({...selectProfile(DEFAULTS,p==='dnb'?'dub':p),groove:p==='dnb'?'dnb':'straight',bpm:p==='dnb'?170:78});
+const settings=(p:typeof modes[number]):Settings=>({...selectProfile(DEFAULTS,p==='dnb'?'dub':p),generatorVersion:7,groove:p==='dnb'?'dnb':'straight',bpm:p==='dnb'?170:78});
 const phrase=(s:Settings,start:number,n=8)=>Array.from({length:n},(_,b)=>eventsForBar(s,start+b)).flat();
 const melody=(s:Settings,start:number,n=8)=>phrase(s,start,n).filter(e=>e.layer==='motif');
 

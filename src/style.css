@@ -90,7 +90,7 @@ h2 { font-size: 13px; font-weight: 600; }
 .icon-button { width: 40px; height: 40px; padding: 10px; border: 1px solid var(--line); background: transparent; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .icon-button svg { width: 17px; height: 17px; }
 .is-saved svg { fill: var(--accent); }
-.player-bottom { margin-top: 10px; display: flex; justify-content: flex-end; }
+.player-bottom { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: flex-end; }
 .text-button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--text-dim); font-size: 10px; padding: 3px 0; }
 .text-button svg { width: 12px; height: 12px; }
 .layer-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; padding: 12px; border-top: 1px solid var(--line); }
@@ -285,3 +285,7 @@ body::before {
 @media (prefers-reduced-motion: no-preference) {
   .profile:focus-visible .profile-art { animation: profilePulse 1.15s ease-in-out infinite; }
 }
+
+.arp-toggle { margin-right: auto; min-height: 28px; }
+.arp-toggle[aria-pressed="true"] { color: var(--text); }
+.arp-toggle[aria-pressed="true"] .switch { background: var(--accent); border-color: var(--accent); }

@@ -38,13 +38,13 @@ export function normalizePhrase(value:unknown):SavedPhrase|undefined{
   const finite=(v:unknown,lo:number,hi:number):v is number=>typeof v==='number'&&Number.isFinite(v)&&v>=lo&&v<=hi;
   const pitches=(v:unknown):v is number[]=>Array.isArray(v)&&v.length<=8&&v.every(n=>Number.isInteger(n)&&finite(n,0,127));
   const events:MusicEvent[]=[],chords:Chord[]=[];
-  const voices={harmony:['keys','pad'],bass:['bass'],rhythm:['kick','snare','hat','rim','tom'],motif:['pluck','arp']};
+  const voices={harmony:['keys','pad'],bass:['bass'],rhythm:['kick','snare','hat','rim','tom'],motif:['pluck','arp'],arpeggio:['arp']};
   for(const e of p.events){
     if(!e||typeof e!=='object'||!Object.hasOwn(voices,e.layer)||!voices[e.layer].includes(e.voice)
       ||!finite(e.at,0,8)||e.at===8||!finite(e.length,.0001,8)||!pitches(e.notes)
       ||e.layer!=='rhythm'&&!e.notes.length||!finite(e.gain,0,1)||!finite(e.pan,-1,1)||!finite(e.cutoff,20,24000))return;
     const event:MusicEvent={at:e.at,length:e.length,voice:e.voice,layer:e.layer,notes:[...e.notes],gain:e.gain,pan:e.pan,cutoff:e.cutoff};
-    if(e.instrument!==undefined){if(e.instrument!=='legacy'&&!INSTRUMENTS[e.layer].some(i=>i.id===e.instrument))return;event.instrument=e.instrument;}
+    if(e.instrument!==undefined){if(e.instrument!=='legacy'&&!INSTRUMENTS[e.layer==='arpeggio'?'motif':e.layer].some(i=>i.id===e.instrument))return;event.instrument=e.instrument;}
     for(const [key,hi] of [['duck',1],['velocity',1],['release',4],['variation',1],['fill',100],['resolvesTo',127]] as const){
       if(e[key]!==undefined){if(!finite(e[key],0,hi)||(['variation','fill','resolvesTo'].includes(key)&&!Number.isInteger(e[key])))return;event[key]=e[key];}
     }

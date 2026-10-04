@@ -3,7 +3,7 @@ import {prepareDrums, type DrumBank} from './drum-bank';
 import {createDrumBus, drumVoice, drumRoomGain, type DrumBus, type HatVoice} from './drums';
 import { ownVoice } from './source-lifecycle';
 import { Transport } from './transport';
-import { LAYERS, type Layer, type MusicEvent, type Settings } from './music';
+import { AUDIO_LAYERS, layerEnabled, type AudioLayer, type MusicEvent, type Settings } from './music';
 import {playbackScore,playbackChord,capturePhrase,relativeEvent,compositionIdentity,type Playback,type SavedPhrase} from './saved-phrase';
 import clockUrl from './clock.worklet.js?url';
 import { scheduleDuck } from './duck';
@@ -13,7 +13,7 @@ import { createRoom, reverbGain } from './reverb';
 
 interface Scene {
   settings: Settings; playback: Playback; transport: Transport<Playback>; output: GainNode; input: GainNode;
-  layers: Record<Layer, GainNode>; nodes: AudioNode[]; sources: Set<AudioScheduledSourceNode>; cleanups: Set<() => void>;
+  layers: Record<AudioLayer, GainNode>; nodes: AudioNode[]; sources: Set<AudioScheduledSourceNode>; cleanups: Set<() => void>;
   bassDuck: GainNode; liveRhythm: boolean; roomWet: GainNode; drums: DrumBus; hats: HatVoice[];
 }
 export class MusicEngine {
@@ -123,10 +123,10 @@ export class MusicEngine {
     output.connect(this.destination);
     const bassDuck = context.createGain(); bassDuck.connect(input);
     const drums = createDrumBus(context, settings);
-    const layers = Object.fromEntries(LAYERS.map((layer) => {
-      const gain = context.createGain(); gain.gain.value = settings.layers[layer] ? 1 : 0;
+    const layers = Object.fromEntries(AUDIO_LAYERS.map((layer) => {
+      const gain = context.createGain(); gain.gain.value = layerEnabled(settings, layer) ? 1 : 0;
       gain.connect(layer === 'bass' ? bassDuck : layer === 'rhythm' ? output : input); return [layer, gain];
-    })) as Record<Layer, GainNode>;
+    })) as Record<AudioLayer, GainNode>;
     drums.output.connect(layers.rhythm);
     const playback:Playback={settings:structuredClone(settings),phrase:phrase?structuredClone(phrase):undefined,opening:true};
     const scene: Scene = { drums, hats: [], settings, playback, output, input, layers, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), cleanups: new Set(),
@@ -166,7 +166,7 @@ export class MusicEngine {
     this.setReverb(settings.reverb);
     const scene = this.scene;
     if (!scene || !this.playing) return;
-    for (const layer of LAYERS) this.ramp(scene.layers[layer].gain, settings.layers[layer] ? 1 : 0, .08);
+    for (const layer of AUDIO_LAYERS) this.ramp(scene.layers[layer].gain, layerEnabled(settings, layer) ? 1 : 0, .08);
     scene.liveRhythm = settings.layers.rhythm;
     if (!scene.liveRhythm) this.ramp(scene.bassDuck.gain, 1, .03);
     const playback:Playback={settings:structuredClone(settings),phrase:scene.playback.phrase,

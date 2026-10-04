@@ -1,0 +1,57 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {DEFAULTS,selectProfile,eventsForBar,chordAt,normalizeSettings,type Settings} from '../src/music';
+import {ARP_PATTERNS,arpeggioPlan} from '../src/arpeggio';
+import {nextHarmonyBoundary} from '../src/harmony-v5';
+import {capturePhrase,normalizePhrase,playbackScore,favoriteIdentity} from '../src/saved-phrase';
+const modes=['lofi','ambient','dub','dnb'] as const;
+const settings=(p:typeof modes[number]):Settings=>({...selectProfile(DEFAULTS,p==='dnb'?'dub':p),groove:p==='dnb'?'dnb':'straight',bpm:p==='dnb'?170:78});
+const phrase=(s:Settings,start:number,n=8)=>Array.from({length:n},(_,i)=>eventsForBar(s,start+i)).flat();
+test('v7 saved scores remain exact and v8 only adds the independent arpeggio',()=>{
+ const hashes=['7591817d17b69b3d963de25ee664c13c7e0bc164861ed1a3316cd968bf59cc1d','0a2fed0e7f078f4f44b54f5658d162b261f2e2cfd9368684eaab43d49a37d447','301ddb5e751f9d7941dd055ca2bec1a79aba5113f3403e964a9bc3fb575d817a','d832955dd7544c92ac39d468c81ff7b3c6530085c6a6033c7c0ddd8227cf0f01'];
+ modes.forEach((p,i)=>{
+  const s=settings(p),old={...s,generatorVersion:7 as const};
+  assert.equal(createHash('sha256').update(JSON.stringify(Array.from({length:64},(_,b)=>eventsForBar(old,b)))).digest('hex'),hashes[i]);
+  assert.equal(normalizeSettings(old).arpeggio,undefined);
+  assert.deepEqual(phrase(s,0,64).filter(e=>e.layer!=='arpeggio'),phrase(old,0,64));
+  assert.deepEqual(phrase({...s,arpeggio:false},0,64),phrase(old,0,64));
+ });
+});
+test('twelve distinct patterns rotate between sparse episodes and remain chord-bound at both tempo limits',()=>{
+ assert.equal(new Set(ARP_PATTERNS.map(p=>p.join(','))).size,12);
+ for(const mode of modes)for(let seed=0;seed<8;seed++)for(const bpm of [50,180]){
+  const s={...settings(mode),seed:`ARPS${seed}`,bpm,energy:100};
+  let lastEnd=0,lastPattern=-1;const seen=new Set<number>();
+  const span=mode==='ambient'||mode==='dnb'?32:16;
+  for(let ep=0;ep<13;ep++){
+   const plan=arpeggioPlan(s,ep*span),notes=phrase(s,ep*span,span).filter(e=>e.layer==='arpeggio');
+   assert.notEqual(plan.pattern,lastPattern);if(ep<12)seen.add(plan.pattern);
+   assert.ok(plan.start-lastEnd>=6);lastEnd=plan.end;lastPattern=plan.pattern;
+   assert.ok(notes.length>=8&&notes.length<=12);
+   for(let i=0;i<notes.length;i++){
+    const e=notes[i];assert.ok(e.at>=plan.start&&e.at<plan.end);
+    assert.ok(e.notes[0]>=60&&e.notes[0]<=78&&e.gain<=.019);
+    assert.ok(chordAt(s,Math.floor(e.at)).notes.some(n=>n%12===e.notes[0]%12));
+    const end=e.at+e.length+e.release!*bpm/240;
+    assert.ok(end<=nextHarmonyBoundary(s,e.at)+1e-7);if(notes[i+1])assert.ok(end<notes[i+1].at);
+   }
+  }
+  assert.equal(seen.size,12);
+ }
+});
+test('arpeggio saves retain exact events, switch state, and future pattern sequence after serialization',()=>{
+ for(const mode of modes){
+  const s=settings(mode),plan=arpeggioPlan(s,0),start=Math.floor(plan.start/8)*8;
+  const clip=capturePhrase({settings:s,opening:true},start),copy=normalizePhrase(JSON.parse(JSON.stringify(clip)))!;
+  assert.ok(copy.events.some(e=>e.layer==='arpeggio'));
+  assert.equal(favoriteIdentity(s,clip),favoriteIdentity(s,copy));
+  assert.deepEqual(playbackScore({settings:s,phrase:copy,opening:true}).onsets(0,8),copy.events);
+  assert.equal(normalizeSettings({...s,arpeggio:false}).arpeggio,false);
+  const arp=(x:Settings)=>phrase(x,start).filter(e=>e.layer==='arpeggio');
+  assert.deepEqual(arp({...s,layers:{...s.layers,motif:false}}),arp(s));
+  const before=phrase(s,512).sort((a,b)=>a.at-b.at);
+  const sought=[519,513,516,512,515,514,518,517].flatMap(b=>eventsForBar(s,b)).sort((a,b)=>a.at-b.at);
+  assert.deepEqual(sought,before);
+ }
+});

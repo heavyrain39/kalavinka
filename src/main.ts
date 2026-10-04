@@ -97,7 +97,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
             <button class="icon-button tip" id="favorite" ${aria('save')}>${icon('save')}<span class="tooltip" role="tooltip" data-i18n="save">${t('save')}</span></button>
             <button class="icon-button tip" id="share" ${aria('share')}>${icon('share')}<span class="tooltip" role="tooltip" data-i18n="share">${t('share')}</span></button>
           </div>
-          <div class="player-bottom"><select id="groove" class="instrument-select groove-select" ${aria('groove')}><option value="straight" data-i18n="straight">${t('straight')}</option><option value="dnb" data-i18n="dnb">${t('dnb')}</option></select><button class="text-button" id="focus" aria-pressed="false">${icon('focus')}<span>${t('focus')}</span></button></div>
+          <div class="player-bottom"><button id="arpeggio" class="text-button arp-toggle" aria-pressed="true">${label('arpeggio')}<span class="switch" aria-hidden="true"></span></button><select id="groove" class="instrument-select groove-select" ${aria('groove')}><option value="straight" data-i18n="straight">${t('straight')}</option><option value="dnb" data-i18n="dnb">${t('dnb')}</option></select><button class="text-button" id="focus" aria-pressed="false">${icon('focus')}<span>${t('focus')}</span></button></div>
         </div>
         <div class="layer-grid" role="group" ${aria('instruments')}>${LAYERS.map((layer) => `<div class="part"><button class="layer" data-layer="${layer}" aria-pressed="true">${label(layer)}<span class="switch" aria-hidden="true"></span></button><select class="instrument-select" data-instrument="${layer}" aria-label="${t('timbre',{part:t(layer)})}"></select></div>`).join('')}</div>
       </section>
@@ -111,7 +111,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer" data-i18n="terms">${t('terms')}</a><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.13.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.14.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 let currentToast: {key: TextKey; values: Record<string,string|number>} | null = null;
@@ -152,6 +152,7 @@ function renderSettings() {
   }
   $<HTMLSelectElement>('#groove').hidden = settings.profile !== 'dub';
   $<HTMLSelectElement>('#groove').value = settings.groove;
+  $('#arpeggio').setAttribute('aria-pressed', String(settings.generatorVersion >= 8 && settings.arpeggio !== false));
   $('#now-title').textContent = t(settings.profile);
   renderChords(); renderFavorites();
 }
@@ -193,6 +194,7 @@ function renderPlayback() {
   $<HTMLButtonElement>('#play').disabled = busy;
   $<HTMLButtonElement>('#regenerate').disabled = busy;
   $<HTMLButtonElement>('#favorite').disabled = busy;
+  $<HTMLButtonElement>('#arpeggio').disabled = busy;
   $<HTMLButtonElement>('#reset-controls').disabled = busy;
   document.querySelectorAll<HTMLSelectElement>('[data-instrument], #groove').forEach(select => { select.disabled = busy; });
   document.body.classList.toggle('is-playing', playing);
@@ -262,6 +264,12 @@ for (const select of document.querySelectorAll<HTMLSelectElement>('[data-instrum
   const next = { ...upgraded, instruments: { ...upgraded.instruments, [layer]: select.value } };
   if (next.generatorVersion !== settings.generatorVersion) { void replace(next); return; }
   settings = next; engine.update(settings); persist(); renderSettings();
+});
+$('#arpeggio').addEventListener('click', () => {
+  if (busy) return;
+  const enabled = settings.generatorVersion >= 8 && settings.arpeggio !== false;
+  settings = { ...upgradeSettings(settings), arpeggio: !enabled };
+  engine.update(settings); persist(); renderSettings();
 });
 $('#groove').addEventListener('change', () => {
   const groove = $<HTMLSelectElement>('#groove').value as Settings['groove'];
