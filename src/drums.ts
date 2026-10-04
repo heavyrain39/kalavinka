@@ -43,7 +43,7 @@ export function drumVoice(context:BaseAudioContext,bank:DrumBank,bus:DrumBus,hat
   const mode=settings.profile==='dub'&&settings.groove==='dnb'?'dnb':'house';
   const gain=context.createGain(),pan=context.createStereoPanner();
   // Performance gain remains continuous; velocity layers change the timbre, not just volume.
-  gain.gain.setValueAtTime(event.gain*(kick?1.2:snare?1.8:hat?1.15:crash?.70*(.65+.35*(event.velocity??.75)):1.2),time);
+  gain.gain.setValueAtTime(event.gain*(kick?1.2:snare?1.8:hat?1.15:crash?2.0*(.65+.35*(event.velocity??.75)):1.2),time);
   pan.pan.value=kick||snare?0:Math.max(-.22,Math.min(.22,event.pan));
   gain.connect(pan).connect(kick?bus.kick:snare?bus.snare:hat?bus.hat:crash?bus.crash:bus.perc);
   if(hat) {
