@@ -30,7 +30,8 @@ export function renderDrum(rate:number,kit:string,mode:DrumMode,sound:DrumSound,
   const color=lowpass(sr,brush?(sound==='kick'?9000:6500):tape?(sound==='kick'?10500:8000):12000);
   const wireHP=highpass(sr,brush?900:1400),crackHP=highpass(sr,2200),hatHP=highpass(sr,brush?4500:6200);
   const crashHP=highpass(sr,1100);
-  const crashAir=lowpass(sr,brush?5000:tape?5700:electro?6600:6000);
+  const crashAir=lowpass(sr,brush?2800:tape?3200:electro?3700:3400);
+  const crashSmooth=lowpass(sr,brush?3600:tape?4000:electro?4500:4200);
   let rng=hash(`${kit}:${mode}:${sound}:${variant}`)||1;
   const noise=()=>{rng^=rng<<13;rng^=rng>>>17;rng^=rng<<5;return (rng>>>0)/2147483648-1;};
   const fundamental=electro?48:tape?52:brush?55:60;
@@ -68,13 +69,11 @@ export function renderDrum(rate:number,kit:string,mode:DrumMode,sound:DrumSound,
       x=hatHP(metal*(brush?.25:.72)+n*(brush?.8:.38))*attack(t,.0006)*Math.exp(-t/decay)*(.55+v*.35);
       x+=crackHP(n)*attack(t,.0003)*Math.exp(-t/.0025)*.1*v;
     } else if(sound==='crash') {
-      // A soft background wash: no stick transient, very little pitched metal,
-      // and a rounded 65–80ms rise instead of an abrupt crash attack.
-      let metal=0;for(const f of metalFreq)metal+=Math.sin(2*Math.PI*f*2.4*t);
-      const body=metal/6*Math.exp(-t/.22)*.025;
-      const wash=n*Math.exp(-t/(brush?.55:tape?.70:electro?.65:.50))*.62;
-      const rise=Math.sin(Math.PI*.5*Math.min(1,t/(brush?.080:.065)))**2;
-      x=crashAir(crashHP(body+wash))*rise*(.6+v*.4);
+      // A barely struck cymbal wash: no discrete metallic tones or stick click.
+      // Two gentle low-pass stages smooth the hiss before the slow, quiet bloom.
+      const wash=crashSmooth(crashAir(crashHP(n)))*Math.exp(-t/(brush?.55:tape?.70:electro?.65:.50))*.55;
+      const rise=Math.sin(Math.PI*.5*Math.min(1,t/(brush?.120:.100)))**2;
+      x=wash*rise*(.6+v*.4);
     } else if(sound==='tom') {
       phase+=2*Math.PI*(110+45*Math.exp(-t/.013))/sr;
       x=(Math.sin(phase)*Math.exp(-t/.062)+Math.sin(phase*1.57)*.17*Math.exp(-t/.022)+n*.06*Math.exp(-t/.01))*attack(t,.001);
