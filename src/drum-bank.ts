@@ -1,5 +1,6 @@
 // Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import {hash} from './seed';
+import {renderCymbal} from './cymbal';
 export type DrumSound = 'kick'|'snare'|'closed'|'half'|'open'|'rim'|'tom'|'crash';
 export type DrumMode = 'house'|'dnb';
 export const DRUM_KITS = ['r-brush','r-tape','r-electro','r-click'] as const;
@@ -22,16 +23,14 @@ const attack=(t:number,seconds:number)=>1-Math.exp(-t/seconds);
 
 /** Original drum design: 2x synthesis, saturation, anti-alias filtering, then decimation. */
 export function renderDrum(rate:number,kit:string,mode:DrumMode,sound:DrumSound,velocity:number,variant:number): Float32Array<ArrayBuffer> {
+  if(sound==='crash')return renderCymbal(rate,kit,variant)[0];
   const brush=kit==='r-brush',tape=kit==='r-tape',electro=kit==='r-electro',minimal=kit==='r-click',dnb=mode==='dnb';
-  const duration=sound==='crash'?(brush?2.6:tape?3:electro?2.8:2.2):sound==='kick'?(dnb?.22:minimal?.23:.38):sound==='snare'?(dnb?.28:brush?.34:.32)
+  const duration=sound==='kick'?(dnb?.22:minimal?.23:.38):sound==='snare'?(dnb?.28:brush?.34:.32)
     :sound==='open'?(dnb?.30:.44):sound==='half'?.18:sound==='closed'?.09:sound==='tom'?.38:.13;
   const count=Math.ceil(rate*duration),output=new Float32Array(count),sr=rate*2;
   const aa1=lowpass(sr,rate*.40),aa2=lowpass(sr,rate*.40),dc=highpass(sr,20);
   const color=lowpass(sr,brush?(sound==='kick'?9000:6500):tape?(sound==='kick'?10500:8000):12000);
   const wireHP=highpass(sr,brush?900:1400),crackHP=highpass(sr,2200),hatHP=highpass(sr,brush?4500:6200);
-  const crashHP=highpass(sr,1100);
-  const crashAir=lowpass(sr,brush?2800:tape?3200:electro?3700:3400);
-  const crashSmooth=lowpass(sr,brush?3600:tape?4000:electro?4500:4200);
   let rng=hash(`${kit}:${mode}:${sound}:${variant}`)||1;
   const noise=()=>{rng^=rng<<13;rng^=rng>>>17;rng^=rng<<5;return (rng>>>0)/2147483648-1;};
   const fundamental=electro?48:tape?52:brush?55:60;
@@ -68,12 +67,6 @@ export function renderDrum(rate:number,kit:string,mode:DrumMode,sound:DrumSound,
       metal=metal/6+.16*Math.sin(2*Math.PI*metalFreq[1]*t)*Math.sin(2*Math.PI*metalFreq[5]*t);
       x=hatHP(metal*(brush?.25:.72)+n*(brush?.8:.38))*attack(t,.0006)*Math.exp(-t/decay)*(.55+v*.35);
       x+=crackHP(n)*attack(t,.0003)*Math.exp(-t/.0025)*.1*v;
-    } else if(sound==='crash') {
-      // A barely struck cymbal wash: no discrete metallic tones or stick click.
-      // Two gentle low-pass stages smooth the hiss before the slow, quiet bloom.
-      const wash=crashSmooth(crashAir(crashHP(n)))*Math.exp(-t/(brush?.55:tape?.70:electro?.65:.50))*.55;
-      const rise=Math.sin(Math.PI*.5*Math.min(1,t/(brush?.120:.100)))**2;
-      x=wash*rise*(.6+v*.4);
     } else if(sound==='tom') {
       phase+=2*Math.PI*(110+45*Math.exp(-t/.013))/sr;
       x=(Math.sin(phase)*Math.exp(-t/.062)+Math.sin(phase*1.57)*.17*Math.exp(-t/.022)+n*.06*Math.exp(-t/.01))*attack(t,.001);
@@ -101,9 +94,13 @@ export class DrumBank {
         const key=`${kit}:${rr}`;
         let buffer=sound==='crash'?crashes.get(key):undefined;
         if(!buffer){
-          const data=renderDrum(this.context.sampleRate,kit,sound==='crash'?'house':mode,sound,sound==='crash'?1:VELOCITIES[v],rr);
-          buffer=this.context.createBuffer(1,data.length,this.context.sampleRate);buffer.copyToChannel(data,0);this.bytes+=data.byteLength;
-          if(sound==='crash')crashes.set(key,buffer);
+          const channels=sound==='crash'?renderCymbal(this.context.sampleRate,kit,rr):[renderDrum(this.context.sampleRate,kit,mode,sound,VELOCITIES[v],rr)];
+          buffer=this.context.createBuffer(channels.length,channels[0].length,this.context.sampleRate);
+          channels.forEach((data,ch)=>{buffer!.copyToChannel(data,ch);this.bytes+=data.byteLength;});
+          if(sound==='crash'){
+            crashes.set(key,buffer);
+            await new Promise<void>(resolve=>setTimeout(resolve,0));
+          }
         }
         this.sounds.set(`${kit}:${mode}:${sound}:${v}:${rr}`,buffer);
       }

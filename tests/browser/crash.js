@@ -5,7 +5,7 @@ async(page)=>{
   const mix={generatorVersion:16,profile:'dub',seed:'CRASHDEMO',bpm:180,energy:65,melodyRepetition:1};
   await p.goto('http://127.0.0.1:5173/#mix='+encodeURIComponent(JSON.stringify(mix)));
   await p.waitForFunction(()=>!!window.__worksong);
-  if(!(await p.locator('#about-dialog').textContent()).includes('v0.22.3'))throw Error('stale release');
+  if(!(await p.locator('#about-dialog').textContent()).includes('v0.23.0'))throw Error('stale release');
   await p.locator('#play').click();await p.waitForFunction(()=>window.__worksong.diagnostics().bar>8.15);
   const live=await p.evaluate(()=>window.__worksong.diagnostics());
   if(live.late||live.lastError||live.settings.generatorVersion!==16||live.settings.melodyRepetition!==1)throw Error('live '+JSON.stringify(live));

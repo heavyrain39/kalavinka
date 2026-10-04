@@ -7,6 +7,24 @@ import {arrangementAt} from '../src/arrangement';
 import {fillPlan} from '../src/fills';
 import {renderDrum,DRUM_KITS,DRUM_SOUNDS} from '../src/drum-bank';
 import {capturePhrase,normalizePhrase,playbackScore} from '../src/saved-phrase';
+import {renderCymbal} from '../src/cymbal';
+
+test('stereo cymbals are deterministic, diffuse and retain a usable mono fold-down at device rates',()=>{
+ for(const rate of [44100,48000,96000])for(const kit of DRUM_KITS){
+  const [left,right]=renderCymbal(rate,kit,0),again=renderCymbal(rate,kit,0);
+  assert.deepEqual(left,again[0]);assert.deepEqual(right,again[1]);
+  let ll=0,rr=0,lr=0;
+  for(let i=0;i<left.length;i++){
+   assert.ok(Number.isFinite(left[i])&&Number.isFinite(right[i]));
+   assert.ok(Math.abs(left[i])<.5&&Math.abs(right[i])<.5);
+   ll+=left[i]**2;rr+=right[i]**2;lr+=left[i]*right[i];
+  }
+  const correlation=lr/Math.sqrt(ll*rr),monoEnergy=(ll+rr+2*lr)/4;
+  assert.ok(correlation>0&&correlation<.3,'diffuse stereo without anticorrelation');
+  assert.ok(monoEnergy/((ll+rr)/2)>.45,'mono must not cancel the cymbal');
+  assert.equal(left.at(-1),0);assert.equal(right.at(-1),0);
+ }
+});
 
 test('crashes are occasional, reproducible transition accents with a full boundary of space',()=>{
  let count=0,possible=0,afterFill=0;
