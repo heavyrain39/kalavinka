@@ -38,7 +38,7 @@ export function normalizePhrase(value:unknown):SavedPhrase|undefined{
   const finite=(v:unknown,lo:number,hi:number):v is number=>typeof v==='number'&&Number.isFinite(v)&&v>=lo&&v<=hi;
   const pitches=(v:unknown):v is number[]=>Array.isArray(v)&&v.length<=8&&v.every(n=>Number.isInteger(n)&&finite(n,0,127));
   const events:MusicEvent[]=[],chords:Chord[]=[];
-  const voices={harmony:['keys','pad'],bass:['bass'],rhythm:['kick','snare','hat','rim','tom'],motif:['pluck','arp'],arpeggio:['arp']};
+  const voices={harmony:['keys','pad'],bass:['bass'],rhythm:['kick','snare','hat','rim','tom','crash'],motif:['pluck','arp'],arpeggio:['arp']};
   for(const e of p.events){
     if(!e||typeof e!=='object'||!Object.hasOwn(voices,e.layer)||!voices[e.layer].includes(e.voice)
       ||!finite(e.at,0,8)||e.at===8||!finite(e.length,.0001,8)||!pitches(e.notes)

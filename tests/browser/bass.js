@@ -3,7 +3,7 @@ async(page)=>{
  try{
   const p=await context.newPage();p.on('pageerror',e=>errors.push(String(e)));
   await p.goto('http://127.0.0.1:5173/');await p.waitForFunction(()=>!!window.__worksong);
-  if(!(await p.locator('#about-dialog').textContent()).includes('v0.21.0'))throw Error('stale release');
+  if(!(await p.locator('#about-dialog').textContent()).includes('v0.22.0'))throw Error('stale release');
   const results=[];
   for(const mode of ['lofi','ambient','dub','dnb']){
    await p.locator(`[data-profile="${mode==='dnb'?'dub':mode}"]`).click();
@@ -12,7 +12,7 @@ async(page)=>{
    await p.evaluate(()=>{const e=document.getElementById('bpm');e.value='180';e.dispatchEvent(new Event('input',{bubbles:true}));});
    await p.locator('#play').click();await p.waitForFunction(()=>window.__worksong.diagnostics().bar>8.1);
    const d=await p.evaluate(()=>window.__worksong.diagnostics());
-   if(d.settings.generatorVersion!==15||d.settings.melodyRepetition!==1||d.late||d.lastError)throw Error('live '+JSON.stringify(d));
+   if(d.settings.generatorVersion!==16||d.settings.melodyRepetition!==1||d.late||d.lastError)throw Error('live '+JSON.stringify(d));
    await p.locator('#favorite').click();
    await p.locator('#play').click();await p.waitForFunction(()=>!document.getElementById('play').disabled);
    if((await p.evaluate(()=>window.__worksong.diagnostics())).activeSources)throw Error('cleanup');

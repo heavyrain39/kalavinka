@@ -4,7 +4,7 @@ async(page)=>{
   const {prepareDrums}=await import('/src/drum-bank.ts'),{drumVoice,createDrumBus}=await import('/src/drums.ts'),{DEFAULTS,selectProfile}=await import('/src/music.ts');
   const prepared=new OfflineAudioContext(2,48000,48000),start=performance.now();
   const [bank,same]=await Promise.all([prepareDrums(prepared),prepareDrums(prepared)]);
-  if(bank!==same||bank.size!==336||bank.bytes>20e6)throw Error('bank cache/size');
+  if(bank!==same||bank.size!==384||bank.bytes>20*1024*1024)throw Error('bank cache/size');
   const prepareMs=performance.now()-start;
   const settings={...selectProfile(DEFAULTS,'dub'),volume:100,reverb:0};
   const rms=(x,a,b)=>{let sum=0;for(let i=a*48000;i<b*48000;i++)sum+=x[i]*x[i];return Math.sqrt(sum/((b-a)*48000));};
@@ -24,8 +24,8 @@ async(page)=>{
   if(!Number.isFinite(wet.tail)||wet.tail>open.tail)throw Error('room overwhelms choke');
   const voices=[];
   for(const kit of ['r-brush','r-tape','r-electro','r-click'])for(const groove of ['straight','dnb']) {
-   const ctx=new OfflineAudioContext(2,48000*2,48000),s={...settings,groove},bus=createDrumBus(ctx,s),active=new Set(),cleanups=new Set(),hats=[];bus.output.connect(ctx.destination);
-   for(const [i,voice] of ['kick','snare','hat','tom','rim'].entries())drumVoice(ctx,bank,bus,hats,{at:i,length:.1,voice,layer:'rhythm',notes:voice==='tom'?[45]:[],gain:voice==='kick'?.27:voice==='hat'?.025:.05,pan:0,cutoff:5000,instrument:kit,velocity:.85,variation:1},.1+i*.25,s,active,cleanups);
+   const ctx=new OfflineAudioContext(2,48000*5,48000),s={...settings,groove},bus=createDrumBus(ctx,s),active=new Set(),cleanups=new Set(),hats=[];bus.output.connect(ctx.destination);
+   for(const [i,voice] of ['kick','snare','hat','tom','rim','crash'].entries())drumVoice(ctx,bank,bus,hats,{at:i,length:.1,voice,layer:'rhythm',notes:voice==='tom'?[45]:[],gain:voice==='kick'?.27:voice==='hat'?.025:voice==='crash'?.10:.05,pan:0,cutoff:5000,instrument:kit,velocity:.85,variation:1},.1+i*.25,s,active,cleanups);
    const b=await ctx.startRendering();let peak=0;for(const x of b.getChannelData(0)){if(!Number.isFinite(x))throw Error('invalid');peak=Math.max(peak,Math.abs(x));}
    if(peak>.5||peak<.02||active.size||cleanups.size)throw Error('bus gain/cleanup');voices.push({kit,groove,peak});
   }

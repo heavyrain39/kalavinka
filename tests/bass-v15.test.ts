@@ -5,7 +5,7 @@ import {DEFAULTS,selectProfile,eventsForBar,chordAt,upgradeSettings,type Setting
 import {nextHarmonyBoundary} from '../src/harmony-v5';
 import {capturePhrase,normalizePhrase,playbackScore} from '../src/saved-phrase';
 const modes=['lofi','ambient','dub','dnb'] as const;
-const settings=(mode:typeof modes[number]):Settings=>({...selectProfile(DEFAULTS,mode==='dnb'?'dub':mode),melodyRepetition:1,groove:mode==='dnb'?'dnb':'straight',bpm:mode==='dnb'?170:78});
+const settings=(mode:typeof modes[number]):Settings=>({...selectProfile(DEFAULTS,mode==='dnb'?'dub':mode),generatorVersion:15,melodyRepetition:1,groove:mode==='dnb'?'dnb':'straight',bpm:mode==='dnb'?170:78});
 const score=(s:Settings,start=0,n=8)=>Array.from({length:n},(_,i)=>eventsForBar(s,start+i)).flat().sort((a,b)=>a.at-b.at);
 const bass=(s:Settings,start=0,n=8)=>score(s,start,n).filter(e=>e.layer==='bass');
 

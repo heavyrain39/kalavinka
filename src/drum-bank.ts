@@ -1,9 +1,9 @@
 // Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import {hash} from './seed';
-export type DrumSound = 'kick'|'snare'|'closed'|'half'|'open'|'rim'|'tom';
+export type DrumSound = 'kick'|'snare'|'closed'|'half'|'open'|'rim'|'tom'|'crash';
 export type DrumMode = 'house'|'dnb';
 export const DRUM_KITS = ['r-brush','r-tape','r-electro','r-click'] as const;
-export const DRUM_SOUNDS: DrumSound[] = ['kick','snare','closed','half','open','rim','tom'];
+export const DRUM_SOUNDS: DrumSound[] = ['kick','snare','closed','half','open','rim','tom','crash'];
 export const VELOCITIES = [.3,.65,1];
 const banks = new WeakMap<BaseAudioContext,Promise<DrumBank>>();
 
@@ -23,12 +23,13 @@ const attack=(t:number,seconds:number)=>1-Math.exp(-t/seconds);
 /** Original drum design: 2x synthesis, saturation, anti-alias filtering, then decimation. */
 export function renderDrum(rate:number,kit:string,mode:DrumMode,sound:DrumSound,velocity:number,variant:number): Float32Array<ArrayBuffer> {
   const brush=kit==='r-brush',tape=kit==='r-tape',electro=kit==='r-electro',minimal=kit==='r-click',dnb=mode==='dnb';
-  const duration=sound==='kick'?(dnb?.22:minimal?.23:.38):sound==='snare'?(dnb?.28:brush?.34:.32)
+  const duration=sound==='crash'?(brush?2.6:tape?3:electro?2.8:2.2):sound==='kick'?(dnb?.22:minimal?.23:.38):sound==='snare'?(dnb?.28:brush?.34:.32)
     :sound==='open'?(dnb?.30:.44):sound==='half'?.18:sound==='closed'?.09:sound==='tom'?.38:.13;
   const count=Math.ceil(rate*duration),output=new Float32Array(count),sr=rate*2;
   const aa1=lowpass(sr,rate*.40),aa2=lowpass(sr,rate*.40),dc=highpass(sr,20);
   const color=lowpass(sr,brush?(sound==='kick'?9000:6500):tape?(sound==='kick'?10500:8000):12000);
   const wireHP=highpass(sr,brush?900:1400),crackHP=highpass(sr,2200),hatHP=highpass(sr,brush?4500:6200);
+  const crashHP=highpass(sr,1100);
   let rng=hash(`${kit}:${mode}:${sound}:${variant}`)||1;
   const noise=()=>{rng^=rng<<13;rng^=rng>>>17;rng^=rng<<5;return (rng>>>0)/2147483648-1;};
   const fundamental=electro?48:tape?52:brush?55:60;
@@ -65,6 +66,14 @@ export function renderDrum(rate:number,kit:string,mode:DrumMode,sound:DrumSound,
       metal=metal/6+.16*Math.sin(2*Math.PI*metalFreq[1]*t)*Math.sin(2*Math.PI*metalFreq[5]*t);
       x=hatHP(metal*(brush?.25:.72)+n*(brush?.8:.38))*attack(t,.0006)*Math.exp(-t/decay)*(.55+v*.35);
       x+=crackHP(n)*attack(t,.0003)*Math.exp(-t/.0025)*.1*v;
+    } else if(sound==='crash') {
+      // An inharmonic strike dissolves into broad, slowly decaying metal and air.
+      // This voice is independent of the hi-hat choke group.
+      let metal=0;for(const f of metalFreq)metal+=Math.sin(2*Math.PI*f*2.4*t);
+      const body=metal/6*Math.exp(-t/.27)*.20;
+      const wash=n*Math.exp(-t/(brush?.46:tape?.57:electro?.52:.38))*.80;
+      const strike=n*Math.exp(-t/.026)*.18;
+      x=crashHP(body+wash+strike)*attack(t,brush?.006:.0025)*(.6+v*.4);
     } else if(sound==='tom') {
       phase+=2*Math.PI*(110+45*Math.exp(-t/.013))/sr;
       x=(Math.sin(phase)*Math.exp(-t/.062)+Math.sin(phase*1.57)*.17*Math.exp(-t/.022)+n*.06*Math.exp(-t/.01))*attack(t,.001);
@@ -85,11 +94,18 @@ export class DrumBank {
   bytes=0;
   constructor(private context:BaseAudioContext) {}
   async prepare() {
+    // Long cymbals share one buffer per kit/variation; velocity stays continuous at playback.
+    const crashes=new Map<string,AudioBuffer>();
     for(const kit of DRUM_KITS)for(const mode of ['house','dnb'] as DrumMode[])for(const sound of DRUM_SOUNDS) {
       for(let v=0;v<VELOCITIES.length;v++)for(let rr=0;rr<2;rr++) {
-        const data=renderDrum(this.context.sampleRate,kit,mode,sound,VELOCITIES[v],rr);
-        const buffer=this.context.createBuffer(1,data.length,this.context.sampleRate);buffer.copyToChannel(data,0);
-        this.sounds.set(`${kit}:${mode}:${sound}:${v}:${rr}`,buffer);this.bytes+=data.byteLength;
+        const key=`${kit}:${rr}`;
+        let buffer=sound==='crash'?crashes.get(key):undefined;
+        if(!buffer){
+          const data=renderDrum(this.context.sampleRate,kit,sound==='crash'?'house':mode,sound,sound==='crash'?1:VELOCITIES[v],rr);
+          buffer=this.context.createBuffer(1,data.length,this.context.sampleRate);buffer.copyToChannel(data,0);this.bytes+=data.byteLength;
+          if(sound==='crash')crashes.set(key,buffer);
+        }
+        this.sounds.set(`${kit}:${mode}:${sound}:${v}:${rr}`,buffer);
       }
       // Preparation happens before playback; yield so Stop and the UI remain responsive.
       await new Promise<void>(resolve=>setTimeout(resolve,0));
@@ -99,6 +115,7 @@ export class DrumBank {
   get(kit:string,mode:DrumMode,sound:DrumSound,velocity:number,rr:number) {
     const v=Math.max(.3,Math.min(1,velocity)),lo=v<.65?0:1,weight=(v-VELOCITIES[lo])/(VELOCITIES[lo+1]-VELOCITIES[lo]);
     const selected=DRUM_KITS.includes(kit as typeof DRUM_KITS[number])?kit:'r-tape';
+    if(sound==='crash')return [{buffer:this.sounds.get(`${selected}:house:crash:2:${rr%2}`)!,weight:1}];
     return [lo,lo+1].map((index,i)=>({buffer:this.sounds.get(`${selected}:${mode}:${sound}:${index}:${rr%2}`)!,weight:i?weight:1-weight}));
   }
   get size(){return this.sounds.size;}
