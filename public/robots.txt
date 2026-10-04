@@ -1,0 +1,7 @@
+# Crawlers read robots.txt at the origin root, not a project subpath.
+# On GitHub Pages, /kalavinka/robots.txt is a reference policy only.
+# See README.md for the root-site requirement.
+User-agent: *
+Allow: /kalavinka/
+
+Sitemap: https://heavyrain39.github.io/kalavinka/sitemap.xml

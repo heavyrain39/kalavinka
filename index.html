@@ -4,12 +4,68 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#101113" />
-    <meta name="description" content="Music at your pace. Free work music generated in your browser, with no sign-in." />
+    <meta name="description" content="Generate free background music for work and study in your browser. Choose lo-fi, ambient or electronic moods, adjust the mix, and save phrases. No sign-in." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://heavyrain39.github.io/kalavinka/" />
+    <link rel="sitemap" type="application/xml" href="./sitemap.xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Kalavinka · 가릉빈가" />
+    <meta property="og:title" content="Kalavinka · 가릉빈가 — Free generative work music" />
+    <meta property="og:description" content="Generate free background music for work and study in your browser. Choose lo-fi, ambient or electronic moods, adjust the mix, and save phrases. No sign-in." />
+    <meta property="og:url" content="https://heavyrain39.github.io/kalavinka/" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="ko_KR" />
+    <meta property="og:image" content="https://heavyrain39.github.io/kalavinka/social-card.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Kalavinka — generative work music with lo-fi, ambient and electronic moods." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Kalavinka · 가릉빈가 — Free generative work music" />
+    <meta name="twitter:description" content="Generate free background music for work and study in your browser. Choose lo-fi, ambient or electronic moods, adjust the mix, and save phrases. No sign-in." />
+    <meta name="twitter:image" content="https://heavyrain39.github.io/kalavinka/social-card.png" />
+    <meta name="twitter:image:alt" content="Kalavinka — generative work music with lo-fi, ambient and electronic moods." />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <title>Kalavinka</title>
+    <title>Kalavinka · 가릉빈가 — Free generative work music</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Kalavinka",
+        "alternateName": "가릉빈가",
+        "url": "https://heavyrain39.github.io/kalavinka/",
+        "description": "Generate free background music for work and study in your browser. Choose lo-fi, ambient or electronic moods, adjust the mix, and save phrases. No sign-in.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Web browser",
+        "browserRequirements": "Requires JavaScript and Web Audio API support.",
+        "inLanguage": ["en", "ko"],
+        "license": "https://heavyrain39.github.io/kalavinka/LICENSE.txt"
+      }
+    </script>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <main class="app-fallback">
+        <h1>Kalavinka · <span lang="ko">가릉빈가</span> — Free generative work music</h1>
+        <p>Music is generated in your browser. Enable JavaScript to use the player.</p>
+      </main>
+    </div>
+    <section class="app-overview" aria-labelledby="overview-title">
+      <details>
+        <summary id="overview-title" data-i18n="overviewTitle">About Kalavinka and how to listen</summary>
+        <div class="overview-copy">
+          <p data-i18n="overviewIntro">Kalavinka is a free procedural music generator for work and study. Its Web Audio engine synthesizes instrumental background music in your browser, without sign-in or a music generation API.</p>
+          <h2 data-i18n="overviewMoodsTitle">Three music moods</h2>
+          <p data-i18n="overviewMoods">Choose Warm desk for lo-fi, Quiet space for ambient, or After hours for electronic music. After hours offers four-on-the-floor and drum &amp; bass rhythms.</p>
+          <h2 data-i18n="overviewHowTitle">How to listen</h2>
+          <p data-i18n="overviewHow">Choose a mood and press Play. Adjust tempo, energy, warmth, variation, melody repetition, reverb and volume. Choose sounds and mute harmony, bass, rhythm, melody or arpeggio separately. New flow creates another composition.</p>
+          <h2 data-i18n="overviewSaveTitle">Save phrases and share settings</h2>
+          <p data-i18n="overviewSave">The heart saves the current eight-bar phrase to this browser, with up to 12 favorites. The link button shares music settings, not the saved phrase or an audio recording. Settings and favorites use local browser storage; there is no account sync or audio file export.</p>
+          <p data-i18n="overviewTimer">Use continuous playback or a 25/50-minute focus timer. The player supports Korean and English, light and dark themes, and a focus view. Closing the tab or putting the device to sleep may stop playback.</p>
+          <p><a href="https://github.com/heavyrain39/kalavinka" data-i18n="overviewRepository">Project documentation on GitHub</a> · <a href="./LICENSE.txt" data-i18n="terms">Terms</a></p>
+        </div>
+      </details>
+    </section>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

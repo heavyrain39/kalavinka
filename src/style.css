@@ -28,6 +28,22 @@ button:focus-visible,a:focus-visible,input:focus-visible { outline: 1px solid va
 a { color: inherit; text-decoration: none; }
 svg { display: block; width: 20px; height: 20px; flex-shrink: 0; }
 h1,h2,p { margin: 0; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.app-fallback { max-width: 900px; margin: 24px auto; padding: 0 28px; }
+.app-overview { max-width: 1440px; margin: 0 auto; padding: 12px 28px 24px; border-top: 1px solid var(--line); background: var(--header-bg); }
+.app-overview summary { cursor: pointer; font-size: 12px; }
+.overview-copy { max-width: 800px; padding-top: 12px; }
+.overview-copy p { margin: 0 0 12px; }
+.overview-copy h2 { margin: 16px 0 6px; }
+.overview-copy a { text-decoration: underline; text-underline-offset: 3px; }
+footer .app-overview { position: relative; margin: 0; padding: 0; border: 0; background: transparent; }
+footer .app-overview summary { font-size: 10px; }
+footer .overview-copy { position: absolute; bottom: 24px; right: 0; z-index: 5; width: min(700px,calc(100vw - 32px)); max-height: 75dvh; overflow-y: auto; padding: 18px; border: 1px solid var(--line-strong); background: var(--panel-bg); color: var(--text); font-size: 13px; }
+.focus-mode .app-overview { display: none; }
+@media (max-width: 650px) {
+  .app-overview { padding: 12px; }
+  footer .overview-copy { position: fixed; bottom: 16px; left: 16px; right: 16px; width: auto; }
+}
 .mono,.unit { font-family: var(--font-mono); }
 .site-header { height: 60px; padding: 0 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); background: var(--header-bg); }
 .header-actions { display: flex; align-items: center; gap: 10px; }

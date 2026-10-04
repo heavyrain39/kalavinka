@@ -82,13 +82,14 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <div class="header-actions"><div class="language-switch" role="group" ${aria('language')}><button data-language="ko" ${aria('korean')}>KO</button><button data-language="en" ${aria('english')}>EN</button></div><div class="theme-switch" role="group" ${aria('theme')}><button data-theme="light" ${aria('light')}>◑</button><button data-theme="dark" ${aria('dark')}>◐</button><button data-theme="system" ${aria('system')}>◒</button></div></div>
   </header>
   <main class="workspace">
+    <h1 class="visually-hidden" data-i18n="pageTitle">${t('pageTitle')}</h1>
     <div class="console-grid">
       <aside class="panel atmosphere-panel">
         <div class="profile-list" role="group" ${aria('atmosphere')}>${(Object.keys(PROFILES) as ProfileId[]).map((id) => `<button class="profile" data-profile="${id}" aria-pressed="false"><svg class="profile-art" viewBox="0 0 64 48" aria-hidden="true">${profileGraphic(id)}</svg><span class="profile-name" data-i18n="${id}">${t(id)}</span><span class="profile-indicator" aria-hidden="true"></span></button>`).join('')}</div>
       </aside>
       <section class="panel player-panel" ${aria('player')}>
         <div class="deck">
-          <div class="deck-top"><h1 id="now-title"></h1><span class="mono" id="elapsed">00:00</span></div>
+          <div class="deck-top"><h2 id="now-title"></h2><span class="mono" id="elapsed">00:00</span></div>
           <div class="scope-wrap"><canvas id="scope" ${aria('waveform')}></canvas></div>
           <div class="playback-info"><span id="status-text" role="status"></span><span class="mono" id="bar-label"></span></div>
           <div class="chord-lane" id="chords" ${aria('chords')}></div>
@@ -114,6 +115,8 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div id="toast" role="status" aria-live="polite"></div>
   <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.22.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
+// Keep the crawlable, static overview in the compact footer after the player mounts.
+document.querySelector('footer > div')!.append(document.querySelector('.app-overview')!);
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 let currentToast: {key: TextKey; values: Record<string,string|number>} | null = null;
 function toast(key: TextKey, values: Record<string,string|number> = {}) {
@@ -224,7 +227,7 @@ async function replace(next: Settings, phrase?:SavedPhrase) {
 }
 function applyLanguage() {
   document.documentElement.lang = language;
-  document.title = t('appName');
+  document.title = t('pageTitle');
   document.querySelector('meta[name="description"]')?.setAttribute('content',t('description'));
   document.querySelectorAll<HTMLElement>('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n as TextKey); });
   document.querySelectorAll<HTMLElement>('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label',t(el.dataset.i18nAria as TextKey)));
