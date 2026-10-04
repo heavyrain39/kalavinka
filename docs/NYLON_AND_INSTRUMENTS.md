@@ -29,3 +29,9 @@ Verified local layouts at 1280 px, 390 px and 320 px, with Korean/dark and Engli
 - A bounded Terra code review prompted fixed-rate synthesis, cache preparation, a clearer attack and direct-call validation. Musical quality still depends on listening; signal and scheduling checks do not establish perceptual realism.
 
 Local evidence: `.local/nylon-all-tests.log`, `.local/nylon-build.log`, `.local/nylon-audio-results.json`; UI screenshots and 20-second listening previews are under `output/playwright/nylon-*`. These temporary artifacts are excluded from the repository.
+
+## v0.24.1 — lock state icon
+
+Keep sounds uses a closed padlock when enabled and an open padlock when disabled. The text label, pressed-state accessibility and keyboard behavior remain available.
+
+On wide screens the rhythm buttons sit directly to the left of Keep sounds, forming one right-aligned group. Narrow screens retain the full-width rhythm row.

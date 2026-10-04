@@ -114,13 +114,19 @@ h2 { font-size: 13px; font-weight: 600; }
 .instrument-toolbar h2 { font-size:11px; font-weight:550; color:var(--text-dim); }
 .instrument-lock { display:inline-flex; align-items:center; gap:8px; margin-left:auto; padding:8px; min-height:32px; border:1px solid transparent; background:transparent; font-size:10px; color:var(--text-dim); white-space:nowrap; }
 .instrument-lock[aria-pressed="true"] { color:var(--text); border-color:var(--line); background:var(--hover-bg); }
-.instrument-lock[aria-pressed="true"] .switch { background:var(--accent); border-color:var(--accent); }
+.instrument-lock .lock-icon { width:16px; height:16px; flex-shrink:0; }
+.instrument-lock .lock-closed { display:none; }
+.instrument-lock[aria-pressed="true"] .lock-closed { display:initial; }
+.instrument-lock[aria-pressed="true"] .lock-open { display:none; }
 .instrument-lock .tooltip { right:0; left:auto; }
 .groove-control { display:flex; margin-left:auto; border:1px solid var(--line); }
 .groove-control[hidden] { display:none; }
 .groove-control button { padding:7px 10px; min-height:32px; font-size:10px; white-space:nowrap; background:transparent; border:0; color:var(--text-dim); }
 .groove-control button+button { border-left:1px solid var(--line); }
 .groove-control button[aria-pressed="true"] { color:var(--text); background:var(--hover-bg); box-shadow:inset 0 -2px var(--accent); }
+@media (min-width:1101px) {
+  .groove-control:not([hidden]) + .instrument-lock { margin-left:0; }
+}
 .layer-grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 6px; padding: 8px 12px 12px; }
 .layer { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--line); padding: 10px; background: transparent; font-size: 11px; }
 .layer::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--accent); opacity: calc(var(--activity,0) * .14); }
