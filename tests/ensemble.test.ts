@@ -42,7 +42,8 @@ test('current shared harmony, melodic motion and bass release remain valid acros
     let previous: number|undefined;
     for(let bar=0;bar<64;bar++){
       const events=eventsForBar(s,bar),scale=diatonicPitches(s,34,81),chord=chordAt(s,bar);
-      assert.ok(events.length<=30,`density ${events.length}`);
+      // v15 can add a root after each of four kicks while retaining the existing lead/drums.
+      assert.ok(events.length<=34,`density ${events.length}`);
       const melody=events.filter(e=>e.layer==='motif'),bass=events.filter(e=>e.layer==='bass'),kick=events.filter(e=>e.voice==='kick');
       for(const e of [...melody,...bass]){
         assert.ok(e.notes.every(n=>scale.includes(n)),`${profile} ${seed} diatonic`);
@@ -51,7 +52,7 @@ test('current shared harmony, melodic motion and bass release remain valid acros
       }
       for(const e of melody){if(previous!==undefined)assert.ok(Math.abs(e.notes[0]-previous)<=7,`leap ${profile} ${seed} ${bar}`);previous=e.notes[0];}
       if(profile!=='ambient')for(let i=1;i<bass.length;i++)assert.ok(bass[i-1].at+bass[i-1].length+.065*s.bpm/240<=bass[i].at+1e-7);
-      if(profile==='dub')for(const b of bass)for(const k of kick)assert.ok(Math.abs(b.at-k.at)*240/s.bpm>=.085-1e-7,`kick/bass ${groove}`);
+      if(profile==='dub')for(const b of bass)for(const k of kick){const gap=Math.abs(b.at-k.at)*240/s.bpm;assert.ok(gap<.015||gap>=.085-1e-7,`kick/bass flam ${groove} ${gap}`);}
     }
   }
 });

@@ -4,7 +4,7 @@ import {DEFAULTS,selectProfile,eventsForBar,normalizeSettings,upgradeSettings,re
 import {resetSliders} from '../src/controls';
 import {capturePhrase,normalizePhrase,playbackScore,compositionIdentity} from '../src/saved-phrase';
 const modes=['lofi','ambient','dub','dnb'] as const;
-const settings=(mode:typeof modes[number]):Settings=>({...selectProfile(DEFAULTS,mode==='dnb'?'dub':mode),groove:mode==='dnb'?'dnb':'straight',bpm:mode==='dnb'?170:78});
+const settings=(mode:typeof modes[number]):Settings=>({...selectProfile(DEFAULTS,mode==='dnb'?'dub':mode),generatorVersion:14,groove:mode==='dnb'?'dnb':'straight',bpm:mode==='dnb'?170:78});
 const phrase=(s:Settings,start=0,n=8)=>Array.from({length:n},(_,i)=>eventsForBar(s,start+i)).flat();
 
 test('Normal preserves v13 scores and historical versions ignore the new control',()=>{

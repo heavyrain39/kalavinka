@@ -3,10 +3,10 @@ async(page)=>{
  try{
   const p=await context.newPage();p.on('pageerror',e=>errors.push(String(e)));
   await p.goto('http://127.0.0.1:5173/');await p.waitForFunction(()=>!!window.__worksong);
-  if(!(await p.locator('#about-dialog').textContent()).includes('v0.20.0'))throw Error('stale release');
+  if(!(await p.locator('#about-dialog').textContent()).includes('v0.21.0'))throw Error('stale release');
   await p.locator('[data-profile="ambient"]').click();
   const initial=await p.evaluate(()=>window.__worksong.diagnostics().settings);
-  if(initial.reverb!==76||initial.generatorVersion!==14)throw Error('ambient preset');
+  if(initial.reverb!==76||initial.generatorVersion!==15)throw Error('ambient preset');
   await p.evaluate(()=>{const e=document.getElementById('bpm');e.value='180';e.dispatchEvent(new Event('input',{bubbles:true}));});
   await p.locator('#play').click();await p.waitForFunction(()=>window.__worksong.diagnostics().playing&&window.__worksong.diagnostics().bar>3.2);
   const first=await p.evaluate(()=>window.__worksong.savedPhrase());

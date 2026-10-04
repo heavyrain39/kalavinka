@@ -8,7 +8,7 @@ const phrase=(s:Settings,start=0)=>Array.from({length:8},(_,b)=>eventsForBar(s,s
 test('v12 scores and non-ambient v13 scores retain exact fingerprints',()=>{
  const hashes=['67f8f6f676817c45d748498e2d4e59b35965eb5a2a5e8273bdf576ea5914a5a9','e78325b3297b290f9f9d05a57b7173d5322d5994c857482508edfa526403d973','00ee39de3ac70bc6400175243139afe2b9bf23822afee9e4ca93d6e539635cde','5c61f31ea4d18803df69bae04dc322ce08b99260906f3864542783b60b4bad2e'];
  modes.forEach((mode,i)=>{
-  const s:Settings={...selectProfile(DEFAULTS,mode==='dnb'?'dub':mode),groove:mode==='dnb'?'dnb':'straight',bpm:mode==='dnb'?170:78};
+  const s:Settings={...selectProfile(DEFAULTS,mode==='dnb'?'dub':mode),generatorVersion:13,groove:mode==='dnb'?'dnb':'straight',bpm:mode==='dnb'?170:78};
   const score=(settings:Settings)=>Array.from({length:64},(_,b)=>eventsForBar(settings,b));
   const old=score({...s,generatorVersion:12});
   assert.equal(createHash('sha256').update(JSON.stringify(old)).digest('hex'),hashes[i]);
