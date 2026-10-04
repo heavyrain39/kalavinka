@@ -56,6 +56,7 @@ test('existing drum samples stay byte-exact and cymbals have an independent long
  for(const kit of DRUM_KITS){
   const cymbal=renderDrum(48000,kit,'house','crash',1,0);
   assert.ok(cymbal.length>=48000*2);
+  assert.ok(rms(cymbal,0,.03)<rms(cymbal,.06,.16)*.3,'soft cymbal must bloom rather than start with a hard strike');
   assert.ok(rms(cymbal,.7,.9)>.005,'wash must outlast an open hat');
   assert.ok(rms(cymbal,1.5,1.7)<rms(cymbal,.3,.5)*.3,'tail must decay');
  }
