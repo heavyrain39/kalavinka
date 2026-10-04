@@ -4,10 +4,10 @@ import {browserLanguage, translate, instrumentName, type Language, type TextKey}
 import {resetSliders} from './controls';
 import { Starfield } from './starfield';
 import { recipeFor, hasEnding } from './harmony-v5';
-import { INSTRUMENTS, resolveDrumKit } from './instruments';
+import { INSTRUMENTS, defaultArpeggioInstrument, resolveDrumKit } from './instruments';
 import { MusicEngine } from './audio';
 import {capturePhrase,normalizePhrase,favoriteIdentity,playbackScore,compositionIdentity,type SavedPhrase} from './saved-phrase';
-import { LAYERS, PROFILES, normalizeSettings, upgradeSettings, regenerateSettings, selectProfile, progression, type Settings, type ProfileId, type Layer } from './music';
+import { AUDIO_LAYERS, layerEnabled, PROFILES, normalizeSettings, upgradeSettings, regenerateSettings, selectProfile, progression, type Settings, type ProfileId, type AudioLayer } from './music';
 
 const PORTFOLIO = 'https://heavyrain39.github.io/portfolio/';
 const STORAGE = 'worksong.v1';
@@ -97,9 +97,9 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
             <button class="icon-button tip" id="favorite" ${aria('save')}>${icon('save')}<span class="tooltip" role="tooltip" data-i18n="save">${t('save')}</span></button>
             <button class="icon-button tip" id="share" ${aria('share')}>${icon('share')}<span class="tooltip" role="tooltip" data-i18n="share">${t('share')}</span></button>
           </div>
-          <div class="player-bottom"><button id="arpeggio" class="text-button arp-toggle" aria-pressed="true">${label('arpeggio')}<span class="switch" aria-hidden="true"></span></button><select id="groove" class="instrument-select groove-select" ${aria('groove')}><option value="straight" data-i18n="straight">${t('straight')}</option><option value="dnb" data-i18n="dnb">${t('dnb')}</option></select><button class="text-button" id="focus" aria-pressed="false">${icon('focus')}<span>${t('focus')}</span></button></div>
+          <div class="player-bottom"><select id="groove" class="instrument-select groove-select" ${aria('groove')}><option value="straight" data-i18n="straight">${t('straight')}</option><option value="dnb" data-i18n="dnb">${t('dnb')}</option></select><button class="text-button" id="focus" aria-pressed="false">${icon('focus')}<span>${t('focus')}</span></button></div>
         </div>
-        <div class="layer-grid" role="group" ${aria('instruments')}>${LAYERS.map((layer) => `<div class="part"><button class="layer" data-layer="${layer}" aria-pressed="true">${label(layer)}<span class="switch" aria-hidden="true"></span></button><select class="instrument-select" data-instrument="${layer}" aria-label="${t('timbre',{part:t(layer)})}"></select></div>`).join('')}</div>
+        <div class="layer-grid" role="group" ${aria('instruments')}>${AUDIO_LAYERS.map((layer) => `<div class="part"><button class="layer" ${layer === 'arpeggio' ? 'id="arpeggio"' : ''} data-layer="${layer}" aria-pressed="true">${label(layer)}<span class="switch" aria-hidden="true"></span></button><select class="instrument-select" data-instrument="${layer}" aria-label="${t('timbre',{part:t(layer)})}"></select></div>`).join('')}</div>
       </section>
       <aside class="right-column"><div class="panel starfield"><canvas id="starfield" role="img" ${aria('sky')}></canvas></div><section class="panel controls-panel">
         <div class="panel-head controls-head"><h2 data-i18n="controls">${t('controls')}</h2><button class="text-button" id="reset-controls" ${aria('resetLabel')}>${label('reset')}</button></div>
@@ -111,7 +111,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer" data-i18n="terms">${t('terms')}</a><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.14.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.14.1 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 let currentToast: {key: TextKey; values: Record<string,string|number>} | null = null;
@@ -142,17 +142,16 @@ function renderSettings() {
     button.setAttribute('aria-pressed', String(button.dataset.profile === settings.profile));
   }
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-layer]')) {
-    button.setAttribute('aria-pressed', String(settings.layers[button.dataset.layer as Layer]));
+    button.setAttribute('aria-pressed', String(layerEnabled(settings, button.dataset.layer as AudioLayer)));
   }
   for (const select of document.querySelectorAll<HTMLSelectElement>('[data-instrument]')) {
-    const layer = select.dataset.instrument as Layer;
-    select.innerHTML = (settings.generatorVersion < 3 && layer !== 'rhythm' ? `<option value="legacy">${t('legacy')}</option>` : '') + INSTRUMENTS[layer].map(i => `<option value="${i.id}">${instrumentName(i.id,language)}</option>`).join('');
-    select.value = layer === 'rhythm' ? resolveDrumKit(settings.instruments[layer], settings.profile) : settings.instruments[layer];
+    const layer = select.dataset.instrument as AudioLayer;
+    select.innerHTML = (settings.generatorVersion < 3 && layer !== 'rhythm' && layer !== 'arpeggio' ? `<option value="legacy">${t('legacy')}</option>` : '') + INSTRUMENTS[layer].map(i => `<option value="${i.id}">${instrumentName(i.id,language)}</option>`).join('');
+    select.value = layer === 'rhythm' ? resolveDrumKit(settings.instruments[layer], settings.profile) : layer === 'arpeggio' ? settings.instruments.arpeggio ?? defaultArpeggioInstrument(settings.profile) : settings.instruments[layer];
     select.setAttribute('aria-label',t('timbre',{part:t(layer)}));
   }
   $<HTMLSelectElement>('#groove').hidden = settings.profile !== 'dub';
   $<HTMLSelectElement>('#groove').value = settings.groove;
-  $('#arpeggio').setAttribute('aria-pressed', String(settings.generatorVersion >= 8 && settings.arpeggio !== false));
   $('#now-title').textContent = t(settings.profile);
   renderChords(); renderFavorites();
 }
@@ -254,22 +253,19 @@ for (const key of ['bpm', 'energy', 'warmth', 'evolution', 'reverb', 'volume'] a
   });
 }
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-layer]')) button.addEventListener('click', () => {
-  const layer = button.dataset.layer as Layer;
-  settings = { ...settings, layers: { ...settings.layers, [layer]: !settings.layers[layer] } };
+  const layer = button.dataset.layer as AudioLayer;
+  if (busy) return;
+  settings = layer === 'arpeggio'
+    ? { ...upgradeSettings(settings), arpeggio: !layerEnabled(settings, layer) }
+    : { ...settings, layers: { ...settings.layers, [layer]: !settings.layers[layer] } };
   engine.update(settings); persist(); renderSettings();
 });
 for (const select of document.querySelectorAll<HTMLSelectElement>('[data-instrument]')) select.addEventListener('change', () => {
-  const layer = select.dataset.instrument as Layer;
+  const layer = select.dataset.instrument as AudioLayer;
   const upgraded = upgradeSettings(settings);
   const next = { ...upgraded, instruments: { ...upgraded.instruments, [layer]: select.value } };
   if (next.generatorVersion !== settings.generatorVersion) { void replace(next); return; }
   settings = next; engine.update(settings); persist(); renderSettings();
-});
-$('#arpeggio').addEventListener('click', () => {
-  if (busy) return;
-  const enabled = settings.generatorVersion >= 8 && settings.arpeggio !== false;
-  settings = { ...upgradeSettings(settings), arpeggio: !enabled };
-  engine.update(settings); persist(); renderSettings();
 });
 $('#groove').addEventListener('change', () => {
   const groove = $<HTMLSelectElement>('#groove').value as Settings['groove'];

@@ -1,6 +1,7 @@
 // Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import { chordAt, hash, random, type Settings, type MusicEvent } from './music';
 import { nextHarmonyBoundary } from './harmony-v5';
+import { defaultArpeggioInstrument } from './instruments';
 
 // Indices into a compact chord voicing: twelve recognisable, repeatable gestures.
 export const ARP_PATTERNS = [
@@ -26,7 +27,7 @@ export function arpeggioEvents(s:Settings,bar:number,backing:MusicEvent[]):Music
   const phraseStart=plan.start+Math.floor((bar-plan.start)/phraseLength)*phraseLength;
   const step=phraseLength/contour.length;
   const offset=(random(s.seed,`arp-rhythm:${plan.episode}`)<.5?.0625:.125)*plan.stretch;
-  const instrument=s.profile==='lofi'?'m-marimba':s.profile==='ambient'?'m-bell':'m-pluck';
+  const instrument=s.instruments.arpeggio??defaultArpeggioInstrument(s.profile);
   const register=60+(hash(`${s.seed}:arp-register:${plan.episode}`)%2)*3;
   const melody=backing.filter(e=>e.layer==='motif');
   const result:MusicEvent[]=[];

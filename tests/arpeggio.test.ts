@@ -1,13 +1,29 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {DEFAULTS,selectProfile,eventsForBar,chordAt,normalizeSettings,type Settings} from '../src/music';
+import {DEFAULTS,selectProfile,eventsForBar,chordAt,normalizeSettings,regenerateSettings,type Settings} from '../src/music';
+import {INSTRUMENTS,defaultArpeggioInstrument} from '../src/instruments';
 import {ARP_PATTERNS,arpeggioPlan} from '../src/arpeggio';
 import {nextHarmonyBoundary} from '../src/harmony-v5';
 import {capturePhrase,normalizePhrase,playbackScore,favoriteIdentity} from '../src/saved-phrase';
 const modes=['lofi','ambient','dub','dnb'] as const;
 const settings=(p:typeof modes[number]):Settings=>({...selectProfile(DEFAULTS,p==='dnb'?'dub':p),groove:p==='dnb'?'dnb':'straight',bpm:p==='dnb'?170:78});
 const phrase=(s:Settings,start:number,n=8)=>Array.from({length:n},(_,i)=>eventsForBar(s,start+i)).flat();
+test('all arpeggio timbres preserve the written pattern, save exactly, and change on regeneration',()=>{
+ for(const mode of modes){
+  const s=settings(mode),original=phrase(s,0,32);
+  for(const {id} of INSTRUMENTS.arpeggio){
+   const selected=normalizeSettings({...s,instruments:{...s.instruments,arpeggio:id}});
+   const events=phrase(selected,0,32),arp=events.filter(e=>e.layer==='arpeggio');
+   assert.ok(arp.length&&arp.every(e=>e.instrument===id));
+   assert.deepEqual(events.map(e=>e.layer==='arpeggio'?{...e,instrument:defaultArpeggioInstrument(s.profile)}:e),original);
+   const start=Math.floor(arp[0].at/8)*8,clip=capturePhrase({settings:selected,opening:true},start);
+   assert.equal(favoriteIdentity(selected,clip),favoriteIdentity(normalizeSettings(JSON.parse(JSON.stringify(selected))),normalizePhrase(JSON.parse(JSON.stringify(clip)))!));
+   assert.notEqual(regenerateSettings(selected,'NEWARP').instruments.arpeggio,id);
+  }
+  assert.equal(normalizeSettings({...s,instruments:{...s.instruments,arpeggio:'b-sub'}}).instruments.arpeggio,undefined);
+ }
+});
 test('v7 saved scores remain exact and v8 only adds the independent arpeggio',()=>{
  const hashes=['7591817d17b69b3d963de25ee664c13c7e0bc164861ed1a3316cd968bf59cc1d','0a2fed0e7f078f4f44b54f5658d162b261f2e2cfd9368684eaab43d49a37d447','301ddb5e751f9d7941dd055ca2bec1a79aba5113f3403e964a9bc3fb575d817a','d832955dd7544c92ac39d468c81ff7b3c6530085c6a6033c7c0ddd8227cf0f01'];
  modes.forEach((p,i)=>{

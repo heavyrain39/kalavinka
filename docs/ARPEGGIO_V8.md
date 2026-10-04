@@ -1,8 +1,8 @@
 # Background arpeggio · v0.14.0 / generator v8
 
-The independent Arpeggio switch adds a quiet, intermittent chord-tone part alongside the four existing instruments. It starts enabled on new compositions, can run with Melody muted, and uses a separate gain bus with an 80 ms mute ramp. The four instrument selectors keep their existing meaning.
+The independent Arpeggio switch adds a quiet, intermittent chord-tone part alongside the four existing instruments. Since v0.14.1 it appears as the fifth part in the instrument grid, with the same on/off and sound-dropdown controls. It starts enabled on new compositions, can run with Melody muted, and uses a separate gain bus with an 80 ms mute ramp. The arpeggio sound selector offers bell, marimba, soft flute and pluck independently of Melody. New Flow varies all five sounds.
 
-Twelve contours cover ascending, descending, up/down, down/up, skips, alternating pedal tones and interleaved chord tones. A seeded permutation uses every contour before repeating; adjacent entrances cannot select the same contour. Each entrance also chooses its register and rhythmic offset deterministically. The part uses compact chord voicings, marimba for lo-fi, bell for ambient, and pluck for house/D&B.
+Twelve contours cover ascending, descending, up/down, down/up, skips, alternating pedal tones and interleaved chord tones. A seeded permutation uses every contour before repeating; adjacent entrances cannot select the same contour. Each entrance also chooses its register and rhythmic offset deterministically. The part uses compact chord voicings, marimba for lo-fi, bell for ambient, and pluck for house/D&B by default. Explicit choices are retained in settings and saved phrases. Older v8 settings without a choice continue using the original profile sound.
 
 Each 16-bar span reserves a four-bar entrance starting at bar 8 or 10 (zero-based), leaving 10–14 bars between episodes. Ambient and D&B stretch that plan by two: eight-bar episodes with slower notes and 20–28 bars of rest. Entrances sit in the groove/return portions of the existing form. Each two-bar gesture repeats once, giving 8 or 12 notes per episode. This is deliberately a background accent rather than a continuously running ostinato.
 
@@ -22,3 +22,5 @@ Hearts retain the actual arpeggio notes, timing, duration, sound, gain, pan and 
 - Production TypeScript/Vite build and release license audit passed.
 
 The timing and level checks establish bounded behavior, not subjective musical quality across every possible seed.
+
+V0.14.1 checks: 53 Node tests passed, including all four arpeggio timbres, save/normalize round trips and regeneration. Browser checks select Soft flute, save it, reload it and verify both the dropdown and actual saved notes. Responsive layouts cover 1440, 1024, 768, 390 and 320 px in Korean and English.

@@ -93,7 +93,7 @@ h2 { font-size: 13px; font-weight: 600; }
 .player-bottom { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: flex-end; }
 .text-button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--text-dim); font-size: 10px; padding: 3px 0; }
 .text-button svg { width: 12px; height: 12px; }
-.layer-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; padding: 12px; border-top: 1px solid var(--line); }
+.layer-grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 6px; padding: 12px; border-top: 1px solid var(--line); }
 .layer { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--line); padding: 10px; background: transparent; font-size: 11px; }
 .layer[aria-pressed="false"] { color: var(--text-dim); }
 .switch { width: 10px; height: 10px; border: 1px solid var(--line-strong); flex-shrink: 0; }
@@ -228,7 +228,12 @@ dialog p { color: var(--text-dim); font-size: 12px; margin: 16px 0; word-break: 
 .groove-select { width: auto; margin-right: auto; max-width: 155px; }
 .groove-select[hidden] { display: none; }
 @media (min-width: 901px) and (max-height: 650px) { .scope-wrap { min-height: 44px; } .deck-top { margin-bottom: 8px; } .layer-grid { padding: 8px; } }
-@media (max-width: 650px) { .layer-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .instrument-select { font-size: 11px; } }
+@media (min-width: 651px) and (max-width: 1100px) {
+  .layer-grid { grid-template-columns: repeat(6,minmax(0,1fr)); }
+  .part { grid-column: span 2; }
+  .part:nth-last-child(-n+2) { grid-column: span 3; }
+}
+@media (max-width: 650px) { .layer-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .part:last-child { grid-column: 1 / -1; } .instrument-select { font-size: 11px; } }
 @media (min-width: 901px) and (max-height: 650px) {
   .fader-list { gap: 7px; padding-top: 10px; padding-bottom: 10px; }
   .fader-heading { margin-bottom: 0; }
@@ -285,7 +290,3 @@ body::before {
 @media (prefers-reduced-motion: no-preference) {
   .profile:focus-visible .profile-art { animation: profilePulse 1.15s ease-in-out infinite; }
 }
-
-.arp-toggle { margin-right: auto; min-height: 28px; }
-.arp-toggle[aria-pressed="true"] { color: var(--text); }
-.arp-toggle[aria-pressed="true"] .switch { background: var(--accent); border-color: var(--accent); }
