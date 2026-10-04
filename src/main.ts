@@ -7,7 +7,7 @@ import { recipeFor, hasEnding } from './harmony-v5';
 import { INSTRUMENTS, defaultArpeggioInstrument, resolveDrumKit } from './instruments';
 import { MusicEngine } from './audio';
 import {capturePhrase,normalizePhrase,favoriteIdentity,playbackScore,compositionIdentity,type SavedPhrase} from './saved-phrase';
-import { AUDIO_LAYERS, layerEnabled, PROFILES, normalizeSettings, upgradeSettings, regenerateSettings, selectProfile, progression, type Settings, type ProfileId, type AudioLayer } from './music';
+import { AUDIO_LAYERS, layerEnabled, PROFILES, normalizeSettings, upgradeSettings, regenerateSettings, selectProfile, progression, repetitionLevel, type Settings, type ProfileId, type AudioLayer } from './music';
 
 const PORTFOLIO = 'https://heavyrain39.github.io/portfolio/';
 const STORAGE = 'worksong.v1';
@@ -73,8 +73,9 @@ const profileGraphic = (id: ProfileId) => id === 'lofi'
   : '<path d="M12 20v8m10-15v22m10-29v36m10-29v22m10-15v8"/>';
 const FADERS = [
   ['bpm',50,180,'BPM',''], ['energy',0,100,'%','energyTip'], ['warmth',0,100,'%','warmthTip'],
-  ['evolution',0,100,'%','evolutionTip'], ['reverb',0,100,'%',''], ['volume',0,100,'%',''],
+  ['evolution',0,100,'%','evolutionTip'], ['melodyRepetition',0,3,'','repetitionTip'], ['reverb',0,100,'%',''], ['volume',0,100,'%',''],
 ] as const;
+const REPETITION_LABELS=['repetitionOff','repetitionLow','repetitionNormal','repetitionHigh'] as const;
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <header class="site-header">
     <a class="wordmark" href="${location.pathname}" ${aria('home')}><span class="brand-name" aria-hidden="true"><span class="brand-en" lang="en">Kalavinka</span><span class="brand-ko" lang="ko">가릉빈가</span></span><span class="brand-cross" aria-hidden="true">+</span></a>
@@ -103,7 +104,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       </section>
       <aside class="right-column"><div class="panel starfield"><canvas id="starfield" role="img" ${aria('sky')}></canvas></div><section class="panel controls-panel">
         <div class="panel-head controls-head"><h2 data-i18n="controls">${t('controls')}</h2><button class="text-button" id="reset-controls" ${aria('resetLabel')}>${label('reset')}</button></div>
-        <div class="fader-list">${FADERS.map(([key,min,max,unit,tip]) => `<div class="fader"><div class="fader-heading"><label for="${key}" data-i18n="${key}">${t(key)}</label>${tip ? `<button class="help tip" data-help="${key}" aria-label="${t('help',{label:t(key)})}" aria-describedby="${key}-tip">?<span id="${key}-tip" class="tooltip" role="tooltip" data-i18n="${tip}">${t(tip)}</span></button>` : ''}<span class="fader-value"><output id="${key}-value" for="${key}"></output><span class="unit">${unit}</span></span></div><input id="${key}" type="range" min="${min}" max="${max}" step="1"/></div>`).join('')}</div>
+        <div class="fader-list">${FADERS.map(([key,min,max,unit,tip]) => `<div class="fader ${key==='melodyRepetition'?'repetition-fader':''}"><div class="fader-heading"><label for="${key}" data-i18n="${key}">${t(key)}</label>${tip ? `<button class="help tip" data-help="${key}" aria-label="${t('help',{label:t(key)})}" aria-describedby="${key}-tip">?<span id="${key}-tip" class="tooltip" role="tooltip" data-i18n="${tip}">${t(tip)}</span></button>` : ''}<span class="fader-value"><output id="${key}-value" for="${key}"></output><span class="unit">${unit}</span></span></div><input id="${key}" type="range" min="${min}" max="${max}" step="1"/>${key==='melodyRepetition'?`<div class="repetition-scale" aria-hidden="true">${REPETITION_LABELS.map((text,i)=>`<span data-repeat-tick="${i}" data-i18n="${text}">${t(text)}</span>`).join('')}</div>`:''}</div>`).join('')}</div>
         <div class="timer-section"><div class="timer-head">${label('timer')}<span class="mono" id="timer-left"></span></div><div class="timer-options" role="group" ${aria('focusTimer')}><button data-timer="0" aria-pressed="true" data-i18n="continuous">${t('continuous')}</button><button data-timer="25" aria-pressed="false" data-i18n-minutes="25">${t('minutes',{count:25})}</button><button data-timer="50" aria-pressed="false" data-i18n-minutes="50">${t('minutes',{count:50})}</button></div></div>
       </section></aside>
     </div>
@@ -111,7 +112,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer" data-i18n="terms">${t('terms')}</a><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.19.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.20.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 let currentToast: {key: TextKey; values: Record<string,string|number>} | null = null;
@@ -132,11 +133,13 @@ function persist() {
 }
 function renderSettings() {
   $<HTMLInputElement>('#bpm').max = settings.generatorVersion >= 3 ? '180' : '130';
-  for (const key of ['bpm', 'energy', 'warmth', 'evolution', 'reverb', 'volume'] as const) {
+  for (const key of ['bpm', 'energy', 'warmth', 'evolution', 'melodyRepetition', 'reverb', 'volume'] as const) {
     const input = $<HTMLInputElement>(`#${key}`);
-    input.value = String(settings[key]);
-    input.style.setProperty('--progress', `${(settings[key] - Number(input.min)) / (Number(input.max) - Number(input.min)) * 100}%`);
-    $(`#${key}-value`).textContent = String(settings[key]);
+    const value=key==='melodyRepetition'?repetitionLevel(settings):settings[key];
+    input.value = String(value);
+    input.style.setProperty('--progress', `${(value - Number(input.min)) / (Number(input.max) - Number(input.min)) * 100}%`);
+    $(`#${key}-value`).textContent = key==='melodyRepetition'?t(REPETITION_LABELS[value]):String(value);
+    if(key==='melodyRepetition'){input.setAttribute('aria-valuetext',t(REPETITION_LABELS[value]));document.querySelectorAll<HTMLElement>('[data-repeat-tick]').forEach(tick=>tick.classList.toggle('active',Number(tick.dataset.repeatTick)===value));}
   }
   for (const button of document.querySelectorAll<HTMLButtonElement>('[data-profile]')) {
     button.setAttribute('aria-pressed', String(button.dataset.profile === settings.profile));
@@ -194,6 +197,7 @@ function renderPlayback() {
   $<HTMLButtonElement>('#regenerate').disabled = busy;
   $<HTMLButtonElement>('#favorite').disabled = busy;
   $<HTMLButtonElement>('#arpeggio').disabled = busy;
+  $<HTMLInputElement>('#melodyRepetition').disabled = busy;
   $<HTMLButtonElement>('#reset-controls').disabled = busy;
   document.querySelectorAll<HTMLSelectElement>('[data-instrument], #groove').forEach(select => { select.disabled = busy; });
   document.body.classList.toggle('is-playing', playing);
@@ -243,9 +247,10 @@ $('#regenerate').addEventListener('click', () => { void replace(regenerateSettin
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-profile]')) button.addEventListener('click', () => {
   if (button.dataset.profile !== settings.profile) void replace(selectProfile(settings, button.dataset.profile as ProfileId));
 });
-for (const key of ['bpm', 'energy', 'warmth', 'evolution', 'reverb', 'volume'] as const) {
+for (const key of ['bpm', 'energy', 'warmth', 'evolution', 'melodyRepetition', 'reverb', 'volume'] as const) {
   $<HTMLInputElement>(`#${key}`).addEventListener('input', (event) => {
-    settings = { ...settings, [key]: Number((event.target as HTMLInputElement).value) };
+    if(key==='melodyRepetition'&&busy)return;
+    settings = key==='melodyRepetition' ? normalizeSettings({...upgradeSettings(settings),melodyRepetition:Number((event.target as HTMLInputElement).value)}) : { ...settings, [key]: Number((event.target as HTMLInputElement).value) };
     if (key === 'volume') engine.setVolume(settings.volume);
     else if (key === 'reverb') engine.setReverb(settings.reverb);
     else engine.update(settings);

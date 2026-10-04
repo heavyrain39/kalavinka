@@ -1,6 +1,6 @@
 // Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import { melodySentence as legacyMelodySentence } from './melody-v7';
-import { chordAt, type Settings, type MusicEvent } from './music';
+import { chordAt, repetitionLevel, type Settings, type MusicEvent } from './music';
 import { arrangementAt } from './arrangement';
 import { pitchesOf, diatonicPitches } from './harmony';
 import { nextHarmonyBoundary } from './harmony-v5';
@@ -14,7 +14,10 @@ const RHYTHMS = [[0,3,6,12,20,24], [2,6,10,16,19,26], [0,4,7,14,22],
 interface Gesture { slot: number; step: number; degree: number; gate: number; accent: number }
 const clamp = (n:number,lo:number,hi:number) => Math.max(lo,Math.min(hi,n));
 // A fixed clock prevents the Variation slider from jumping into another thematic chapter.
-export const chapterBars = (s:Settings) => s.profile==='ambient'?128:64;
+export const chapterBars = (s:Settings) => {
+  const base=s.profile==='ambient'?128:64,level=repetitionLevel(s);
+  return level===0?8:level===1?base/4:level===3?base*2:base;
+};
 
 function familyAt(s:Settings,chapter:number){
   const block=Math.floor(chapter/RHYTHMS.length);
@@ -43,6 +46,7 @@ export function melodySentence(s:Settings,start:number,backing:MusicEvent[]): Mu
   if(s.generatorVersion<10)return legacyMelodySentence(s,start,backing);
   if(s.energy<8)return [];
   const ambient=s.profile==='ambient',dnb=s.profile==='dub'&&s.groove==='dnb';
+  const repetition=repetitionLevel(s);
   const chapter=Math.floor(start/chapterBars(s)),sentence=Math.floor((start%chapterBars(s))/8);
   const current=motif(s,chapter),old=motif(s,Math.max(0,chapter-1));
   const scale=diatonicPitches(s,60,84),center=68+hash(`${s.seed}:melody-register`)%4;
@@ -51,16 +55,22 @@ export function melodySentence(s:Settings,start:number,backing:MusicEvent[]): Mu
   let previous=scale[home];
   for(let stage=0;stage<4;stage++){
     // The first statement at a chapter boundary quotes the old motif; its answer introduces the new one.
-    const quoting=chapter>0&&sentence===0&&stage===0;
-    const source=quoting?old:current,sourceChapter=quoting?chapter-1:chapter;
-    const turn=sentence===0?0:(hash(`${s.seed}:sentence:${chapter}:${sentence}`)%3)-1;
+    const quoting=repetition!==0&&chapter>0&&sentence===0&&stage===0;
+    const fresh=()=>motif(s,Math.floor(start/2)+stage+100000);
+    // Off writes independent two-bar gestures. Low retains only the opening hook.
+    const freshGestures=repetition<=1?fresh():current;
+    const source=repetition===0?freshGestures:repetition===1&&!quoting
+      ?current.map((g,i)=>i<2?g:{...g,degree:freshGestures[i%freshGestures.length].degree,gate:freshGestures[i%freshGestures.length].gate})
+      :quoting?old:current;
+    const sourceChapter=repetition===0?Math.floor(start/2)+stage+100000:quoting?chapter-1:chapter;
+    const turn=sentence===0||repetition===3?0:(hash(`${s.seed}:sentence:${chapter}:${sentence}`)%3)-1;
     let gestures=source.map(g=>({...g}));
     if(stage===1){gestures[gestures.length-1].degree-=1;gestures[gestures.length-1].gate=.9;}
-    if(stage===2)gestures=gestures.map((g,i)=>({...g,degree:g.degree+(i<3?1:2),step:clamp(g.step+(turn&&g.step<26?turn:0),0,31)}));
+    if(stage===2&&repetition!==3)gestures=gestures.map((g,i)=>({...g,degree:g.degree+(i<3?1:2),step:clamp(g.step+(turn&&g.step<26?turn:0),0,31)}));
     if(stage===3)gestures=gestures.map((g,i)=>({...g,degree:Math.round(g.degree*.5),
       step:i===gestures.length-1?Math.max(24,g.step):g.step,gate:i===gestures.length-1?.92:i===0?.5:.85}));
     // A small, phrase-local edit grows the theme without replacing its rhythmic signature.
-    if(sentence>0&&stage===1&&random(s.seed,`edit:${chapter}:${sentence}`)<.3+s.evolution*.004)
+    if(sentence>0&&stage===1&&random(s.seed,`edit:${chapter}:${sentence}`)<(.3+s.evolution*.004)*(repetition===3?.2:1))
       gestures=gestures.filter(g=>g.slot!==1);
     if(ambient||dnb||s.energy<30){
       const end=gestures.at(-1)!;
@@ -90,7 +100,7 @@ export function melodySentence(s:Settings,start:number,backing:MusicEvent[]): Mu
       // Bounded weighted choice among musically close options, rather than a unique shortest path.
       const good=ranked.filter(c=>c.cost<=ranked[0].cost+1.5).slice(0,3);
       const weights=good.map(c=>Math.exp(-(c.cost-ranked[0].cost)/.7));
-      let pick=random(s.seed,`pitch-v7:${sourceChapter}:${stage<2?0:stage}:${g.slot}`)*weights.reduce((a,b)=>a+b,0);
+      let pick=random(s.seed,`pitch-v7:${sourceChapter}:${stage<2||repetition===3?0:stage}:${g.slot}`)*weights.reduce((a,b)=>a+b,0);
       const chosen=good.find((_,j)=>(pick-=weights[j])<=0)??good[0];
       const note=chosen.n;previous=note;
       notes.push({at,length,voice:arp?'arp':'pluck',layer:'motif',notes:[note],

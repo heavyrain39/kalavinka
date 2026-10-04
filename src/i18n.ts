@@ -2,6 +2,8 @@
 export type Language = 'ko' | 'en';
 export const browserLanguage = (language: string): Language => /^ko(?:-|$)/i.test(language) ? 'ko' : 'en';
 const ko = {
+  melodyRepetition:'멜로디 반복성', repetitionOff:'끔', repetitionLow:'약', repetitionNormal:'보통', repetitionHigh:'강',
+  repetitionTip:'끔: 새 음형 · 약: 짧은 특징 반복 · 보통: 모티프 반복·발전 · 강: 같은 음형을 오래 유지. 멜로디는 계속 연주됩니다.',
   appName:'가릉빈가', home:'가릉빈가 홈', language:'언어', korean:'한국어', english:'영어',
   theme:'화면 테마', light:'밝은 테마', dark:'어두운 테마', system:'시스템 테마',
   lofi:'따뜻한 책상', ambient:'고요한 공간', dub:'늦은 밤', atmosphere:'음악 분위기', player:'음악 플레이어', waveform:'전체 출력 파형', sky:'소리에 반응하는 별하늘', chords:'코드 진행',
@@ -22,6 +24,8 @@ const ko = {
 } as const;
 export type TextKey = keyof typeof ko;
 const en: Record<TextKey, string> = {
+  melodyRepetition:'Melody repetition', repetitionOff:'Off', repetitionLow:'Low', repetitionNormal:'Normal', repetitionHigh:'High',
+  repetitionTip:'Off: fresh gestures · Low: short recurring hooks · Normal: repeat and develop · High: hold the theme longer. Melody keeps playing.',
   appName:'Kalavinka', home:'Kalavinka home', language:'Language', korean:'Korean', english:'English',
   theme:'Theme', light:'Light theme', dark:'Dark theme', system:'System theme',
   lofi:'Warm desk', ambient:'Quiet space', dub:'After hours', atmosphere:'Music mood', player:'Music player', waveform:'Output waveform', sky:'Sound-reactive starfield', chords:'Chord progression',
