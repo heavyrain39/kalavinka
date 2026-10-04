@@ -111,7 +111,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer" data-i18n="terms">${t('terms')}</a><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.16.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.17.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 let currentToast: {key: TextKey; values: Record<string,string|number>} | null = null;
@@ -351,12 +351,22 @@ const context = canvas.getContext('2d')!;
 let samples = new Float32Array(2048);
 let lastFrame = 0;
 let peak = 0;
+const partActivity:Record<AudioLayer,number>={harmony:0,bass:0,rhythm:0,motif:0,arpeggio:0};
+const partButtons=Array.from(document.querySelectorAll<HTMLElement>('[data-layer]'));
 const starfield = new Starfield($<HTMLCanvasElement>('#starfield'));
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 function draw(timestamp: number) {
   requestAnimationFrame(draw);
   if (document.hidden || timestamp - lastFrame < (reduceMotion.matches ? 200 : engine.playing ? 1000 / 30 : 66)) return;
-  lastFrame = timestamp;
+  const dt=Math.min(.25,(timestamp-lastFrame)/1000);lastFrame = timestamp;
+  const activity=engine.readLayerActivity();
+  for(const button of partButtons){
+    const layer=button.dataset.layer as AudioLayer,target=activity[layer],previous=partActivity[layer];
+    const seconds=target>previous?(reduceMotion.matches?.12:.025):(reduceMotion.matches?.65:.16);
+    const next=previous+(target-previous)*(1-Math.exp(-dt/seconds));
+    partActivity[layer]=next<.005?0:next;
+    button.style.setProperty('--activity',partActivity[layer].toFixed(3));
+  }
   starfield.draw(timestamp, engine.playing ? engine.analyser ?? null : null, reduceMotion.matches);
   const width = canvas.clientWidth, height = canvas.clientHeight;
   const dpr = Math.min(devicePixelRatio, 2);
@@ -396,7 +406,7 @@ function draw(timestamp: number) {
 
 }
 // Read-only inspection surface for browser/audio verification; it is not needed by the player.
-Object.defineProperty(window, '__worksong', { value: { diagnostics: () => ({ ...engine.diagnostics(), peak, language, sky: starfield.diagnostics(), harmony: { recipe: (engine.audibleSettings ?? settings).generatorVersion >= 5 ? recipeFor(engine.audibleSettings ?? settings).id : null, ending: (engine.audibleSettings ?? settings).generatorVersion >= 5 && hasEnding(engine.audibleSettings ?? settings, engine.bar), chords: progression(engine.audibleSettings ?? settings, engine.bar).map(c=>c.label) }, settings: structuredClone(settings) }),
+Object.defineProperty(window, '__worksong', { value: { diagnostics: () => ({ ...engine.diagnostics(), peak, activity:{...partActivity}, language, sky: starfield.diagnostics(), harmony: { recipe: (engine.audibleSettings ?? settings).generatorVersion >= 5 ? recipeFor(engine.audibleSettings ?? settings).id : null, ending: (engine.audibleSettings ?? settings).generatorVersion >= 5 && hasEnding(engine.audibleSettings ?? settings, engine.bar), chords: progression(engine.audibleSettings ?? settings, engine.bar).map(c=>c.label) }, settings: structuredClone(settings) }),
   savedPhrase:()=>structuredClone(currentCapture()),
   events: (begin: number, end: number) => playbackScore({settings,phrase:selectedPhrase,opening:true}).onsets(begin, end).length } });
 applyTheme(); applyLanguage(); requestAnimationFrame(draw);

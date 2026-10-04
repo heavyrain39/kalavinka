@@ -94,7 +94,8 @@ h2 { font-size: 13px; font-weight: 600; }
 .text-button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--text-dim); font-size: 10px; padding: 3px 0; }
 .text-button svg { width: 12px; height: 12px; }
 .layer-grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 6px; padding: 12px; border-top: 1px solid var(--line); }
-.layer { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--line); padding: 10px; background: transparent; font-size: 11px; }
+.layer { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--line); padding: 10px; background: transparent; font-size: 11px; }
+.layer::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--accent); opacity: calc(var(--activity,0) * .14); }
 .layer[aria-pressed="false"] { color: var(--text-dim); }
 .switch { width: 10px; height: 10px; border: 1px solid var(--line-strong); flex-shrink: 0; }
 .layer[aria-pressed="true"] .switch { background: var(--accent); border-color: var(--accent); }

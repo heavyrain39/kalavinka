@@ -2,8 +2,17 @@
 import { chordAt, hash, type Settings, type MusicEvent } from './music';
 import { nextHarmonyBoundary } from './harmony-v5';
 import { defaultArpeggioInstrument } from './instruments';
-import { ARP_PATTERNS, arpeggioPlan, arpeggioEvents as legacyArpeggioEvents } from './arpeggio-v9';
-export { ARP_PATTERNS, arpeggioPlan } from './arpeggio-v9';
+import { ARP_PATTERNS, arpeggioPlan as legacyPlan, arpeggioEvents as legacyArpeggioEvents } from './arpeggio-v9';
+export { ARP_PATTERNS } from './arpeggio-v9';
+
+export function arpeggioPlan(s:Settings,bar:number){
+  if(s.generatorVersion<11)return legacyPlan(s,bar);
+  const stretch=s.profile==='ambient'||s.groove==='dnb'?2:1;
+  const episode=Math.floor(bar/(8*stretch));
+  const plan=legacyPlan(s,episode*16*stretch);
+  const start=episode*8*stretch+2;
+  return {...plan,start,end:start+4*stretch};
+}
 
 export function arpeggioEvents(s:Settings,bar:number,backing:MusicEvent[]):MusicEvent[]{
   if(s.generatorVersion<10)return legacyArpeggioEvents(s,bar,backing);

@@ -42,3 +42,13 @@ V8/v9's sparse chord-tone gestures did not establish a clear continuous arpeggio
 The twelve-pattern rotation, rests between episodes, independent sound selector, early first entrance and saved-note replay remain. The denser part has a lower per-note level in ambient/D&B to stay behind the lead. V8/v9 implementation is preserved in `src/arpeggio-v9.ts`; V9 score fingerprints still match in all four modes.
 
 Tests assert every interval, repeated ordered pitches under unchanged chords, exact event counts, release clearance and saved replay. Full validation also covers the corrected melodic cadence described in `MELODY_V7.md`.
+
+## More frequent entries and part activity · v0.17.0 / generator v11
+
+V11 alternates four active bars with four resting bars, doubled to eight/eight for ambient and D&B. The first episode still starts in bar 3. The twelve-pattern permutation and continuous step clock remain. V10 and older score timing is preserved by version dispatch; stored eight-bar phrases continue to play their explicit notes.
+
+Automatic initial, profile and New Flow instrument selection excludes the chosen melody sound from the arpeggio candidates. New Flow also excludes its previous arpeggio sound. Manual matching selections remain valid and round-trip unchanged.
+
+Each scene meters its five actual audio buses after mute (and bass ducking), using 256-sample analyser buffers. Readings include scene crossfade and master volume, then a short attack/release smooths a monochrome button background at up to 14% opacity. The on/off square remains independent. Shared melodic reverb/delay is represented by the overall scope rather than individual part indicators. Silent, muted and stopped parts settle to zero; reduced-motion mode uses slower changes at five updates per second. No additional audio source or timer drives the indicator.
+
+Validation: 59 Node tests and the production build/license audit passed. The four v10 score fingerprints remain exact. Across 768 automatic profile/seed pairs, melody/arpeggio choices differ and manual matches survive normalization. Live browser checks cover all five activity signals, arpeggio rests/re-entry, individual mute, volume zero, stop and reduced motion with no late events. Light/dark desktop/mobile views and ten Korean/English layouts have no horizontal overflow. Saved arpeggio notes replay exactly after reload. Sixteen offline renders pass mute, cleanup and output bounds (maximum full-mix sample peak .84496).

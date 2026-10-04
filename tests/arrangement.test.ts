@@ -16,7 +16,7 @@ test('legacy favorites and versionless links retain the exact v1 scores', () => 
     assert.equal(createHash('sha256').update(JSON.stringify(events)).digest('hex'), expected[i]);
   });
   assert.equal(normalizeSettings({ seed: 'SLOWFLOW' }).generatorVersion, 1);
-  assert.equal(normalizeSettings(null).generatorVersion, 10);
+  assert.equal(normalizeSettings(null).generatorVersion, 11);
 });
 test('phrases vary note counts, pitch, spacing and bass lines within the first form', () => {
   for (const profile of profiles) {

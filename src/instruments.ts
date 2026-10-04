@@ -27,10 +27,11 @@ export function chooseInstruments(profile: ProfileId, seed: string, previous?: I
     mix[layer] = candidates.at(-1)!.id;
     for (const candidate of candidates) { pick -= candidate.weight; if (pick < 0) { mix[layer] = candidate.id; break; } }
   }
-  if (previous) {
-    const candidates = INSTRUMENTS.arpeggio.filter(i => i.id !== (previous.arpeggio ?? defaultArpeggioInstrument(profile)));
-    mix.arpeggio = candidates[Math.floor(random(seed, 'instrument:arpeggio') * candidates.length)].id;
-  }
+  const preferred = defaultArpeggioInstrument(profile);
+  const candidates = INSTRUMENTS.arpeggio.filter(i => i.id !== mix.motif
+    && (!previous || i.id !== (previous.arpeggio ?? preferred)));
+  mix.arpeggio = !previous && preferred !== mix.motif ? preferred
+    : candidates[Math.floor(random(seed, 'instrument:arpeggio') * candidates.length)].id;
   return mix;
 }
 export function normalizeInstruments(input: unknown, profile: ProfileId, seed: string): InstrumentMix {

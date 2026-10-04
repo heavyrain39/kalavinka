@@ -17,6 +17,7 @@ const layerGain = (s:Settings, layer:AudioLayer) => layerEnabled(s,layer) ? laye
 interface Scene {
   settings: Settings; playback: Playback; transport: Transport<Playback>; output: GainNode; input: GainNode;
   layers: Record<AudioLayer, GainNode>; nodes: AudioNode[]; sources: Set<AudioScheduledSourceNode>; cleanups: Set<() => void>;
+  meters: Record<AudioLayer, {node:AnalyserNode; samples:Float32Array<ArrayBuffer>}>;
   bassDuck: GainNode; liveRhythm: boolean; roomWet: GainNode; drums: DrumBus; hats: HatVoice[];
 }
 export class MusicEngine {
@@ -125,16 +126,22 @@ export class MusicEngine {
     input.connect(delay).connect(delayHp).connect(delayFilter).connect(feedback).connect(delay);
     delayFilter.connect(delayWet).connect(output);
     output.connect(this.destination);
-    const bassDuck = context.createGain(); bassDuck.connect(input);
+    const bassDuck = context.createGain();
     const drums = createDrumBus(context, settings);
+    const meters = Object.fromEntries(AUDIO_LAYERS.map(layer=>{
+      const node=context.createAnalyser();node.fftSize=256;
+      return [layer,{node,samples:new Float32Array(256)}];
+    })) as Scene['meters'];
     const layers = Object.fromEntries(AUDIO_LAYERS.map((layer) => {
       const gain = context.createGain(); gain.gain.value = layerGain(settings, layer);
-      gain.connect(layer === 'bass' ? bassDuck : layer === 'rhythm' ? output : input); return [layer, gain];
+      if(layer==='bass')gain.connect(bassDuck).connect(meters[layer].node);
+      else gain.connect(meters[layer].node);
+      meters[layer].node.connect(layer==='rhythm'?output:input);return [layer,gain];
     })) as Record<AudioLayer, GainNode>;
     drums.output.connect(layers.rhythm);
     const playback:Playback={settings:structuredClone(settings),phrase:phrase?structuredClone(phrase):undefined,opening:true};
-    const scene: Scene = { drums, hats: [], settings, playback, output, input, layers, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), cleanups: new Set(),
-      nodes: [...drums.nodes, input, output, bassDuck, dry, ...room.nodes, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers)], transport: null! };
+    const scene: Scene = { drums, hats: [], settings, playback, output, input, layers, meters, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), cleanups: new Set(),
+      nodes: [...drums.nodes, input, output, bassDuck, dry, ...room.nodes, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers), ...Object.values(meters).map(m=>m.node)], transport: null! };
     scene.transport = new Transport<Playback>({
       clock: () => context.currentTime,
       onError: (error) => {
@@ -217,6 +224,22 @@ export class MusicEngine {
     const scene=this.scene;if(!scene||!this.playing)return null;
     const bar=this.bar,start=Math.floor(bar/8)*8,parts=scene.transport.window(start,start+8);
     return {bar:bar-start,chords:Array.from({length:8},(_,i)=>playbackChord(parts.find(p=>p.from<=start+i&&p.to>start+i)?.render??scene.playback,start+i))};
+  }
+  readLayerActivity():Record<AudioLayer,number>{
+    const levels:Record<AudioLayer,number>={harmony:0,bass:0,rhythm:0,motif:0,arpeggio:0};
+    if(!this.playing||!this.master||this.context?.state!=='running')return levels;
+    // Meter actual part audio after mute/ducking; shared delay/reverb tails stay in the scope.
+    const reference:Record<AudioLayer,number>={harmony:.014,bass:.055,rhythm:.035,motif:.013,arpeggio:.018};
+    for(const scene of [...this.retired,...(this.scene?[this.scene]:[])])for(const layer of AUDIO_LAYERS){
+      const meter=scene.meters[layer];meter.node.getFloatTimeDomainData(meter.samples);
+      let sum=0;for(const sample of meter.samples)sum+=sample*sample;
+      const rms=Math.sqrt(sum/meter.samples.length)*scene.output.gain.value*this.master.gain.value;
+      levels[layer]+=rms*rms;
+    }
+    for(const layer of AUDIO_LAYERS){
+      const rms=Math.sqrt(levels[layer]);levels[layer]=rms<.00015?0:Math.min(1,Math.pow(rms/reference[layer],.55));
+    }
+    return levels;
   }
   diagnostics() {
     return { playing: this.playing, state: this.context?.state ?? 'uninitialized', activeSources: (this.scene?.sources.size ?? 0)
