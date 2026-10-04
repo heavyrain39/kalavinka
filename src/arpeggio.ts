@@ -5,9 +5,26 @@ import { defaultArpeggioInstrument } from './instruments';
 import { ARP_PATTERNS, arpeggioPlan as legacyPlan, arpeggioEvents as legacyArpeggioEvents } from './arpeggio-v9';
 export { ARP_PATTERNS } from './arpeggio-v9';
 
+// Eight-bar phrases: opening half, answering half, or a late entrance carried to the end.
+const WINDOWS={early:[0,4],late:[4,8],build:[2,8],rest:[0,0]} as const;
+// Seven entries per chapter, with room to return to the opening half after a late ending.
+// Every transition leaves at least two bars clear, including the chapter boundary.
+const CHAPTERS=[
+  ['build','late','rest','early','early','build','late','build'],
+  ['build','rest','early','early','late','build','late','build'],
+  ['build','late','build','rest','early','early','build','late'],
+] as const;
+
 export function arpeggioPlan(s:Settings,bar:number){
   if(s.generatorVersion<11)return legacyPlan(s,bar);
   const stretch=s.profile==='ambient'||s.groove==='dnb'?2:1;
+  if(s.generatorVersion>=12){
+    const chapter=Math.floor(bar/64),slot=Math.floor(bar/8)%8;
+    const layout=CHAPTERS[hash(`${s.seed}:arp-layout:${chapter}`)%CHAPTERS.length];
+    const episode=chapter*7+layout.slice(0,slot).filter(w=>w!=='rest').length;
+    const [from,to]=WINDOWS[layout[slot]],base=chapter*64+slot*8;
+    return {...legacyPlan(s,episode*16*stretch),start:base+from,end:base+to};
+  }
   const episode=Math.floor(bar/(8*stretch));
   const plan=legacyPlan(s,episode*16*stretch);
   const start=episode*8*stretch+2;

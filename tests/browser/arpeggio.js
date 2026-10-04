@@ -13,6 +13,7 @@ async(page)=>{
   const closing=captured.phrase.events.filter(e=>e.layer==='motif').at(-1);
   if(!closing||closing.at<7.5)throw Error('missing last-bar cadence');
   const arpNotes=captured.phrase.events.filter(e=>e.layer==='arpeggio');
+  if(arpNotes[0].at!==2||arpNotes.at(-1).at!==7.875||arpNotes.length!==48)throw Error('incomplete 3–8 build');
   if(arpNotes.some((e,i)=>i>0&&Math.abs(e.at-arpNotes[i-1].at-.125)>1e-7))throw Error('uneven arpeggio steps');
   const serial=events=>JSON.stringify(events.map(e=>Object.fromEntries(Object.entries(e).sort(([a],[b])=>a.localeCompare(b)))));
   const arp=captured.phrase.events.filter(e=>e.layer==='arpeggio');if(!arp.length||!arp.every(e=>e.instrument==='m-flute'))throw Error('selected arp sound');

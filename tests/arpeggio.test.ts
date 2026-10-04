@@ -53,16 +53,19 @@ test('v7 saved scores remain exact and new arpeggio/cadence leave accompaniment 
   assert.deepEqual(phrase({...s,arpeggio:false},0,64),phrase(s,0,64).filter(e=>e.layer!=='arpeggio'));
  });
 });
-test('twelve distinct patterns rotate between sparse episodes and remain chord-bound at both tempo limits',()=>{
+test('twelve patterns rotate after rests in complete half-phrase or build windows at both tempo limits',()=>{
  assert.equal(new Set(ARP_PATTERNS.map(p=>p.join(','))).size,12);
  for(const mode of modes)for(let seed=0;seed<8;seed++)for(const bpm of [50,180]){
   const s={...settings(mode),seed:`ARPS${seed}`,bpm,energy:100};
-  let lastEnd=0,lastPattern=-1;const seen=new Set<number>();
-  const span=mode==='ambient'||mode==='dnb'?16:8;
-  for(let ep=0;ep<13;ep++){
+  let lastEnd=0,lastPattern=-1,entries=0;const seen=new Set<number>(),windows=new Set<string>();
+  const span=8;
+  for(let ep=0;ep<16;ep++){
    const plan=arpeggioPlan(s,ep*span),notes=phrase(s,ep*span,span).filter(e=>e.layer==='arpeggio');
-   assert.notEqual(plan.pattern,lastPattern);if(ep<12)seen.add(plan.pattern);
-   assert.ok(plan.start-lastEnd>=(ep===0?2:span/2));lastEnd=plan.end;lastPattern=plan.pattern;
+   if(plan.start===plan.end){assert.equal(notes.length,0);continue;}
+   assert.notEqual(plan.pattern,lastPattern);if(entries++<12)seen.add(plan.pattern);
+   const window=`${plan.start-ep*8}-${plan.end-ep*8}`;
+   assert.ok(['0-4','4-8','2-8'].includes(window),window);windows.add(window);
+   assert.ok(plan.start-lastEnd>=2);lastEnd=plan.end;lastPattern=plan.pattern;
    assert.equal(notes.length,(plan.end-plan.start)*(mode==='dnb'?4:8));
    const step=mode==='dnb'?.25:.125;
    for(let n=1;n<notes.length;n++)assert.equal(notes[n].at-notes[n-1].at,step,'steady arpeggio clock');
@@ -76,7 +79,7 @@ test('twelve distinct patterns rotate between sparse episodes and remain chord-b
     assert.ok(end<=nextHarmonyBoundary(s,e.at)+1e-7);if(notes[i+1])assert.ok(end<notes[i+1].at);
    }
   }
-  assert.equal(seen.size,12);
+  assert.equal(seen.size,12);assert.equal(windows.size,3);
  }
 });
 test('arpeggio saves retain exact events, switch state, and future pattern sequence after serialization',()=>{
@@ -102,8 +105,6 @@ test('v10 scores retain the original longer rests',()=>{
   const old={...settings(mode),generatorVersion:10 as const};
   assert.equal(createHash('sha256').update(JSON.stringify(Array.from({length:64},(_,b)=>eventsForBar(old,b)))).digest('hex'),hashes[i]);
   assert.equal(normalizeSettings(old).generatorVersion,10);
-  const current=settings(mode),active=Array.from({length:128},(_,b)=>eventsForBar(current,b).some(e=>e.layer==='arpeggio'));
-  assert.equal(active.filter(Boolean).length,64);
  });
 });
 test('automatic melody/arpeggio choices differ; manual matches survive normalization and sharing',()=>{
@@ -116,4 +117,28 @@ test('automatic melody/arpeggio choices differ; manual matches survive normaliza
   const manual={...s,instruments:{...mix,arpeggio:mix.motif}};
   assert.equal(normalizeSettings(JSON.parse(JSON.stringify(manual))).instruments.arpeggio,mix.motif);
  }
+});
+
+
+test('v11 fixed offset scores remain exact; v12 fills to phrase ends and saves every entrance/rest',()=>{
+ const hashes=['1ea26c423f669c084d4b33e54547b531cbbda18eb6155709bf2acf5ea2d5e158','c053fb9f0a0f6f516ec736bf9642480b5a5efb671a272b2215e444dff6dbf6fb','55f85dce30d1f2f7fd71fc26f610611511d1f9d2d19355896c6ef1454c43942c','ff20a0c31dda43b73e0f36ab4189961c82e74b72d11489f17ecdfe6d3b45419b'];
+ modes.forEach((mode,i)=>{
+  const s=settings(mode),old={...s,generatorVersion:11 as const};
+  const original=Array.from({length:64},(_,b)=>eventsForBar(old,b));
+  assert.equal(createHash('sha256').update(JSON.stringify(original)).digest('hex'),hashes[i]);
+  assert.equal(normalizeSettings(old).generatorVersion,11);
+  const current=Array.from({length:64},(_,b)=>eventsForBar(s,b));
+  assert.deepEqual(current.map(es=>es.filter(e=>e.layer!=='arpeggio')),original.map(es=>es.filter(e=>e.layer!=='arpeggio')));
+  assert.equal(current.filter(es=>es.some(e=>e.layer==='arpeggio')).length,34);
+  for(let start=0;start<64;start+=8){
+   const clip=capturePhrase({settings:s,opening:true},start),copy=normalizePhrase(JSON.parse(JSON.stringify(clip)))!;
+   assert.ok(copy);assert.deepEqual(playbackScore({settings:s,phrase:copy,opening:true}).onsets(0,8),clip.events);
+   const arp=copy.events.filter(e=>e.layer==='arpeggio'),step=mode==='dnb'?.25:.125;
+   if(arp.length){
+    const from=arp[0].at,to=arp.at(-1)!.at+step;
+    assert.ok(from===0&&to===4||from===2&&to===8||from===4&&to===8);
+    assert.equal(arp.length,(to-from)/step);
+   }
+  }
+ });
 });

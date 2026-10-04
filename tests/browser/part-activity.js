@@ -3,7 +3,7 @@ async(page)=>{
  try{
   const p=await context.newPage();p.on('pageerror',e=>errors.push(String(e)));
   await p.goto('http://127.0.0.1:5173/');await p.waitForFunction(()=>!!window.__worksong);
-  if(!(await p.locator('#about-dialog').textContent()).includes('v0.17.0'))throw Error('stale release');
+  if(!(await p.locator('#about-dialog').textContent()).includes('v0.18.0'))throw Error('stale release');
   const distinct=async()=>{
    const s=await p.evaluate(()=>window.__worksong.diagnostics().settings);
    if(s.instruments.motif===s.instruments.arpeggio)throw Error('automatic timbre collision');
@@ -20,17 +20,18 @@ async(page)=>{
   await p.evaluate(()=>{const e=document.getElementById('bpm');e.value='180';e.dispatchEvent(new Event('input',{bubbles:true}));});
   await p.locator('#play').click();await p.waitForFunction(()=>window.__worksong.diagnostics().playing);
   const signal=await p.evaluate(async()=>{
-   const maxima={harmony:0,bass:0,rhythm:0,motif:0,arpeggio:0};let restingMax=0,secondEntry=0,initialMax=0;
-   while(window.__worksong.diagnostics().bar<11.2){
+   const maxima={harmony:0,bass:0,rhythm:0,motif:0,arpeggio:0};let restingMax=0,secondEntry=0,initialMax=0,phraseEnd=0;
+   while(window.__worksong.diagnostics().bar<13.2){
     const d=window.__worksong.diagnostics();for(const key in maxima)maxima[key]=Math.max(maxima[key],d.activity[key]);
     if(d.bar<1.5)initialMax=Math.max(initialMax,d.activity.arpeggio);
-    if(d.bar>7&&d.bar<9.5)restingMax=Math.max(restingMax,d.activity.arpeggio);
-    if(d.bar>10)secondEntry=Math.max(secondEntry,d.activity.arpeggio);
+    if(d.bar>8.8&&d.bar<11.5)restingMax=Math.max(restingMax,d.activity.arpeggio);
+    if(d.bar>6.5&&d.bar<7.9)phraseEnd=Math.max(phraseEnd,d.activity.arpeggio);
+    if(d.bar>12)secondEntry=Math.max(secondEntry,d.activity.arpeggio);
     await new Promise(r=>setTimeout(r,35));
    }
-   return {maxima,initialMax,restingMax,secondEntry};
+   return {maxima,initialMax,restingMax,secondEntry,phraseEnd};
   });
-  if(Object.values(signal.maxima).some(n=>n<.08)||signal.initialMax>.001||signal.restingMax>.01||signal.secondEntry<.08)throw Error('signal '+JSON.stringify(signal));
+  if(Object.values(signal.maxima).some(n=>n<.08)||signal.initialMax>.001||signal.restingMax>.01||signal.secondEntry<.08||signal.phraseEnd<.08)throw Error('signal '+JSON.stringify(signal));
   for(const layer of Object.keys(signal.maxima)){
    await p.locator(`[data-layer="${layer}"]`).click();
    await p.waitForFunction(layer=>window.__worksong.diagnostics().activity[layer]===0,layer);
