@@ -36,9 +36,9 @@ test('even pulses have only floor/ceiling gaps and rotate without changing hit c
     for(let i=0;i<k;i++){const gap=(p[(i+1)%k]-p[i]+16)%16||16;assert.ok(gap===Math.floor(16/k)||gap===Math.ceil(16/k));}
   }
 });
-test('current shared harmony, melodic motion and bass release remain valid across seeds and tempos',()=>{
+test('v16 shared harmony, melodic motion and bass release remain valid across seeds and tempos',()=>{
   for(let seed=0;seed<24;seed++)for(const profile of profiles)for(const groove of (profile==='dub'?['straight','dnb']:['straight']) as Settings['groove'][]){
-    const s={...selectProfile(DEFAULTS,profile),seed:`ENSEMBLE${seed}`,groove,bpm:groove==='dnb'?180:seed%2?50:130,energy:seed%3?100:30,evolution:100,layers:{...DEFAULTS.layers}};
+    const s={...selectProfile(DEFAULTS,profile),generatorVersion:16 as const,seed:`ENSEMBLE${seed}`,groove,bpm:groove==='dnb'?180:seed%2?50:130,energy:seed%3?100:30,evolution:100,layers:{...DEFAULTS.layers}};
     let previous: number|undefined;
     for(let bar=0;bar<64;bar++){
       const events=eventsForBar(s,bar),scale=diatonicPitches(s,34,81),chord=chordAt(s,bar);

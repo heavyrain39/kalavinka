@@ -3,6 +3,7 @@ import type { Settings, Chord } from './music';
 import { hash, random } from './seed';
 import { arrangementAt } from './arrangement';
 import { HARMONIES, QUALITIES, type Degree } from './harmony-catalog';
+import { isV17, hasEndingV17, nextBoundaryV17 } from './harmony-v17';
 const NAMES = ['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
 export const recipeFor = (s: Settings) => {
   const bank = HARMONIES.filter(r => r.profile === s.profile);
@@ -42,6 +43,7 @@ function voiced(s:Settings) {
   if(cache.size>=128)cache.delete(cache.keys().next().value!);cache.set(key,result);return result;
 }
 export function hasEnding(s:Settings,bar:number) {
+  if(isV17(s))return hasEndingV17(s,bar);
   const n=Math.floor(Math.max(0,bar)),cycle=holdFor(s)*4,a=arrangementAt(s,n);
   if(n%cycle!==cycle-1||a.section==='intro')return false;
   // A repeatable plan inside the form; evolution changes it only at a form boundary.
@@ -55,6 +57,7 @@ export function chordV5(s:Settings,bar:number):Chord {
   return progressionV5(s,bar)[Math.floor(Math.max(0,bar)/holdFor(s))%4];
 }
 export function nextHarmonyBoundary(s:Settings,at:number) {
+  if(isV17(s))return nextBoundaryV17(s,at);
   const hold=holdFor(s),usual=(Math.floor(at/hold)+1)*hold;
   const endingBar=Math.floor(at/(hold*4))*(hold*4)+hold*4-1;
   return endingBar>at&&hasEnding(s,endingBar)?Math.min(usual,endingBar):usual;

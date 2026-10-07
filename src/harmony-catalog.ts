@@ -3,6 +3,8 @@ import type { ProfileId } from './music';
 export const QUALITIES = {
   maj7: [0,4,7,11], m7: [0,3,7,10], '7sus4': [0,5,7,10],
   '6': [0,4,7,9], add9: [0,4,7,14], madd9: [0,3,7,14], '7': [0,4,7,10],
+  // Generator v17 colour and approach chords; the authored recipes below do not use them.
+  m6: [0,3,7,9], m7b5: [0,3,6,10],
 } as const;
 export type Degree = readonly [number, keyof typeof QUALITIES];
 export interface HarmonyRecipe { id: string; name: string; profile: ProfileId; mode: 'major'|'minor'; chords: readonly Degree[]; ending: Degree }

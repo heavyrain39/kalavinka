@@ -164,7 +164,7 @@ function compilePhrase(settings: Settings, start: number): MusicEvent[] {
 export function ensembleEvents(settings: Settings, bar: number): MusicEvent[] {
   const start=bar-bar%4;
   // Excluding layers, volume and instrument IDs preserves every other part when they change.
-  const key=[settings.generatorVersion,settings.seed,settings.profile,settings.groove,settings.bpm,settings.energy,settings.warmth,settings.evolution,start].join(':');
+  const key=[settings.generatorVersion,settings.harmonyEngine??'',settings.seed,settings.profile,settings.groove,settings.bpm,settings.energy,settings.warmth,settings.evolution,start].join(':');
   let phrase=cache.get(key);
   if(!phrase){
     phrase=compilePhrase(settings,start);

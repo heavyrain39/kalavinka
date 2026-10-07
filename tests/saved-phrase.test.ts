@@ -31,7 +31,8 @@ test('saved phrase decoder rejects malformed or oversized data without interpret
 });
 
 test('muting a recalled layer preserves its written notes and favorite identity',()=>{
- const phrase=capturePhrase({settings:DEFAULTS,opening:true},16);
+ // Bar 24 is the v17 return (bars 16–23 are the breakdown, where the lead rests).
+ const phrase=capturePhrase({settings:DEFAULTS,opening:true},24);
  const muted={...DEFAULTS,layers:{...DEFAULTS.layers,motif:false}};
  const again=capturePhrase({settings:muted,phrase,opening:true});
  assert.equal(favoriteIdentity(muted,again),favoriteIdentity(muted,phrase));

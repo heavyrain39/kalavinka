@@ -3,6 +3,7 @@ import { chordAt, hash, type Settings, type MusicEvent } from './music';
 import { nextHarmonyBoundary } from './harmony-v5';
 import { defaultArpeggioInstrument } from './instruments';
 import { ARP_PATTERNS, arpeggioPlan as legacyPlan, arpeggioEvents as legacyArpeggioEvents } from './arpeggio-v9';
+import { melodyRestsV17 } from './melody-v17';
 export { ARP_PATTERNS } from './arpeggio-v9';
 
 // Eight-bar phrases: opening half, answering half, or a late entrance carried to the end.
@@ -15,6 +16,22 @@ const CHAPTERS=[
   ['build','late','build','rest','early','early','build','late'],
 ] as const;
 
+type Window=keyof typeof WINDOWS;
+const layoutWindow=(s:Settings,index:number):Window=>CHAPTERS[hash(`${s.seed}:arp-layout:${Math.floor(index/8)}`)%CHAPTERS.length][index%8];
+/** v17: the arpeggio carries the breakdown while the lead rests, still leaving two clear bars around it. */
+function keyV17(s:Settings,index:number):Window{
+  if(melodyRestsV17(s,index*8))return 'build';
+  const own=layoutWindow(s,index);
+  return own==='early'&&index>0&&melodyRestsV17(s,index*8-8)?'late':own;
+}
+/** Seeded entrances (bar 3 or 5; late windows bar 5 or 7), so the part never always enters at bar 3. */
+function windowV17(s:Settings,index:number):readonly [number,number]{
+  const key=keyV17(s,index);
+  if(key!=='build'&&key!=='late')return WINDOWS[key];
+  const options=key==='build'?[2,4]:[4,6];
+  return [options[hash(`${s.seed}:arp17-entry:${index}`)%options.length],8];
+}
+
 export function arpeggioPlan(s:Settings,bar:number){
   if(s.generatorVersion<11)return legacyPlan(s,bar);
   const stretch=s.profile==='ambient'||s.groove==='dnb'?2:1;
@@ -22,7 +39,7 @@ export function arpeggioPlan(s:Settings,bar:number){
     const chapter=Math.floor(bar/64),slot=Math.floor(bar/8)%8;
     const layout=CHAPTERS[hash(`${s.seed}:arp-layout:${chapter}`)%CHAPTERS.length];
     const episode=chapter*7+layout.slice(0,slot).filter(w=>w!=='rest').length;
-    const [from,to]=WINDOWS[layout[slot]],base=chapter*64+slot*8;
+    const [from,to]=s.generatorVersion>=17?windowV17(s,chapter*8+slot):WINDOWS[layout[slot]],base=chapter*64+slot*8;
     return {...legacyPlan(s,episode*16*stretch),start:base+from,end:base+to};
   }
   const episode=Math.floor(bar/(8*stretch));

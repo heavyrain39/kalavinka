@@ -50,7 +50,7 @@ test('crashes are occasional, reproducible transition accents with a full bounda
 
 test('v16 adds only cymbals; saved accents survive reload, mute and arbitrary score queries',()=>{
  for(const mode of ['lofi','ambient','dub','dnb'] as const){
-  const s:Settings={...selectProfile(DEFAULTS,mode==='dnb'?'dub':mode),seed:'CRASHDEMO',energy:65,melodyRepetition:1,groove:mode==='dnb'?'dnb':'straight'};
+  const s:Settings={...selectProfile(DEFAULTS,mode==='dnb'?'dub':mode),generatorVersion:16,seed:'CRASHDEMO',energy:65,melodyRepetition:1,groove:mode==='dnb'?'dnb':'straight'};
   for(let bar=0;bar<128;bar++)assert.deepEqual(eventsForBar(s,bar).filter(e=>e.voice!=='crash'),eventsForBar({...s,generatorVersion:15},bar));
   if(mode==='ambient')continue;
   const start=Array.from({length:32},(_,i)=>i*8).find(b=>crashEvent(s,b))!;

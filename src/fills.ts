@@ -3,6 +3,8 @@ import type { Settings, MusicEvent } from './music';
 import { arrangementAt } from './arrangement';
 import { hash, random } from './seed';
 import { gridTime } from './timing';
+import { isV17 } from './harmony-v17';
+import { fillPlanV17, addFillV17, type FillPlanV17 } from './fills-v17';
 type Hit = readonly [number, 'snare'|'hat'|'rim'|'tom', number, number?];
 export const FILL_RECIPES: readonly (readonly Hit[])[] = [
   [[14,'snare',.55],[15,'snare',.85]],
@@ -18,7 +20,8 @@ export const FILL_RECIPES: readonly (readonly Hit[])[] = [
   [[13,'snare',.65],[15,'rim',1]],
   [[10,'rim',.65],[14,'snare',.8],[15,'hat',.7]],
 ];
-export function fillPlan(s:Settings,bar:number):{index:number;hits:readonly Hit[]}|null {
+export function fillPlan(s:Settings,bar:number):{index:number;hits:readonly Hit[]}|FillPlanV17|null {
+  if(isV17(s))return fillPlanV17(s,bar);
   const a=arrangementAt(s,bar);
   if(s.generatorVersion<5||s.profile==='ambient'||a.beatless||a.section==='open'||a.section==='intro'||s.energy<20||bar%8!==7)return null;
   // Chance at each eligible boundary, plus a one-boundary cooldown. Never every bar.
@@ -33,7 +36,8 @@ export function fillPlan(s:Settings,bar:number):{index:number;hits:readonly Hit[
   return {index,hits};
 }
 export function addFill(s:Settings,bar:number,events:MusicEvent[]) {
-  const plan=fillPlan(s,bar);if(!plan)return;
+  if(isV17(s))return addFillV17(s,bar,events);
+  const plan=fillPlan(s,bar);if(!plan||'kind' in plan)return;
   const begin=gridTime(s,bar,plan.hits[0][0]);
   // Clear the tail's optional hats/ghost snares, retaining the kick and 2/4 backbeat.
   for(let i=events.length-1;i>=0;i--) {

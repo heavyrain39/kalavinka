@@ -57,7 +57,7 @@ test('all 30 progressions render coherent endings without old chord or bass spil
 test('fills are sparse, diverse, bounded and preserve kick plans and primary backbeats',()=>{
  const variants=new Set<number>();let count=0,opportunities=0;
  for(const profile of ['lofi','dub'] as const)for(const groove of (profile==='dub'?['straight','dnb']:['straight']) as Settings['groove'][])for(let i=0;i<80;i++){
-  const s={...selectProfile(DEFAULTS,profile),seed:`FILL${i}`,energy:80,groove,bpm:groove==='dnb'?170:78};
+  const s={...selectProfile(DEFAULTS,profile),generatorVersion:16 as const,seed:`FILL${i}`,energy:80,groove,bpm:groove==='dnb'?170:78};
   for(let bar=0;bar<32;bar++){
    const plan=fillPlan(s,bar),a=arrangementAt(s,bar);
    if(bar%8===7&&a.section!=='intro'&&a.section!=='open')opportunities++;
