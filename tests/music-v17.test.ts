@@ -12,11 +12,12 @@ import {chapterBarsV17,melodyRestsV17} from '../src/melody-v17';
 import {capturePhrase,normalizePhrase,playbackScore} from '../src/saved-phrase';
 const modes=['lofi','ambient','dub','dnb'] as const;
 type Mode=typeof modes[number];
-const settings=(mode:Mode,extra:Partial<Settings>={}):Settings=>({...selectProfile(DEFAULTS,mode==='dnb'?'dub':mode),groove:mode==='dnb'?'dnb':'straight',bpm:mode==='dnb'?170:selectProfile(DEFAULTS,mode==='dnb'?'dub':mode).bpm,...extra});
+// Pinned to v17: v18 has its own suite (music-v18.test.ts).
+const settings=(mode:Mode,extra:Partial<Settings>={}):Settings=>({...selectProfile(DEFAULTS,mode==='dnb'?'dub':mode),generatorVersion:17,groove:mode==='dnb'?'dnb':'straight',bpm:mode==='dnb'?170:selectProfile(DEFAULTS,mode==='dnb'?'dub':mode).bpm,...extra});
 const score=(s:Settings,start=0,n=8)=>Array.from({length:n},(_,i)=>eventsForBar(s,start+i)).flat().sort((a,b)=>a.at-b.at);
 const pc=(n:number)=>((n%12)+12)%12;
 
-test('v16 favorites keep exact scores while new music, upgrades and new flows use v17',()=>{
+test('v16 favorites keep exact scores while new music, upgrades and new flows use the current generator',()=>{
  // Recorded from v16 before v17 existed: 96 bars × four modes × repetition off/normal.
  const hashes:Record<string,string>={
   'lofi:0':'0b6b2e7c979c3c4a6c3a86c1d947ffadb4d92b15d1f21a1970a3cb9fe016244c','lofi:2':'0f7673d819b26b7c5526b9946829c4bf72736d4fc02c4f2961d8d64f59532a9a',
@@ -27,11 +28,11 @@ test('v16 favorites keep exact scores while new music, upgrades and new flows us
   const old=settings(mode,{generatorVersion:16,melodyRepetition:rep,bpm:mode==='dnb'?170:78});
   assert.equal(createHash('sha256').update(JSON.stringify(Array.from({length:96},(_,b)=>eventsForBar(old,b)))).digest('hex'),hashes[`${mode}:${rep}`]);
   assert.equal(normalizeSettings(old).generatorVersion,16);
-  assert.equal(upgradeSettings(old).generatorVersion,17);
+  assert.equal(upgradeSettings(old).generatorVersion,18);
   assert.equal(upgradeSettings(old).melodyRepetition,rep);
  }
- assert.equal(DEFAULTS.generatorVersion,17);
- assert.equal(regenerateSettings(settings('lofi',{generatorVersion:16})).generatorVersion,17);
+ assert.equal(DEFAULTS.generatorVersion,18);
+ assert.equal(regenerateSettings(settings('lofi',{generatorVersion:16})).generatorVersion,18);
  // The internal backing marker never survives storage or sharing.
  assert.equal('harmonyEngine' in normalizeSettings({...DEFAULTS,harmonyEngine:17}),false);
 });

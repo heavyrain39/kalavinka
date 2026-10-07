@@ -7,20 +7,26 @@ import {fillPlan} from './fills';
 
 // Develop the existing shared kick/bass plan; main kicks and backbeats stay fixed.
 export function drumPerformance(s: Settings, bar: number, original: MusicEvent[]): MusicEvent[] {
-  const dnb=s.profile==='dub'&&s.groove==='dnb', a=arrangementAt(s,bar);
+  const dnb=s.profile==='dub'&&s.groove==='dnb', a=arrangementAt(s,bar), v18=s.generatorVersion>=18;
   const r=(key:string)=>random(s.seed,`drummer:${s.profile}:${bar%2}:${a.variant}:${key}`);
   const result=original.map(e=>{
     if(e.layer!=='rhythm')return e;
     const step=Math.round((e.at-bar)*16), hat=e.voice==='hat';
     const strong=step%4===0;
     // Hats lean behind the anchors; the repeating gesture uses a few milliseconds.
-    const lag=hat ? (s.profile==='lofi'?.004:dnb?.0015:.003)*(step%4===2?1:.35) : 0;
+    let lag=hat ? (s.profile==='lofi'?.004:dnb?.0015:.003)*(step%4===2?1:.35) : 0;
+    // v18 lo-fi: a laid-back backbeat (+5 ms) and hats that drift by ±2 ms; kicks stay on the grid.
+    if(v18&&s.profile==='lofi'&&e.fill===undefined){
+      if(e.voice==='snare'&&e.gain>=.03)lag+=.005;
+      if(hat)lag+=(r(`drift:${step}`)-.5)*.004;
+    }
     // v17 fills carry their own crescendo and hat articulation.
-    const velocity=e.fill!==undefined&&e.velocity!==undefined?e.velocity:e.voice==='kick'?(step===0?.96:.86):e.voice==='snare'?(e.fill===undefined?.88:.40+Math.min(.45,e.gain*8))
+    // v17 fills and v18 D&B hats carry their own dynamics.
+    const velocity=(e.fill!==undefined||v18&&hat)&&e.velocity!==undefined?e.velocity:e.voice==='kick'?(step===0?.96:.86):e.voice==='snare'?(e.fill===undefined?.88:.40+Math.min(.45,e.gain*8))
       :hat?(strong?.75:step%4===2?.66:.43):.68;
     const articulation: MusicEvent['articulation']=!hat?'closed':e.fill!==undefined?e.articulation??'closed'
       :s.profile==='dub'&&step%4===2&&a.section!=='intro'&&s.energy>35?(dnb?(step===14&&bar%2===1?'half':'closed'):r(`open:${step}`)>.48?'open':'half'):'closed';
-    return {...e,at:Math.min(bar+.999,e.at+lag*s.bpm/240),velocity:Math.max(.2,Math.min(1,velocity+(r(`${step}:${e.voice}`)-.5)*.06)),
+    return {...e,at:Math.max(bar,Math.min(bar+.999,e.at+lag*s.bpm/240)),velocity:Math.max(.2,Math.min(1,velocity+(r(`${step}:${e.voice}`)-.5)*.06)),
       articulation,variation:Math.floor(r(`rr:${step}:${e.voice}`)*2),pan:hat?(step%4===0?-.10:.10):e.pan};
   });
   // Quiet replies around the backbeat, withheld in intros, breakdowns and fills.

@@ -8,7 +8,7 @@ import {nylonVoice} from './nylon';
 // Small, locally synthesized palettes. Struck bodies decay continuously; sustained
 // instruments keep a breath/bow envelope. The score and bass gate remain unchanged.
 export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, time: number, duration: number,
-  noiseBuffer: AudioBuffer, destination: AudioNode, active: Set<AudioScheduledSourceNode>, cleanups?: Set<() => void>, ambient=false) {
+  noiseBuffer: AudioBuffer, destination: AudioNode, active: Set<AudioScheduledSourceNode>, cleanups?: Set<() => void>, ambient=false, throwBus?: AudioNode) {
   if(event.instrument==='m-nylon'){nylonVoice(context,event,time,duration,destination,active,cleanups);return;}
   const id = event.instrument!, percussion = event.layer === 'rhythm', bass = event.layer === 'bass';
   if ((!percussion && !event.notes.length) || !Number.isFinite(event.gain) || event.gain <= 0 || !Number.isFinite(duration) || duration <= 0) return;
@@ -19,6 +19,8 @@ export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, ti
   filter.type = 'lowpass'; filter.frequency.value = event.cutoff; filter.Q.value = .55; pan.pan.value = event.pan;
   gain.connect(filter).connect(pan).connect(destination);
   const nodes: AudioNode[] = [gain, filter, pan], sources: AudioScheduledSourceNode[] = [];
+  // v18 phrase-ending throw: a share of this voice also feeds the echo/reverb bus.
+  if (throwBus && event.send) { const tap = context.createGain(); tap.gain.value = event.send; pan.connect(tap).connect(throwBus); nodes.push(tap); }
   let attack = .006, release = .24, decay = .65, sustain = 0, level = 1, hold = duration;
   if (id === 'h-felt') { attack = .006; decay = 1.35; release = .34; level = .94; }
   if (id === 'h-electric') { decay = 1.6; release = .40; level = .92; }

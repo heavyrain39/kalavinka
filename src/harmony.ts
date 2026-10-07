@@ -22,7 +22,7 @@ export function diatonicPitches(settings: Settings, low: number, high: number): 
   return Array.from({length: high-low+1}, (_,i)=>low+i).filter(n=>scale.includes((n-tonicFor(settings)%12+12)%12));
 }
 export const pitchesOf = (chord: Chord, low: number, high: number) => Array.from({ length: high-low+1 }, (_,i)=>low+i)
-  .filter(n=>chord.notes.some(c=>c%12===n%12));
+  .filter(n=>(chord.tones??chord.notes).some(c=>c%12===n%12));
 const cache = new Map<string, Chord[]>();
 export function ensembleProgression(settings: Settings): Chord[] {
   const key = `${settings.profile}:${settings.seed}`;

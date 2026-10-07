@@ -5,6 +5,7 @@ import {resetSliders} from './controls';
 import {validFavoriteNumber, nextFavoriteNumber, reconcileFavoriteNumbers} from './favorite-numbers';
 import { Starfield } from './starfield';
 import { recipeFor, hasEnding } from './harmony-v5';
+import { isV18, recipeV18 } from './harmony-v18';
 import { INSTRUMENTS, defaultArpeggioInstrument, resolveDrumKit } from './instruments';
 import { MusicEngine } from './audio';
 import {capturePhrase,normalizePhrase,favoriteIdentity,playbackScore,compositionIdentity,type SavedPhrase} from './saved-phrase';
@@ -55,6 +56,7 @@ const icons = {
   save: '<path d="M12 20s-8-5-8-11a4 4 0 0 1 8-1 4 4 0 0 1 8 1c0 6-8 11-8 11Z"/>',
   share: '<path d="M12 15V3m-4 4 4-4 4 4M5 11v9h14v-9"/>',
   focus: '<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',
+  focusExit: '<path d="M3 8h5V3m8 0v5h5M3 16h5v5m13-5h-5v5"/>',
   arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
 };
 const icon = (name: keyof typeof icons) => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="${name === 'play' || name === 'pause' ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.4" stroke-linecap="square" stroke-linejoin="miter">${icons[name]}</svg>`;
@@ -90,8 +92,8 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
             <button class="compact-btn regenerate" id="regenerate">${icon('refresh')}${label('regenerate')}</button>
             <button class="icon-button tip" id="favorite" ${aria('save')}>${icon('save')}<span class="tooltip" role="tooltip" data-i18n="save">${t('save')}</span></button>
             <button class="icon-button tip" id="share" ${aria('share')}>${icon('share')}<span class="tooltip" role="tooltip" data-i18n="share">${t('share')}</span></button>
+            <button class="icon-button tip" id="focus" aria-pressed="false" aria-label="${t('focus')}">${icon('focus')}<span class="tooltip" role="tooltip">${t('focus')}</span></button>
           </div>
-          <div class="player-bottom"><button class="text-button" id="focus" aria-pressed="false">${icon('focus')}<span>${t('focus')}</span></button></div>
         </div>
         <section class="instrument-panel" ${aria('instruments')}>
           <div class="instrument-toolbar"><h2 data-i18n="instruments">${t('instruments')}</h2>
@@ -111,7 +113,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer" data-i18n="terms">${t('terms')}</a><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.25.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.26.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 // Keep the crawlable, static overview in the compact footer after the player mounts.
 document.querySelector('footer > div')!.append(document.querySelector('.app-overview')!);
@@ -233,7 +235,7 @@ function applyLanguage() {
   document.querySelectorAll<HTMLElement>('[data-i18n-minutes]').forEach(el => { el.textContent = t('minutes',{count:el.dataset.i18nMinutes!}); });
   document.querySelectorAll<HTMLElement>('[data-help]').forEach(el => el.setAttribute('aria-label',t('help',{label:t(el.dataset.help as TextKey)})));
   document.querySelectorAll<HTMLElement>('[data-language]').forEach(el => el.setAttribute('aria-pressed',String(el.dataset.language === language)));
-  $('#focus').innerHTML = `${icon('focus')}<span>${focusMode ? t('full') : t('focus')}</span>`;
+  renderFocusButton();
   if (currentToast) $('#toast').textContent = t(currentToast.key,currentToast.values);
   renderSettings(); renderPlayback(); updateMediaSession();
 }
@@ -319,11 +321,15 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('[data-timer]'
   document.querySelectorAll('[data-timer]').forEach((item) => item.setAttribute('aria-pressed', String(Number((item as HTMLElement).dataset.timer) === timer)));
   if (!engine.playing && timer) toast('timerReady',{count:timer});
 });
-$('#focus').addEventListener('click', () => {
-  focusMode = !focusMode; document.body.classList.toggle('focus-mode', focusMode);
-  $('#focus').setAttribute('aria-pressed', String(focusMode));
-  $('#focus').innerHTML = `${icon('focus')}<span>${focusMode ? t('full') : t('focus')}</span>`;
-});
+function renderFocusButton() {
+  const text = focusMode ? t('full') : t('focus'), button = $('#focus');
+  button.setAttribute('aria-pressed', String(focusMode)); button.setAttribute('aria-label', text);
+  button.innerHTML = `${icon(focusMode ? 'focusExit' : 'focus')}<span class="tooltip" role="tooltip">${text}</span>`;
+}
+function setFocusMode(on: boolean) {
+  focusMode = on; document.body.classList.toggle('focus-mode', focusMode); renderFocusButton();
+}
+$('#focus').addEventListener('click', () => setFocusMode(!focusMode));
 const systemDark = matchMedia('(prefers-color-scheme: dark)');
 let theme = read('worksong.theme') ?? 'dark';
 if (!['dark', 'light', 'system'].includes(theme)) theme = 'dark';
@@ -349,6 +355,8 @@ document.addEventListener('keydown', (event) => {
   if (event.code === 'Space' && !['INPUT', 'BUTTON', 'TEXTAREA', 'SELECT', 'A'].includes(target.tagName) && !$<HTMLDialogElement>('#about-dialog').open) {
     event.preventDefault(); void togglePlayback();
   }
+  // Esc leaves the focus view (dialogs handle their own Esc first).
+  if (event.key === 'Escape' && focusMode && !$<HTMLDialogElement>('#about-dialog').open) setFocusMode(false);
 });
 engine.onBeforeStop=()=>{captureCache=undefined;pausedCapture={settingsKey:JSON.stringify(settings),value:structuredClone(currentCapture())};};
 engine.onStop = () => {captureCache=undefined;renderPlayback(); updateMediaSession(); toast('timerDone'); };
@@ -422,7 +430,7 @@ function draw(timestamp: number) {
 
 }
 // Read-only inspection surface for browser/audio verification; it is not needed by the player.
-Object.defineProperty(window, '__worksong', { value: { diagnostics: () => ({ ...engine.diagnostics(), peak, activity:{...partActivity}, language, sky: starfield.diagnostics(), harmony: { recipe: (engine.audibleSettings ?? settings).generatorVersion >= 5 ? recipeFor(engine.audibleSettings ?? settings).id : null, ending: (engine.audibleSettings ?? settings).generatorVersion >= 5 && hasEnding(engine.audibleSettings ?? settings, engine.bar), chords: progression(engine.audibleSettings ?? settings, engine.bar).map(c=>c.label) }, settings: structuredClone(settings) }),
+Object.defineProperty(window, '__worksong', { value: { diagnostics: () => ({ ...engine.diagnostics(), peak, activity:{...partActivity}, language, sky: starfield.diagnostics(), harmony: { recipe: (engine.audibleSettings ?? settings).generatorVersion >= 5 ? (isV18(engine.audibleSettings ?? settings) ? recipeV18(engine.audibleSettings ?? settings) : recipeFor(engine.audibleSettings ?? settings)).id : null, ending: (engine.audibleSettings ?? settings).generatorVersion >= 5 && hasEnding(engine.audibleSettings ?? settings, engine.bar), chords: progression(engine.audibleSettings ?? settings, engine.bar).map(c=>c.label) }, settings: structuredClone(settings) }),
   savedPhrase:()=>structuredClone(currentCapture()),
   events: (begin: number, end: number) => playbackScore({settings,phrase:selectedPhrase,opening:true}).onsets(begin, end).length } });
 applyTheme(); applyLanguage(); requestAnimationFrame(draw);

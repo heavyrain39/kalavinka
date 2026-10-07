@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {DEFAULTS,selectProfile,eventsForBar,chordAt,chordHold,upgradeSettings,type Settings,type ProfileId} from '../src/music.ts';
+import {nextHarmonyBoundary} from '../src/harmony-v5.ts';
 const profiles=['lofi','ambient','dub','dnb'] as const;
 const settings=(profile:typeof profiles[number],seed='SLOWFLOW'):Settings=>({...selectProfile(DEFAULTS,profile==='dnb'?'dub':profile),seed,groove:profile==='dnb'?'dnb':'straight',bpm:profile==='dnb'?170:DEFAULTS.bpm});
 const phrase=(s:Settings,start:number)=>Array.from({length:4},(_,i)=>eventsForBar(s,start+i)).flat();
@@ -44,7 +45,8 @@ test('bass releases are monophonic across bars and chord changes at all tempo bo
   const s={...settings(p,`GATE${seed}`),bpm,energy:100};
   const bass=Array.from({length:64},(_,b)=>eventsForBar(s,b)).flat().filter(e=>e.layer==='bass');
   for(let i=0;i<bass.length;i++){
-   const e=bass[i],end=e.at+e.length+.065*bpm/240,boundary=(Math.floor(e.at/chordHold(s))+1)*chordHold(s);
+   // v18 chords may hold for several hold units; the real boundary is the next chord change.
+   const e=bass[i],end=e.at+e.length+.065*bpm/240,boundary=s.generatorVersion>=18?nextHarmonyBoundary(s,e.at):(Math.floor(e.at/chordHold(s))+1)*chordHold(s);
    assert.ok(end<=boundary+1e-7,`${p}: harmonic spill`);
    if(bass[i+1])assert.ok(end<=bass[i+1].at+1e-7,`${p}: bass overlap`);
   }

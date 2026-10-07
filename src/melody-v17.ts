@@ -19,10 +19,12 @@ interface Slot {
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 const pc = (n: number) => ((n % 12) + 12) % 12;
 
+/** v18 deep house repeats a short riff (hypnotic rather than developing); see sentence(). */
+const riffMode = (s: Settings) => s.generatorVersion >= 18 && s.profile === 'dub' && s.groove !== 'dnb';
 /** Theme length in bars. Normal is half of v16 so a motif develops without wearing thin;
- * moods whose chords last four bars (ambient, D&B) keep twice as long. */
+ * moods whose chords last four bars (ambient, D&B) keep twice as long, and so does v18 house. */
 export const chapterBarsV17 = (s: Settings) => {
-  const base = s.profile === 'ambient' || s.groove === 'dnb' ? 64 : 32, level = repetitionLevel(s);
+  const base = s.profile === 'ambient' || s.groove === 'dnb' || riffMode(s) ? 64 : 32, level = repetitionLevel(s);
   return level === 0 ? 8 : level === 1 ? base / 2 : level === 3 ? base * 2 : base;
 };
 
@@ -72,6 +74,18 @@ function fragment(source: Gesture[]) {
   return [...copy(head), ...head.map(g => ({ ...g, step: g.step + 16, degree: clamp(g.degree + 1, -3, 5), repeat: false }))];
 }
 const invert = (source: Gesture[]) => copy(source).map(g => ({ ...g, degree: clamp(source[0].degree * 2 - g.degree + 1, -3, 5) }));
+/** A one-bar cell stated twice: the house riff. */
+function riff(source: Gesture[]) {
+  const head = source.filter(g => g.step < 16);
+  if (head.length < 2) return copy(source);
+  return [...copy(head), ...head.map(g => ({ ...g, step: g.step + 16, repeat: false, id: `${g.id}:r` }))];
+}
+/** The same riff with one note nudged by a scale step. */
+function mutate(s: Settings, source: Gesture[], key: string) {
+  const out = copy(source), i = 1 + hash(`${s.seed}:m18-mutate:${key}`) % Math.max(1, out.length - 1);
+  out[i] = { ...out[i], degree: clamp(out[i].degree + (random(s.seed, `m18-mutate:${key}`) < .5 ? -1 : 1), -3, 5), repeat: false, id: `${key}:mutate` };
+  return out;
+}
 /** The statement's head, then a long closing note in the second bar (consequent). */
 function cadence(source: Gesture[], key: string) {
   const head = copy(source.filter(g => g.step < 20)).map(g => ({ ...g, degree: Math.round(g.degree * .6) }));
@@ -106,6 +120,13 @@ function sentence(s: Settings, start: number) {
   const technique = level === 3 ? hash(`${s.seed}:m17-dev:${chapter}`) % 4 : (hash(`${s.seed}:m17-dev:${chapter}`) + index) % 4;
   const develop = technique === 0 ? sequence(statement, 1) : technique === 1 ? fragment(statement)
     : technique === 2 ? sequence(contrast ? t.a : t.b, 1) : invert(statement);
+  if (riffMode(s)) {
+    // House: riff, exact repeat, one change (step up, a nudged note, the second riff, or none), cadence.
+    const cell = riff(statement), opening = quoting ? riff(theme(s, chapter - 1).a) : cell;
+    const change = technique === 0 ? sequence(cell, 1) : technique === 1 ? mutate(s, cell, `${chapter}:${level === 3 ? 0 : index}`)
+      : technique === 2 ? riff(contrast ? t.a : t.b) : copy(cell);
+    return { stages: [opening, copy(opening), change, cadence(cell, `C${chapter}:${contrast}`)], lift: contrast ? 2 : 0, chapter, index };
+  }
   const answerKey = level === 3 ? `ans:${chapter}` : `ans:${chapter}:${index % 2}:${contrast ? 'b' : 'a'}`;
   return {
     stages: [quoting ? theme(s, chapter - 1).a : statement, answer(s, statement, answerKey), develop, cadence(statement, `C${chapter}:${contrast}`)],
@@ -140,7 +161,7 @@ export function melodySentenceV17(s: Settings, start: number, backing: MusicEven
   const slots: Slot[] = [];
   for (let stage = 0; stage < 4; stage++) {
     let gestures = plan.stages[stage].map(g => ({ ...g }));
-    if (plan.index > 0 && stage === 1 && random(s.seed, `m17-edit:${plan.chapter}:${plan.index}`) < (.3 + s.evolution * .004) * (level === 3 ? .2 : 1))
+    if (plan.index > 0 && stage === 1 && !riffMode(s) && random(s.seed, `m17-edit:${plan.chapter}:${plan.index}`) < (.3 + s.evolution * .004) * (level === 3 ? .2 : 1))
       gestures = gestures.filter((_, i) => i !== 1);
     if (sparse) {
       const end = gestures.at(-1)!;
@@ -154,7 +175,7 @@ export function melodySentenceV17(s: Settings, start: number, backing: MusicEven
       const nextAt = next ? gridTime(s, start + stage * 2 + Math.floor(next.step / 16), next.step % 16) : start + stage * 2 + 2;
       const available = nextAt - at;
       // Reserve the instrument release before harmonic changes (same budget as v16).
-      const length = Math.min(isCadence ? available : ambient ? .8 : dnb ? .68 : .48, available * g.gate, available - .025 * s.bpm / 240, nextHarmonyBoundary(s, at) - at - .14 * s.bpm / 240);
+      const length = Math.min(isCadence ? available : ambient ? .8 : dnb ? (s.generatorVersion >= 18 ? .9 : .68) : .48, available * g.gate, available - .025 * s.bpm / 240, nextHarmonyBoundary(s, at) - at - .14 * s.bpm / 240);
       if (length < .035) continue;
       const chord = chordAt(s, bar), previous = slots.at(-1);
       const change = !previous || previous.chord.label !== chord.label;
@@ -229,7 +250,10 @@ export function melodySentenceV17(s: Settings, start: number, backing: MusicEven
       gain: (ambient ? .048 : dnb ? .058 : .064) * slot.accent * (slot.stage === 2 ? 1.06 : slot.cadence ? .88 : 1) * (passing ? .92 : 1),
       pan: slot.stage % 2 ? .10 : -.10, cutoff: 3400 - s.warmth * 20,
       role: arp ? 'arpeggio' : passing ? 'passing' : 'anchor', ...(passing && !arp ? { resolvesTo: path[i + 1] } : {}),
-      release: Math.max(.025, Math.min(.14, (slot.available - slot.length) * 240 / s.bpm)) };
+      release: Math.max(.025, Math.min(.14, (slot.available - slot.length) * 240 / s.bpm)),
+      // v18: some phrase endings throw a gentle echo/reverb tail (never in ambient).
+      ...(s.generatorVersion >= 18 && slot.cadence && !ambient && ['groove','return'].includes(form.section)
+        && random(s.seed, `m18-throw:${plan.chapter}:${plan.index}`) < .6 ? { send: .45 } : {}) };
   });
   // Occasional neighbour pickups inside real rests, resolving to the following note.
   const ornaments: MusicEvent[] = [];

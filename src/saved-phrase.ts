@@ -1,5 +1,6 @@
 // Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import {chordAt,eventsForBar,type Settings,type MusicEvent,type Chord} from './music';
+import {QUALITIES_V18} from './harmony-catalog-v18';
 import {INSTRUMENTS} from './instruments';
 import {Score} from './score';
 
@@ -45,7 +46,7 @@ export function normalizePhrase(value:unknown):SavedPhrase|undefined{
       ||e.layer!=='rhythm'&&!e.notes.length||!finite(e.gain,0,1)||!finite(e.pan,-1,1)||!finite(e.cutoff,20,24000))return;
     const event:MusicEvent={at:e.at,length:e.length,voice:e.voice,layer:e.layer,notes:[...e.notes],gain:e.gain,pan:e.pan,cutoff:e.cutoff};
     if(e.instrument!==undefined){if(e.instrument!=='legacy'&&!INSTRUMENTS[e.layer].some(i=>i.id===e.instrument))return;event.instrument=e.instrument;}
-    for(const [key,hi] of [['duck',1],['velocity',1],['release',4],['variation',1],['fill',100],['resolvesTo',127]] as const){
+    for(const [key,hi] of [['duck',1],['send',1],['velocity',1],['release',4],['variation',1],['fill',100],['resolvesTo',127]] as const){
       if(e[key]!==undefined){if(!finite(e[key],0,hi)||(['variation','fill','resolvesTo'].includes(key)&&!Number.isInteger(e[key])))return;event[key]=e[key];}
     }
     if(e.role!==undefined){if(!['anchor','passing','anticipation','arpeggio','neighbor'].includes(e.role))return;event.role=e.role;}
@@ -55,7 +56,11 @@ export function normalizePhrase(value:unknown):SavedPhrase|undefined{
   }
   for(const c of p.chords){
     if(!c||typeof c.label!=='string'||c.label.length>40||!pitches(c.notes)||!c.notes.length||!Number.isInteger(c.root)||!finite(c.root,0,127))return;
-    chords.push({label:c.label,root:c.root,notes:[...c.notes]});
+    const chord:Chord={label:c.label,root:c.root,notes:[...c.notes]};
+    // v18 chords also name every chord tone (pitch classes) and their quality.
+    if(c.tones!==undefined){if(!Array.isArray(c.tones)||!c.tones.length||c.tones.length>7||!c.tones.every(n=>Number.isInteger(n)&&finite(n,0,11)))return;chord.tones=[...c.tones];}
+    if(c.quality!==undefined){if(typeof c.quality!=='string'||!Object.hasOwn(QUALITIES_V18,c.quality))return;chord.quality=c.quality;}
+    chords.push(chord);
   }
   return {version:1,sourceBar:p.sourceBar,events:events.sort((a,b)=>a.at-b.at),chords};
 }

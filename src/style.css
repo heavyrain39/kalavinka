@@ -106,7 +106,6 @@ h2 { font-size: 13px; font-weight: 600; }
 .icon-button { width: 40px; height: 40px; padding: 10px; border: 1px solid var(--line); background: transparent; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .icon-button svg { width: 17px; height: 17px; }
 .is-saved svg { fill: var(--accent); }
-.player-bottom { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: flex-end; }
 .text-button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--text-dim); font-size: 10px; padding: 3px 0; }
 .text-button svg { width: 12px; height: 12px; }
 .instrument-panel { border-top: 1px solid var(--line); }

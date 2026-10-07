@@ -42,7 +42,7 @@ export function bassV17(s:Settings,start:number,backing:MusicEvent[],melody:Musi
   const pedalNote=34+pc(tonic-34);
   const pedalWanted=!dnb&&(ambient?random(s.seed,`bass17-pedal:${Math.floor(start/16)}`)<.4
     :form.section==='intro'&&random(s.seed,`bass17-pedal:${chapter}`)<.5);
-  const pedalFits=(at:number)=>pedalWanted&&!hasEnding(s,Math.floor(at))&&!chordAt(s,at).notes.some(n=>[1,11].includes(pc(n-pedalNote)));
+  const pedalFits=(at:number)=>pedalWanted&&!hasEnding(s,Math.floor(at))&&!(chordAt(s,at).tones??chordAt(s,at).notes).some(n=>[1,11].includes(pc(n-pedalNote)));
   const approachChance=s.energy<25||ambient?0:(dnb?.2:s.profile==='lofi'?.42:.32)+evolution*.3;
   const approachTones=(target:number)=>{
     // Chromatic below/above, diatonic step, and the fifth that "dominates" the target.

@@ -3,6 +3,7 @@
 // e.g. `node --import tsx scripts/music-metrics.ts 16 2` vs `... 17 2`. Heuristics only; they do not replace listening.
 import {DEFAULTS,selectProfile,eventsForBar,chordAt,type Settings,type MusicEvent} from '../src/music';
 import {fillPlan} from '../src/fills';
+import {arrangementAt} from '../src/arrangement';
 const modes=['lofi','ambient','dub','dnb'] as const;
 const seeds=['SLOWFLOW','AB12CD','PULSE2','ZK9Q','MOON77','RAIN3','DESK01','NIGHT8','Q1W2E3','TT55','LOFI99','XYZW','HJ4K','BLUE6','GRN22','SKY111'];
 const version=Number(process.argv[2]??DEFAULTS.generatorVersion) as Settings['generatorVersion'];
@@ -14,7 +15,7 @@ const bars=256;
 for(const mode of modes){
   const m={notes:0,moves:0,repeat:0,step:0,leap:0,chordTone:0,belowComp:0,climax:0,phrases:0,sounding:0,ranges:[] as number[],
     bass:0,root:0,nonChord:0,octave:0,shared:0,harsh:0,chords:[] as number[],hooks:[] as number[],shapes:[] as number[],
-    boundaries:0,fills:0,strokes:0,kinds:new Map<string,number>()};
+    boundaries:0,fills:0,strokes:0,kinds:new Map<string,number>(),comp:0,velocities:new Set<number>(),hats:0,grooveBars:0,qualities:new Set<string>()};
   for(const seed of seeds){
     const base=selectProfile({...DEFAULTS,seed},mode==='dnb'?'dub':mode);
     const s:Settings={...base,seed,generatorVersion:version,melodyRepetition:repetition,groove:mode==='dnb'?'dnb':'straight',bpm:mode==='dnb'?170:base.bpm};
@@ -23,7 +24,9 @@ for(const mode of modes){
       const events=Array.from({length:8},(_,b)=>eventsForBar(s,start+b)).flat();
       const lead=events.filter(e=>e.layer==='motif'&&e.role!=='neighbor').sort((a,b)=>a.at-b.at);
       const bass=events.filter(e=>e.layer==='bass').sort((a,b)=>a.at-b.at);
-      for(let b=0;b<8;b++)labels.add(chordAt(s,start+b).label);
+      for(let b=0;b<8;b++){const c=chordAt(s,start+b);labels.add(c.label);m.qualities.add(c.quality??c.label.replace(/^[A-G][♭♯]?/,''));}
+      const groove=Array.from({length:8},(_,b)=>start+b).filter(b=>arrangementAt(s,b).section==='groove');m.grooveBars+=groove.length;
+      for(const e of events)if(groove.includes(Math.floor(e.at))){if(e.layer==='harmony'){m.comp++;if(e.velocity!==undefined)m.velocities.add(Math.round(e.velocity*20));}if(e.voice==='hat')m.hats++;}
       const plan=fillPlan(s,start+7);m.boundaries++;
       if(plan){const kind='kind' in plan?plan.kind:'fill';m.fills++;m.kinds.set(kind,(m.kinds.get(kind)??0)+1);m.strokes+=events.filter(e=>e.fill!==undefined&&Math.floor(e.at)===start+7).length;}
       m.phrases++;
@@ -38,7 +41,7 @@ for(const mode of modes){
       }
       lead.forEach((e,i)=>{
         const chord=chordAt(s,Math.floor(e.at)),n=e.notes[0];m.notes++;
-        if(chord.notes.some(c=>pc(c)===pc(n)))m.chordTone++;
+        if((chord.tones??chord.notes).some(c=>pc(c)===pc(n)))m.chordTone++;
         if(n<=Math.max(...chord.notes))m.belowComp++;
         if(!i)return;
         const d=Math.abs(n-lead[i-1].notes[0]);m.moves++;
@@ -47,7 +50,7 @@ for(const mode of modes){
       bass.forEach((e,i)=>{
         const chord=chordAt(s,e.at),n=e.notes[0];m.bass++;
         if(pc(n-chord.root)===0)m.root++;
-        if(!chord.notes.some(c=>pc(c)===pc(n)))m.nonChord++;
+        if(!(chord.tones??chord.notes).some(c=>pc(c)===pc(n)))m.nonChord++;
         if(i&&Math.abs(n-bass[i-1].notes[0])===12)m.octave++;
         for(const l of lead){const o=Math.min(e.at+e.length,l.at+l.length)-Math.max(e.at,l.at);if(o>0){m.shared+=o;if([1,6,11].includes(pc(l.notes[0]-n)))m.harsh+=o;}}
       });
@@ -59,6 +62,6 @@ for(const mode of modes){
     +` range ${avg(m.ranges)} chordTone ${pct(m.chordTone,m.notes)} belowComp ${pct(m.belowComp,m.notes)} climaxMid ${pct(m.climax,m.sounding)} restingPhrases ${pct(m.phrases-m.sounding,m.phrases)}`
     +` | hooks/seed rhythm ${avg(m.hooks)} shape ${avg(m.shapes)}`
     +` | bass/bar ${(m.bass/m.phrases/8).toFixed(2)} root ${pct(m.root,m.bass)} nonChord ${pct(m.nonChord,m.bass)} octave ${(m.octave/(seeds.length*bars)).toFixed(2)}/bar harsh ${pct(m.harsh,m.shared)}`
-    +` | chords/seed ${avg(m.chords)}`
+    +` | chords/seed ${avg(m.chords)} (${m.qualities.size} qualities) | groove comping ${(m.comp/Math.max(1,m.grooveBars)).toFixed(2)}/bar, ${m.velocities.size} velocity levels, hats ${(m.hats/Math.max(1,m.grooveBars)).toFixed(1)}/bar`
     +` | fills ${pct(m.fills,m.boundaries)} of 8-bar boundaries, ${(m.strokes/Math.max(1,m.fills)).toFixed(1)} strokes (${[...m.kinds].map(([k,v])=>`${k} ${v}`).join(', ')})`);
 }

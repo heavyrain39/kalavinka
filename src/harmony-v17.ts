@@ -3,6 +3,7 @@ import type { Settings, Chord } from './music';
 import { hash, random } from './seed';
 import { arrangementAt } from './arrangement';
 import { HARMONIES, QUALITIES, type Degree } from './harmony-catalog';
+import { isV18, keyPcsV18, chordScaleV18 } from './harmony-v18';
 
 // Generator v17 harmony: the seed's authored loop stays the song's identity, while each
 // form section may borrow a companion loop, change chord colour or approach the next chord.
@@ -14,7 +15,7 @@ const pc = (n: number) => ((n % 12) + 12) % 12;
 const same = (a: Degree, b: Degree) => a[0] === b[0] && a[1] === b[1];
 
 /** The backing compiler runs as v6 for its drums, so it carries this internal harmony marker. */
-export const isV17 = (s: Settings) => s.generatorVersion >= 17 || s.harmonyEngine === 17;
+export const isV17 = (s: Settings) => s.generatorVersion >= 17 || s.harmonyEngine === 17 || s.harmonyEngine === 18;
 export const holdV17 = (s: Settings) => s.profile === 'ambient' || s.groove === 'dnb' ? 4 : 2;
 // Same choice as v5: a seed keeps its familiar progression after the upgrade.
 const recipeA = (s: Settings) => {
@@ -26,7 +27,7 @@ const recipeB = (s: Settings) => {
   return bank[hash(`${s.seed}:harmony-v17:companion`) % bank.length];
 };
 export const tonicPc = (s: Settings) => hash(s.seed) % 12;
-export const keyPcs = (s: Settings) => (recipeA(s).mode === 'major' ? MAJOR : MINOR).map(n => pc(n + tonicPc(s)));
+export const keyPcs = (s: Settings) => isV18(s) ? keyPcsV18(s) : (recipeA(s).mode === 'major' ? MAJOR : MINOR).map(n => pc(n + tonicPc(s)));
 const diatonic = (s: Settings, d: Degree) => QUALITIES[d[1]].every(n => keyPcs(s).includes(pc(tonicPc(s) + d[0] + n)));
 
 // Colour changes keep the chord's function: maj7 ↔ 6 ↔ add9, m7 ↔ madd9 ↔ m6 (diatonic only).
@@ -179,6 +180,7 @@ export function progressionV17(s: Settings, bar = 0): Chord[] {
  * chromatic tone is lowered (borrowed iv's A♭ replaces A, ♭VII7's B♭ replaces B).
  */
 export function chordScale(s: Settings, chord: Chord): number[] {
+  if (chord.quality) return chordScaleV18(s, chord);
   const key = keyPcs(s), root = pc(chord.root), scale = new Set(key);
   for (const t of new Set(chord.notes.map(pc))) {
     if (key.includes(t)) continue;
@@ -190,7 +192,7 @@ export function chordScale(s: Settings, chord: Chord): number[] {
 export type ToneClass = 'chord' | 'tension' | 'avoid' | 'out';
 /** Avoid notes sit a semitone above a chord tone (or replace a sus4's missing third). */
 export function toneClass(chord: Chord, scale: number[], note: number): ToneClass {
-  const p = pc(note), tones = chord.notes.map(pc), root = pc(chord.root);
+  const p = pc(note), tones = (chord.tones ?? chord.notes).map(pc), root = pc(chord.root);
   if (tones.includes(p)) return 'chord';
   if (!scale.includes(p)) return 'out';
   if (tones.some(t => pc(p - t) === 1)) return 'avoid';

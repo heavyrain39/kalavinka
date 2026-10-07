@@ -34,7 +34,8 @@ test('ambient shared tones crossfade while incompatible notes finish at the harm
  }
 });
 test('ambient articulation lengthens bell decay without changing arpeggio entrances or clock',()=>{
- const s=selectProfile(DEFAULTS,'ambient');
+ // Pinned to v17: v18 voices ambient chords from its own catalogue.
+ const s={...selectProfile(DEFAULTS,'ambient'),generatorVersion:17 as const};
  const current=phrase(s).filter(e=>e.layer==='arpeggio'),old=phrase({...s,generatorVersion:12}).filter(e=>e.layer==='arpeggio');
  assert.deepEqual(current.map(e=>[e.at,e.length,e.notes]),old.map(e=>[e.at,e.length,e.notes]));
  assert.ok(current.every(e=>e.release!>.04));
