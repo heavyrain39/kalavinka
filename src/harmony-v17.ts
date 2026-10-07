@@ -15,7 +15,7 @@ const pc = (n: number) => ((n % 12) + 12) % 12;
 const same = (a: Degree, b: Degree) => a[0] === b[0] && a[1] === b[1];
 
 /** The backing compiler runs as v6 for its drums, so it carries this internal harmony marker. */
-export const isV17 = (s: Settings) => s.generatorVersion >= 17 || s.harmonyEngine === 17 || s.harmonyEngine === 18;
+export const isV17 = (s: Settings) => s.generatorVersion >= 17 || (s.harmonyEngine ?? 0) >= 17;
 export const holdV17 = (s: Settings) => s.profile === 'ambient' || s.groove === 'dnb' ? 4 : 2;
 // Same choice as v5: a seed keeps its familiar progression after the upgrade.
 const recipeA = (s: Settings) => {

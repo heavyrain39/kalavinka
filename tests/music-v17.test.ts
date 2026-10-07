@@ -28,11 +28,11 @@ test('v16 favorites keep exact scores while new music, upgrades and new flows us
   const old=settings(mode,{generatorVersion:16,melodyRepetition:rep,bpm:mode==='dnb'?170:78});
   assert.equal(createHash('sha256').update(JSON.stringify(Array.from({length:96},(_,b)=>eventsForBar(old,b)))).digest('hex'),hashes[`${mode}:${rep}`]);
   assert.equal(normalizeSettings(old).generatorVersion,16);
-  assert.equal(upgradeSettings(old).generatorVersion,18);
+  assert.equal(upgradeSettings(old).generatorVersion,DEFAULTS.generatorVersion);
   assert.equal(upgradeSettings(old).melodyRepetition,rep);
  }
- assert.equal(DEFAULTS.generatorVersion,18);
- assert.equal(regenerateSettings(settings('lofi',{generatorVersion:16})).generatorVersion,18);
+ assert.ok(DEFAULTS.generatorVersion>=18);
+ assert.equal(regenerateSettings(settings('lofi',{generatorVersion:16})).generatorVersion,DEFAULTS.generatorVersion);
  // The internal backing marker never survives storage or sharing.
  assert.equal('harmonyEngine' in normalizeSettings({...DEFAULTS,harmonyEngine:17}),false);
 });

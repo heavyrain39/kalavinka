@@ -20,7 +20,7 @@ const pc=(n:number)=>((n%12)+12)%12;
 const LETTER:Record<string,number>={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
 const labelRoot=(label:string)=>pc(LETTER[label[0]]+(label[1]==='♯'?1:label[1]==='♭'?-1:0));
 
-test('v17 favorites keep exact scores while new music, upgrades and new flows use v18',()=>{
+test('v17 and v18 favorites keep exact scores while new music, upgrades and new flows use the current generator',()=>{
  // Recorded from v17 before v18 existed: 96 bars × four modes × repetition off/normal.
  const hashes:Record<string,string>={
   'lofi:0':'cec2bdfdb021fc18cdd8d3c56820b6bf863b31d6cdf32c5d8042adfa5d149fa8','lofi:2':'724b9d08d1c7169879f020261d0edd1d52c54307bc074696ca1cef558d65f509',
@@ -31,11 +31,18 @@ test('v17 favorites keep exact scores while new music, upgrades and new flows us
   const old=settings(mode,{generatorVersion:17,melodyRepetition:rep,bpm:mode==='dnb'?170:78});
   assert.equal(createHash('sha256').update(JSON.stringify(Array.from({length:96},(_,b)=>eventsForBar(old,b)))).digest('hex'),hashes[`${mode}:${rep}`]);
   assert.equal(normalizeSettings(old).generatorVersion,17);
-  assert.equal(upgradeSettings(old).generatorVersion,18);
+  assert.equal(upgradeSettings(old).generatorVersion,19);
   assert.equal(upgradeSettings(old).melodyRepetition,rep);
  }
- assert.equal(DEFAULTS.generatorVersion,18);
- assert.equal(regenerateSettings(settings('lofi',{generatorVersion:17})).generatorVersion,18);
+ // Recorded from v18 before v19 added catalogue entries: older v18 songs never pick them.
+ const v18:Record<string,string>={'lofi:0':'81500bf36c16ec3e92725ebc57c8d570f9f4a1a7fdb840ace2e7540b8c2d1648','lofi:2':'298d1d310ca6ebe4d4838893d991550887fb333a84aaaf1a418d993e8b213746','ambient:0':'d837c0156648b973a9e7d7d1da4643b8faf16b72a0b6f5e01144975be9f23b2f','ambient:2':'4cf8d42e1c2097f8bb947bffc14d88eb7a84435e0e504df89be5f805c3c85bed','dub:0':'31ef23881515cdbbb4eb271b3be0390db9b2609179ddadaf1b6dd17876fc9484','dub:2':'e7255a959d4725ec0ecaad23026db59e2ec3f2bbaaeeb8e1ea30a057d6d942ce','dnb:0':'a23414c7bf1047cd2f2f53ab0026ef6a8094ee695adeab1390fbc25f789a4487','dnb:2':'7c402bde114ccde949271ac56a594bf8b1eadb42f0d5da95473ff4eaf0341c55'};
+ for(const mode of modes)for(const rep of [0,2] as const){
+  const old=settings(mode,{generatorVersion:18,melodyRepetition:rep,bpm:mode==='dnb'?170:78});
+  assert.equal(createHash('sha256').update(JSON.stringify(Array.from({length:96},(_,b)=>eventsForBar(old,b)))).digest('hex'),v18[`${mode}:${rep}`]);
+  assert.equal(normalizeSettings(old).generatorVersion,18);
+ }
+ assert.equal(DEFAULTS.generatorVersion,19);
+ assert.equal(regenerateSettings(settings('lofi',{generatorVersion:17})).generatorVersion,19);
  assert.equal('harmonyEngine' in normalizeSettings({...DEFAULTS,harmonyEngine:18}),false);
 });
 
@@ -64,9 +71,12 @@ test('the catalogue: four banks of jazz/soul progressions with whole-cycle lengt
   const s=settings(mode,{seed:`BANK${seed}`}),a=recipeV18(s),b=companionV18(s);
   assert.equal(a.bank,bankV18(s));assert.equal(b.bank,a.bank);assert.notEqual(a.id,b.id);
   assert.equal(['major','lydian'].includes(a.mode),['major','lydian'].includes(b.mode));
+  // Entries added later are gated by version, so v18 songs keep their progression.
+  assert.ok((recipeV18({...s,generatorVersion:18}).since??18)<=18);
   ids.add(a.id);
  }
  assert.ok(ids.size>=PROGRESSIONS_V18.length*.9,`seeds reach ${ids.size} progressions`);
+ assert.ok(ids.has('l27'),'v19 seeds reach the added progression');
 });
 
 test('rootless voicings below the lead, chord-scales that hold every chord tone, key-aware names',()=>{

@@ -12,7 +12,9 @@ type Degree = readonly [number, QualityV18];
 const pc = (n: number) => ((n % 12) + 12) % 12;
 const same = (a: Degree, b: Degree) => pc(a[0]) === pc(b[0]) && a[1] === b[1];
 
-export const isV18 = (s: Settings) => s.generatorVersion >= 18 || s.harmonyEngine === 18;
+export const isV18 = (s: Settings) => s.generatorVersion >= 18 || (s.harmonyEngine ?? 0) >= 18;
+/** The generator version whose catalogue applies (the v6 backing compiler carries it as a marker). */
+const catalogue = (s: Settings) => Math.max(s.generatorVersion, s.harmonyEngine ?? 0);
 export const bankV18 = (s: Settings): BankV18 => s.profile === 'ambient' ? 'ambient' : s.profile === 'lofi' ? 'lofi' : s.groove === 'dnb' ? 'dnb' : 'house';
 /** Bars per catalogue unit: ambient chords breathe twice as long. */
 const unitBars = (s: Settings) => s.profile === 'ambient' ? 2 : 1;
@@ -24,9 +26,9 @@ const weighted = (list: readonly ProgressionV18[], h: number) => {
 };
 const pairs = new Map<string, { a: ProgressionV18; b: ProgressionV18 }>();
 function pair(s: Settings) {
-  const name = bankV18(s), key = `${name}:${s.seed}`, saved = pairs.get(key);
+  const name = bankV18(s), version = catalogue(s), key = `${name}:${version}:${s.seed}`, saved = pairs.get(key);
   if (saved) return saved;
-  const bank = PROGRESSIONS_V18.filter(r => r.bank === name), a = weighted(bank, hash(`${s.seed}:harmony-v18:${name}`));
+  const bank = PROGRESSIONS_V18.filter(r => r.bank === name && (r.since ?? 18) <= version), a = weighted(bank, hash(`${s.seed}:harmony-v18:${name}`));
   let pool = bank.filter(r => r.id !== a.id && r.mode === a.mode);
   if (!pool.length) pool = bank.filter(r => r.id !== a.id && family(r) === family(a));
   const result = { a, b: weighted(pool, hash(`${s.seed}:harmony-v18:companion`)) };
@@ -98,7 +100,7 @@ function approaches(s: Settings, current: Degree, target: Degree, room: number):
 const windows = new Map<string, { bars: Degree[]; base: Degree[] }>();
 /** Eight bars of harmony: authored chords, colours, then approach chords and turnarounds. */
 function windowPlan(s: Settings, w: number) {
-  const key = [s.profile, s.seed, s.groove, s.evolution, w].join(':'), saved = windows.get(key);
+  const key = [catalogue(s), s.profile, s.seed, s.groove, s.evolution, w].join(':'), saved = windows.get(key);
   if (saved) return saved;
   const first = w * 8, at = (i: number) => colouredAt(s, first + i);
   const base = Array.from({ length: 8 }, (_, i) => at(i)), bars = [...base];
@@ -165,7 +167,7 @@ function options(s: Settings, d: Degree) {
 const homes = new Map<string, number[]>();
 /** One home voicing per song; every chord is voiced near it, so the comping stays in one register. */
 function home(s: Settings) {
-  const key = `${s.profile}:${s.groove}:${s.seed}`, saved = homes.get(key);
+  const key = `${catalogue(s)}:${s.profile}:${s.groove}:${s.seed}`, saved = homes.get(key);
   if (saved) return saved;
   const chords = recipeV18(s).chords.map(([d, q]) => options(s, [d, q]));
   let best = { cost: Infinity, notes: chords[0][0] };
@@ -179,7 +181,7 @@ function home(s: Settings) {
 }
 const chords = new Map<string, Chord>();
 function chordOf(s: Settings, d: Degree): Chord {
-  const key = `${s.profile}:${s.groove}:${s.seed}:${d[0]}:${d[1]}`, saved = chords.get(key);
+  const key = `${catalogue(s)}:${s.profile}:${s.groove}:${s.seed}:${d[0]}:${d[1]}`, saved = chords.get(key);
   if (saved) return saved;
   const root = 48 + tonicPcV18(s) + pc(d[0]), anchor = home(s);
   const notes = options(s, d).sort((x, y) => register(x) + movement(anchor, x) * .6 - register(y) - movement(anchor, y) * .6)[0];

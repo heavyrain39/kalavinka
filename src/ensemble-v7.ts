@@ -12,12 +12,12 @@ import {dnbHatsV18} from './hats-v18';
 const cache=new Map<string,MusicEvent[]>();
 export function narrativeEvents(s:Settings,bar:number):MusicEvent[]{
   const start=bar-bar%8;
-  const key=[s.generatorVersion>=18?18:s.generatorVersion>=17?17:s.generatorVersion>=15?15:s.generatorVersion>=10?10:7,repetitionLevel(s),s.seed,s.profile,s.groove,s.bpm,s.energy,s.warmth,s.evolution,start].join(':');
+  const key=[s.generatorVersion>=17?s.generatorVersion:s.generatorVersion>=15?15:s.generatorVersion>=10?10:7,repetitionLevel(s),s.seed,s.profile,s.groove,s.bpm,s.energy,s.warmth,s.evolution,start].join(':');
   let events=cache.get(key);
   if(!events){
     const v17=s.generatorVersion>=17,v18=s.generatorVersion>=18;
     // v17 keeps the v6 drums and comping rhythm, voiced with v17 chords.
-    let backing=Array.from({length:8},(_,i)=>ensembleEvents({...s,generatorVersion:6,...(v18?{harmonyEngine:18 as const}:v17?{harmonyEngine:17 as const}:{})},start+i)).flat().filter(e=>e.layer!=='motif');
+    let backing=Array.from({length:8},(_,i)=>ensembleEvents({...s,generatorVersion:6,...(v17?{harmonyEngine:s.generatorVersion as 17|18|19}:{})},start+i)).flat().filter(e=>e.layer!=='motif');
     // v18 writes its own comping (after the melody) and D&B hat line; ambient keeps the v13 bed.
     if(v18)backing=dnbHatsV18(s,start,backing.filter(e=>e.layer!=='harmony'||s.profile==='ambient'));
     if(v17){

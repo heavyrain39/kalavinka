@@ -24,9 +24,10 @@ export const MODES_V18: Record<ModeV18, readonly number[]> = {
 export type BankV18 = 'lofi' | 'ambient' | 'house' | 'dnb';
 /** [semitones above the tonic, quality, length in units]. One unit is a bar (two bars in ambient). */
 export type StepV18 = readonly [number, QualityV18, number];
-export interface ProgressionV18 { id: string; name: string; bank: BankV18; mode: ModeV18; weight: number; chords: readonly StepV18[] }
+/** `since`: the first generator version that may pick it, so added progressions never change older songs. */
+export interface ProgressionV18 { id: string; name: string; bank: BankV18; mode: ModeV18; weight: number; chords: readonly StepV18[]; since?: number }
 
-const p = (id: string, name: string, bank: BankV18, mode: ModeV18, weight: number, chords: StepV18[]): ProgressionV18 => ({ id, name, bank, mode, weight, chords });
+const p = (id: string, name: string, bank: BankV18, mode: ModeV18, weight: number, chords: StepV18[], since?: number): ProgressionV18 => ({ id, name, bank, mode, weight, chords, ...(since ? { since } : {}) });
 export const PROGRESSIONS_V18: readonly ProgressionV18[] = [
   // Lo-fi / neo-soul: ii–V–I, secondary dominants, tritone and backdoor resolutions, cycles of fifths.
   p('l01','Two of us','lofi','major',2,[[5,'maj9',2],[4,'7',2],[9,'m9',2],[7,'m9',1],[0,'9',1]]),
@@ -55,6 +56,9 @@ export const PROGRESSIONS_V18: readonly ProgressionV18[] = [
   p('l24','Amber room','lofi','minor',1,[[8,'maj9',2],[5,'m9',2],[0,'m11',2],[3,'6/9',2]]),
   p('l25','Quiet conversation','lofi','minor',1,[[0,'m11',2],[3,'maj9',2],[10,'add9',2],[5,'m9',2]]),
   p('l26','Blue notebook','lofi','minor',1,[[5,'m9',2],[10,'13',2],[3,'maj9',2],[8,'maj7#11',2]]),
+  // v19: i – V – vii°7 – III – ♭VI7, after Hooktheory's analysis of "Voice of No Return" (NieR:Automata).
+  // The harmonic-minor dominant and diminished leading-tone chord, then a dominant on ♭VI that falls home.
+  p('l27','Machine lament','lofi','minor',2,[[0,'m9',2],[7,'7',1],[11,'dim7',1],[3,'maj7',2],[8,'7',2]],19),
 
   // Ambient: no strong dominants; lydian and dorian colour, suspended and plagal motion.
   p('q01','Open horizon','ambient','major',1,[[0,'add9',2],[5,'maj9',2],[0,'6/9',2],[2,'m9',2]]),
