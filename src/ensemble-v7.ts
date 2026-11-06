@@ -17,7 +17,7 @@ export function narrativeEvents(s:Settings,bar:number):MusicEvent[]{
   if(!events){
     const v17=s.generatorVersion>=17,v18=s.generatorVersion>=18;
     // v17 keeps the v6 drums and comping rhythm, voiced with v17 chords.
-    let backing=Array.from({length:8},(_,i)=>ensembleEvents({...s,generatorVersion:6,...(v17?{harmonyEngine:s.generatorVersion as 17|18|19|20|21|22|23|24|25|26}:{})},start+i)).flat().filter(e=>e.layer!=='motif');
+    let backing=Array.from({length:8},(_,i)=>ensembleEvents({...s,generatorVersion:6,...(v17?{harmonyEngine:s.generatorVersion as 17|18|19|20|21|22|23|24|25|26|27}:{})},start+i)).flat().filter(e=>e.layer!=='motif');
     // v18 writes its own comping (after the melody) and D&B hat line; ambient keeps the v13 bed.
     if(v18)backing=dnbHatsV18(s,start,backing.filter(e=>e.layer!=='harmony'||s.profile==='ambient'));
     if(v17){

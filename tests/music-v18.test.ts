@@ -170,7 +170,10 @@ test('lo-fi timing: a laid-back backbeat and drifting hats within a few millisec
    }
    for(const e of events.filter(e=>e.layer==='harmony')){
     const step=Math.round((e.at-bar)*16),offset=(e.at-gridTime(s,bar,step))*seconds*1000;
-    assert.ok(offset>=5.9&&offset<=18.1,`keys sit just behind the beat (${offset}ms)`);
+    // v27: a chord sharing its sixteenth with an arpeggio note starts with it, up to 20 ms early.
+    if(s.generatorVersion>=27&&events.some(a=>a.layer==='arpeggio'&&Math.round((a.at-bar)*16)===step))
+     assert.ok(offset>=-20.1&&offset<=.1,`keys speak with the arpeggio (${offset}ms)`);
+    else assert.ok(offset>=5.9&&offset<=18.1,`keys sit just behind the beat (${offset}ms)`);
    }
   }
  }
