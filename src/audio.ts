@@ -12,6 +12,7 @@ import { instrumentVoice } from './synth';
 import {prepareNylon} from './nylon';
 import { createRoom, createAmbientImpulse, reverbGain } from './reverb';
 import { claimPlaybackSession, releasePlaybackSession } from './ios-audio';
+import { createTape, createTapeNoise, tapeEnabled, type Tape } from './tape';
 
 // Lift the sparse arpeggio above masking by the chord/bass bus (+7.2 dB).
 const layerGain = (s:Settings, layer:AudioLayer) => layerEnabled(s,layer) ? layer==='arpeggio' ? 2.3 : 1 : 0;
@@ -22,7 +23,7 @@ interface Scene {
   layers: Record<AudioLayer, GainNode>; nodes: AudioNode[]; sources: Set<AudioScheduledSourceNode>; cleanups: Set<() => void>;
   meters: Record<AudioLayer, {node:AnalyserNode; samples:Float32Array<ArrayBuffer>}>;
   bassDuck: GainNode; liveRhythm: boolean; roomWet: GainNode; drums: DrumBus; hats: HatVoice[];
-  throwBus?: GainNode;
+  throwBus?: GainNode; tape?: Tape;
 }
 export class MusicEngine {
   context: AudioContext | null = null;
@@ -41,6 +42,7 @@ export class MusicEngine {
   private noise!: AudioBuffer;
   private impulse!: AudioBuffer;
   private ambientImpulse?: AudioBuffer;
+  private tapeNoise?: AudioBuffer;
   private startedAt = 0;
   private lifecycle = 0;
   private initPromise: Promise<void> | null = null;
@@ -135,7 +137,13 @@ export class MusicEngine {
     const delayHp = context.createBiquadFilter(); delayHp.type = 'highpass'; delayHp.frequency.value = 220;
     input.connect(delay).connect(delayHp).connect(delayFilter).connect(feedback).connect(delay);
     delayFilter.connect(delayWet).connect(output);
-    output.connect(this.destination);
+    // v21 lo-fi: the whole scene (drums included, so no part drifts) plays through the tape stage.
+    let tape: Tape | undefined;
+    if (tapeEnabled(settings)) {
+      if (!this.tapeNoise || this.tapeNoise.sampleRate !== context.sampleRate) this.tapeNoise = createTapeNoise(context);
+      tape = createTape(context, settings, this.tapeNoise);
+      tape.bed.connect(output); output.connect(tape.input); tape.output.connect(this.destination);
+    } else output.connect(this.destination);
     // Throw bus (v18 phrase endings): a darker dotted-eighth echo plus a touch of the room, kept modest.
     const throwNodes: AudioNode[] = [];
     let throwBus: GainNode | undefined;
@@ -167,8 +175,8 @@ export class MusicEngine {
     }
     drums.output.connect(layers.rhythm);
     const playback:Playback={settings:structuredClone(settings),phrase:phrase?structuredClone(phrase):undefined,opening:true};
-    const scene: Scene = { throwBus, drums, hats: [], settings, playback, output, input, layers, meters, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), cleanups: new Set(),
-      nodes: [...throwNodes, ...drums.nodes, input, output, bassDuck, dry, ...room.nodes, ...sends, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers), ...Object.values(meters).map(m=>m.node)], transport: null! };
+    const scene: Scene = { throwBus, tape, drums, hats: [], settings, playback, output, input, layers, meters, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), cleanups: new Set(),
+      nodes: [...throwNodes, ...(tape?.nodes ?? []), ...drums.nodes, input, output, bassDuck, dry, ...room.nodes, ...sends, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers), ...Object.values(meters).map(m=>m.node)], transport: null! };
     scene.transport = new Transport<Playback>({
       clock: () => context.currentTime,
       onError: (error) => {
@@ -207,7 +215,8 @@ export class MusicEngine {
     const scene = this.scene;
     if (!scene || !this.playing) return;
     const ambient=(s:Settings)=>s.profile==='ambient'&&s.generatorVersion>=13;
-    if(ambient(scene.settings)!==ambient(settings)){void this.regenerate(settings);return;}
+    if(ambient(scene.settings)!==ambient(settings)||tapeEnabled(scene.settings)!==tapeEnabled(settings)){void this.regenerate(settings);return;}
+    scene.tape?.setWarmth(settings.warmth);
     for (const layer of AUDIO_LAYERS) this.ramp(scene.layers[layer].gain, layerGain(settings, layer), .08);
     scene.liveRhythm = settings.layers.rhythm;
     if (!scene.liveRhythm) this.ramp(scene.bassDuck.gain, 1, .03);
@@ -304,6 +313,7 @@ export class MusicEngine {
     if(scene.retirement)clearTimeout(scene.retirement);
     scene.transport.stop();
     for (const cleanup of scene.cleanups) cleanup();
+    scene.tape?.stop();
     for (const node of scene.nodes) node.disconnect();
   }
   private ramp(param: AudioParam, value: number, seconds: number) {

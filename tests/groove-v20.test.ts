@@ -10,17 +10,17 @@ const make=(mode:typeof modes[number],extra:Partial<Settings>={}):Settings=>{
 };
 const sha=(s:Settings)=>createHash('sha256').update(JSON.stringify(Array.from({length:96},(_,b)=>eventsForBar(s,b)))).digest('hex');
 
-test('v19 favorites keep exact scores; new music and upgrades use v20',()=>{
+test('v19 favorites keep exact scores; new music and upgrades use the current generator',()=>{
   // Recorded from v19 before v20 changed the lo-fi grid.
   const v19:Record<string,string>={'lofi:0':'7a4411b27b4d976498e777087980baeb292e2db3d47928be6dc35ced9a61f954','lofi:2':'2016a3fc3c240c203956960375f796ff8b277659bfabc065bbaa788542f3d291','ambient:0':'d837c0156648b973a9e7d7d1da4643b8faf16b72a0b6f5e01144975be9f23b2f','ambient:2':'4cf8d42e1c2097f8bb947bffc14d88eb7a84435e0e504df89be5f805c3c85bed','dub:0':'31ef23881515cdbbb4eb271b3be0390db9b2609179ddadaf1b6dd17876fc9484','dub:2':'e7255a959d4725ec0ecaad23026db59e2ec3f2bbaaeeb8e1ea30a057d6d942ce','dnb:0':'a23414c7bf1047cd2f2f53ab0026ef6a8094ee695adeab1390fbc25f789a4487','dnb:2':'7c402bde114ccde949271ac56a594bf8b1eadb42f0d5da95473ff4eaf0341c55'};
   for(const mode of modes)for(const rep of [0,2] as const){
     const old=make(mode,{generatorVersion:19,melodyRepetition:rep});
     assert.equal(sha(old),v19[`${mode}:${rep}`],`${mode}:${rep}`);
     assert.equal(normalizeSettings(old).generatorVersion,19);
-    assert.equal(upgradeSettings(old).generatorVersion,20);
+    assert.equal(upgradeSettings(old).generatorVersion,DEFAULTS.generatorVersion);
   }
-  assert.equal(DEFAULTS.generatorVersion,20);
-  assert.equal(normalizeSettings(null).generatorVersion,20);
+  assert.ok(DEFAULTS.generatorVersion>=20);
+  assert.equal(normalizeSettings(null).generatorVersion,DEFAULTS.generatorVersion);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:20}).generatorVersion,20);
 });
 
