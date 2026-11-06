@@ -15,10 +15,10 @@ const drops=(s:Settings,bars:number)=>Array.from({length:bars},(_,b)=>b).filter(
 const key=(e:MusicEvent)=>JSON.stringify(e);
 
 test('v29 touches D&B around the drop only; every other mood and bar keeps the v28 score',()=>{
-  assert.equal(DEFAULTS.generatorVersion,29);
+  assert.ok(DEFAULTS.generatorVersion>=29);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:29}).generatorVersion,29);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:28}).generatorVersion,28);
-  assert.equal(upgradeSettings(make('dnb',{generatorVersion:28})).generatorVersion,29);
+  assert.equal(upgradeSettings(make('dnb',{generatorVersion:28})).generatorVersion,DEFAULTS.generatorVersion);
   for(const mode of ['lofi','ambient','dub'] as const)assert.equal(sha(score(make(mode))),sha(score(make(mode,{generatorVersion:28}))),mode);
   for(const seed of SEEDS){
     const now={...make('dnb'),seed},old={...now,generatorVersion:28 as const};

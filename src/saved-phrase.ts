@@ -53,6 +53,7 @@ export function normalizePhrase(value:unknown):SavedPhrase|undefined{
     if(e.articulation!==undefined){if(!['closed','half','open'].includes(e.articulation))return;event.articulation=e.articulation;}
     if(e.ghost!==undefined){if(typeof e.ghost!=='boolean')return;event.ghost=e.ghost;}
     if(e.reverse!==undefined){if(e.reverse!==true||e.voice!=='crash')return;event.reverse=true;}
+    if(e.breath!==undefined){if(!finite(e.breath,0,1e7)||e.layer!=='harmony'||e.notes.length!==1)return;event.breath=e.breath;}
     events.push(event);
   }
   for(const c of p.chords){

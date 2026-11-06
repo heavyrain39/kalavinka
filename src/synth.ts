@@ -4,6 +4,7 @@ import { scheduleEnvelope, scheduleAmbientEnvelope } from './envelope';
 import { ownVoice } from './source-lifecycle';
 import { random } from './seed';
 import {nylonVoice} from './nylon';
+import {breathCurves} from './ambient-v30';
 
 // Small, locally synthesized palettes. Struck bodies decay continuously; sustained
 // instruments keep a breath/bow envelope. The score and bass gate remain unchanged.
@@ -57,12 +58,28 @@ export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, ti
   }
   hold = Math.max(hold, attack + .012);
   const end = time + hold + release;
+  let breathFilter: ReturnType<typeof breathCurves> | undefined;
+  // v30 ambient pad: the voice swells and drifts on its own slow cycle (see ambient-v30.ts).
+  if (ambient && event.breath !== undefined && event.layer === 'harmony' && event.notes.length === 1) {
+    const curves = breathCurves(event.notes[0], event.breath, end - time + .015, event.pan), swell = context.createGain();
+    gain.disconnect(); gain.connect(swell).connect(filter); nodes.push(swell);
+    swell.gain.setValueCurveAtTime(curves.gain, time, end - time + .015);
+    pan.pan.setValueCurveAtTime(curves.pan, time, end - time + .015);
+    breathFilter = curves;
+  }
   const amplitude = event.gain * level * (.97 + variation * .06) / Math.max(1, event.notes.length);
   (ambient&&!percussion&&!bass?scheduleAmbientEnvelope:scheduleEnvelope)(gain.gain, { time, amplitude, attack, hold, decay, sustain, release, bass });
   if (!percussion) {
     const brightness = Math.min(context.sampleRate * .45, filter.frequency.value * (.8 + velocity * .35));
+    const settle = Math.max(120, brightness * (sustain ? .83 : bass ? .63 : .50)), settled = time + Math.min(hold, bass ? .22 : .7);
     filter.frequency.setValueAtTime(brightness, time);
-    filter.frequency.exponentialRampToValueAtTime(Math.max(120, brightness * (sustain ? .83 : bass ? .63 : .50)), time + Math.min(hold, bass ? .22 : .7));
+    filter.frequency.exponentialRampToValueAtTime(settle, settled);
+    // v30: after the attack the breathing pad's low-pass follows its swell.
+    if (breathFilter && end + .015 - settled > .1) {
+      const from = Math.min(breathFilter.bright.length - 1, Math.ceil((settled - time) / (end + .015 - time) * (breathFilter.bright.length - 1)));
+      const curve = Float32Array.from(breathFilter.bright.subarray(from), (b, i) => Math.max(120, settle * (i ? b : breathFilter!.bright[from])));
+      if (curve.length >= 2) filter.frequency.setValueCurveAtTime(curve, settled + .001, end + .015 - settled - .001);
+    }
   }
   const osc = (frequency: number, type: OscillatorType = 'sine', amount = 1, detune = 0, partialDecay = 0) => {
     const source = context.createOscillator(), mix = context.createGain();

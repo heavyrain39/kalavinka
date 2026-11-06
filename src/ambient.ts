@@ -1,5 +1,6 @@
 // Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import {chordAt,type Settings,type MusicEvent} from './music';
+import {breathV30} from './ambient-v30';
 import {nextHarmonyBoundary} from './harmony-v5';
 
 /** Overlapping shared tones keep the bed continuous without unbounded held voices. */
@@ -19,7 +20,7 @@ export function ambientEvents(s:Settings,bar:number,events:MusicEvent[]):MusicEv
       const release=continues?.95:.32;
       harmony.push({at:start+from,length:i-from-(continues?0:.28)/seconds,
         notes:[pitch],voice:'pad',layer:'harmony',gain:.102/chords[from].notes.length,velocity:.85,
-        pan:(pitch%3-1)*.12,cutoff:3200-s.warmth*23,release});
+        pan:(pitch%3-1)*.12,cutoff:3200-s.warmth*23,release,...(breathV30(s)?{breath:+((start+from)*seconds).toFixed(4)}:{})});
     }
   }
   if(!['h-pad','h-organ'].includes(s.instruments.harmony)){
