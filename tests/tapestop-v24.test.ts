@@ -13,12 +13,12 @@ const make=(mode:typeof modes[number],extra:Partial<Settings>={}):Settings=>{
 const sha=(x:unknown)=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 
 test('v24 only touches lo-fi; other moods keep the v23 score',()=>{
-  assert.equal(DEFAULTS.generatorVersion,24);
+  assert.ok(DEFAULTS.generatorVersion>=24);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:24}).generatorVersion,24);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:23}).generatorVersion,23);
-  assert.equal(upgradeSettings(make('lofi',{generatorVersion:23})).generatorVersion,24);
+  assert.equal(upgradeSettings(make('lofi',{generatorVersion:23})).generatorVersion,DEFAULTS.generatorVersion);
   for(const mode of ['ambient','dub','dnb'] as const)for(const rep of [0,2] as const)
-    assert.equal(sha(Array.from({length:96},(_,b)=>eventsForBar(make(mode,{melodyRepetition:rep}),b))),
+    assert.equal(sha(Array.from({length:96},(_,b)=>eventsForBar(make(mode,{generatorVersion:24,melodyRepetition:rep}),b))),
       sha(Array.from({length:96},(_,b)=>eventsForBar(make(mode,{generatorVersion:23,melodyRepetition:rep}),b))),`${mode}:${rep}`);
   assert.equal(tapeStopV24(make('lofi')),true);
   for(const s of [make('lofi',{generatorVersion:23}),make('ambient'),make('dub'),make('dnb')])assert.equal(tapeStopV24(s),false);

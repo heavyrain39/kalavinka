@@ -4,6 +4,7 @@ import {DrumBank, type DrumSound} from './drum-bank';
 import {resolveDrumKit} from './instruments';
 import {hash} from './seed';
 import {ownVoice} from './source-lifecycle';
+import {reversedBuffer, CYMBAL_BLOOM} from './swell-v25';
 
 export function createDrumBus(context:BaseAudioContext,settings:Settings) {
   const input=context.createGain(),kick=context.createBiquadFilter(),snare=context.createBiquadFilter(),hat=context.createBiquadFilter(),perc=context.createBiquadFilter(),crash=context.createBiquadFilter();
@@ -55,6 +56,19 @@ export function drumVoice(context:BaseAudioContext,bank:DrumBank,bus:DrumBus,hat
     hats.length=0;
   }
   const sources:AudioBufferSourceNode[]=[],nodes:AudioNode[]=[gain,pan];let end=time;
+  if(crash&&event.reverse){
+    // v25 swell: the cymbal's decay played backwards, cut at its bloom so it peaks on the downbeat.
+    const [{buffer}]=bank.get(resolveDrumKit(event.instrument,settings.profile),'house','crash',1,event.variation??0);
+    if(!buffer)throw Error('Drum bank not prepared');
+    const back=reversedBuffer(buffer),seconds=Math.min(event.length*240/settings.bpm,back.duration-CYMBAL_BLOOM-.01);
+    const source=context.createBufferSource();source.buffer=back;end=time+seconds;
+    const level=event.gain*1.28*(.65+.35*(event.velocity??.75));
+    gain.gain.cancelScheduledValues(time);gain.gain.setValueAtTime(0,time);gain.gain.linearRampToValueAtTime(level,time+.01);
+    gain.gain.setValueAtTime(level,end-.004);gain.gain.linearRampToValueAtTime(0,end);
+    source.connect(gain);ownVoice([source],nodes,active,cleanups);
+    source.start(time,back.duration-CYMBAL_BLOOM-seconds);source.stop(end+.001);
+    return;
+  }
   const velocity=event.velocity??Math.max(.2,Math.min(1,event.gain/(kick?.32:snare?.075:hat?.035:.06)));
   const variant=event.variation??hash(`${settings.seed}:${event.voice}:${event.at}`)%2;
   for(const layer of bank.get(resolveDrumKit(event.instrument,settings.profile),mode,sound,velocity,variant)) {
