@@ -15,10 +15,10 @@ const step=(e:MusicEvent,bar:number)=>Math.round((e.at-bar)*16);
 const sorted=(n:readonly number[])=>JSON.stringify([...new Set(n)].sort());
 
 test('v28 rewrites D&B comping in the groove and return only; everything else keeps the v27 score',()=>{
-  assert.equal(DEFAULTS.generatorVersion,28);
+  assert.ok(DEFAULTS.generatorVersion>=28);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:28}).generatorVersion,28);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:27}).generatorVersion,27);
-  assert.equal(upgradeSettings(make('dnb',{generatorVersion:27})).generatorVersion,28);
+  assert.equal(upgradeSettings(make('dnb',{generatorVersion:27})).generatorVersion,DEFAULTS.generatorVersion);
   for(const mode of ['lofi','ambient','dub'] as const)for(const rep of [0,2] as const)
     assert.equal(sha(score(make(mode,{melodyRepetition:rep}))),sha(score(make(mode,{generatorVersion:27,melodyRepetition:rep}))),`${mode}:${rep}`);
   for(const seed of SEEDS){
