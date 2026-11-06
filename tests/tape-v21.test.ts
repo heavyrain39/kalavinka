@@ -11,12 +11,12 @@ const make=(mode:typeof modes[number],extra:Partial<Settings>={}):Settings=>{
 const sha=(s:Settings)=>createHash('sha256').update(JSON.stringify(Array.from({length:96},(_,b)=>eventsForBar(s,b)))).digest('hex');
 
 test('v21 changes the lo-fi sound only: scores equal v20, older versions and other moods have no tape',()=>{
-  assert.equal(DEFAULTS.generatorVersion,21);
+  assert.ok(DEFAULTS.generatorVersion>=21);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:21}).generatorVersion,21);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:20}).generatorVersion,20);
-  assert.equal(upgradeSettings(make('lofi',{generatorVersion:20})).generatorVersion,21);
+  assert.equal(upgradeSettings(make("lofi",{generatorVersion:20})).generatorVersion,DEFAULTS.generatorVersion);
   for(const mode of modes)for(const rep of [0,2] as const)
-    assert.equal(sha(make(mode,{melodyRepetition:rep})),sha(make(mode,{generatorVersion:20,melodyRepetition:rep})),`${mode}:${rep}`);
+    assert.equal(sha(make(mode,{generatorVersion:21,melodyRepetition:rep})),sha(make(mode,{generatorVersion:20,melodyRepetition:rep})),`${mode}:${rep}`);
   assert.equal(tapeEnabled(make('lofi')),true);
   for(const v of [13,18,19,20] as const)assert.equal(tapeEnabled(make('lofi',{generatorVersion:v})),false);
   for(const mode of ['ambient','dub','dnb'] as const)assert.equal(tapeEnabled(make(mode)),false);

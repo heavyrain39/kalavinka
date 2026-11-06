@@ -6,7 +6,7 @@ import { Transport } from './transport';
 import { AUDIO_LAYERS, layerEnabled, type AudioLayer, type MusicEvent, type Settings } from './music';
 import {playbackScore,playbackChord,capturePhrase,relativeEvent,compositionIdentity,type Playback,type SavedPhrase} from './saved-phrase';
 import clockUrl from './clock.worklet.js?url';
-import { scheduleDuck } from './duck';
+import { scheduleDuck, schedulePump, pumpEnabled, pumpDepth } from './duck';
 import { createMastering, volumeGain } from './mastering';
 import { instrumentVoice } from './synth';
 import {prepareNylon} from './nylon';
@@ -23,7 +23,7 @@ interface Scene {
   layers: Record<AudioLayer, GainNode>; nodes: AudioNode[]; sources: Set<AudioScheduledSourceNode>; cleanups: Set<() => void>;
   meters: Record<AudioLayer, {node:AnalyserNode; samples:Float32Array<ArrayBuffer>}>;
   bassDuck: GainNode; liveRhythm: boolean; roomWet: GainNode; drums: DrumBus; hats: HatVoice[];
-  throwBus?: GainNode; tape?: Tape;
+  throwBus?: GainNode; tape?: Tape; pump?: GainNode;
 }
 export class MusicEngine {
   context: AudioContext | null = null;
@@ -125,10 +125,14 @@ export class MusicEngine {
     const input = context.createGain();
     const output = context.createGain(); output.gain.value = 0;
     const dry = context.createGain(); dry.gain.value = settings.profile === 'ambient' ? .8 : 1;
+    // v22 deep house: the music bus and its echo/room returns pump with the kick (drums bypass it).
+    const pump = pumpEnabled(settings) ? context.createGain() : undefined;
+    const musicOut: AudioNode = pump ?? output;
+    pump?.connect(output);
     if(ambient&&!this.ambientImpulse)this.ambientImpulse=createAmbientImpulse(context);
     const room = createRoom(context, ambient?this.ambientImpulse!:this.impulse, settings.reverb,ambient);
-    input.connect(dry).connect(output);
-    if(!ambient)input.connect(room.input);room.wet.connect(output);
+    input.connect(dry).connect(musicOut);
+    if(!ambient)input.connect(room.input);room.wet.connect(musicOut);
     const halfTime = settings.generatorVersion >= 4 && settings.profile === 'dub' && settings.groove === 'dnb';
     const delay = context.createDelay(2); delay.delayTime.value = 60 / settings.bpm * (halfTime ? 1.5 : .75);
     const delayFilter = context.createBiquadFilter(); delayFilter.type = 'lowpass'; delayFilter.frequency.value = 1700;
@@ -136,7 +140,7 @@ export class MusicEngine {
     const delayWet = context.createGain(); delayWet.gain.value = ambient?0:halfTime ? .09 : settings.profile === 'dub' ? .19 : .075;
     const delayHp = context.createBiquadFilter(); delayHp.type = 'highpass'; delayHp.frequency.value = 220;
     input.connect(delay).connect(delayHp).connect(delayFilter).connect(feedback).connect(delay);
-    delayFilter.connect(delayWet).connect(output);
+    delayFilter.connect(delayWet).connect(musicOut);
     // v21 lo-fi: the whole scene (drums included, so no part drifts) plays through the tape stage.
     let tape: Tape | undefined;
     if (tapeEnabled(settings)) {
@@ -153,7 +157,7 @@ export class MusicEngine {
       hp.type = 'highpass'; hp.frequency.value = 350; lp.type = 'lowpass'; lp.frequency.value = 2600;
       echo.delayTime.value = 60 / settings.bpm * .75; again.gain.value = .36; wet.gain.value = .42; room2.gain.value = .3;
       throwBus.connect(hp).connect(echo).connect(lp).connect(again).connect(echo);
-      lp.connect(wet).connect(output); throwBus.connect(room2).connect(room.input);
+      lp.connect(wet).connect(musicOut); throwBus.connect(room2).connect(room.input);
       throwNodes.push(throwBus, hp, echo, lp, again, wet, room2);
     }
     const bassDuck = context.createGain();
@@ -167,7 +171,10 @@ export class MusicEngine {
       const gain = context.createGain(); gain.gain.value = layerGain(settings, layer);
       if(layer==='bass')gain.connect(bassDuck).connect(meters[layer].node);
       else gain.connect(meters[layer].node);
-      meters[layer].node.connect(layer==='rhythm'?output:input);return [layer,gain];
+      // Under the v22 pump the bass keeps its own tighter duck: its dry signal skips the pumping
+      // bus, while its room and echo sends stay with the rest of the music.
+      if(layer==='bass'&&pump){const m=meters[layer].node;m.connect(output);m.connect(delay);if(!ambient)m.connect(room.input);}
+      else meters[layer].node.connect(layer==='rhythm'?output:input);return [layer,gain];
     })) as Record<AudioLayer, GainNode>;
     if(ambient)for(const layer of ['harmony','bass','motif','arpeggio'] as const){
       const send=context.createGain();send.gain.value={harmony:.78,bass:.08,motif:1,arpeggio:.62}[layer];
@@ -175,8 +182,8 @@ export class MusicEngine {
     }
     drums.output.connect(layers.rhythm);
     const playback:Playback={settings:structuredClone(settings),phrase:phrase?structuredClone(phrase):undefined,opening:true};
-    const scene: Scene = { throwBus, tape, drums, hats: [], settings, playback, output, input, layers, meters, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), cleanups: new Set(),
-      nodes: [...throwNodes, ...(tape?.nodes ?? []), ...drums.nodes, input, output, bassDuck, dry, ...room.nodes, ...sends, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers), ...Object.values(meters).map(m=>m.node)], transport: null! };
+    const scene: Scene = { throwBus, tape, pump, drums, hats: [], settings, playback, output, input, layers, meters, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), cleanups: new Set(),
+      nodes: [...throwNodes, ...(tape?.nodes ?? []), ...(pump ? [pump] : []), ...drums.nodes, input, output, bassDuck, dry, ...room.nodes, ...sends, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers), ...Object.values(meters).map(m=>m.node)], transport: null! };
     scene.transport = new Transport<Playback>({
       clock: () => context.currentTime,
       onError: (error) => {
@@ -215,11 +222,11 @@ export class MusicEngine {
     const scene = this.scene;
     if (!scene || !this.playing) return;
     const ambient=(s:Settings)=>s.profile==='ambient'&&s.generatorVersion>=13;
-    if(ambient(scene.settings)!==ambient(settings)||tapeEnabled(scene.settings)!==tapeEnabled(settings)){void this.regenerate(settings);return;}
+    if(ambient(scene.settings)!==ambient(settings)||tapeEnabled(scene.settings)!==tapeEnabled(settings)||pumpEnabled(scene.settings)!==pumpEnabled(settings)){void this.regenerate(settings);return;}
     scene.tape?.setWarmth(settings.warmth);
     for (const layer of AUDIO_LAYERS) this.ramp(scene.layers[layer].gain, layerGain(settings, layer), .08);
     scene.liveRhythm = settings.layers.rhythm;
-    if (!scene.liveRhythm) this.ramp(scene.bassDuck.gain, 1, .03);
+    if (!scene.liveRhythm) { this.ramp(scene.bassDuck.gain, 1, .03); if (scene.pump) this.ramp(scene.pump.gain, 1, .03); }
     const playback:Playback={settings:structuredClone(settings),phrase:scene.playback.phrase,
       opening:scene.playback.opening&&compositionIdentity(settings)===compositionIdentity(scene.playback.settings)};
     scene.transport.queue(playbackScore(playback), settings.bpm, () => {
@@ -285,7 +292,7 @@ export class MusicEngine {
       + Array.from(this.retired).reduce((sum, scene) => sum + scene.sources.size, 0), triggered: this.triggered, arpeggioTriggered: this.arpeggioTriggered,
       late: this.late, clockStalls: this.scene?.transport.stalled ?? 0, lastError: this.lastError, bar: this.bar, pending: this.pending, sampleRate: this.context?.sampleRate,
       sourceBar:this.bar+(this.scene?.playback.phrase?.sourceBar??0),savedOpening:!!this.scene?.playback.phrase&&this.scene.playback.opening&&this.bar<8,
-      reverbWet: this.scene?.roomWet.gain.value ?? 0, duckCount: this.duckCount, bassGain: this.scene?.bassDuck.gain.value ?? 1,
+      reverbWet: this.scene?.roomWet.gain.value ?? 0, duckCount: this.duckCount, bassGain: this.scene?.bassDuck.gain.value ?? 1, pumpGain: this.scene?.pump?.gain.value ?? 1,
       drumBank: this.drumBank ? {sounds:this.drumBank.size, bytes:this.drumBank.bytes} : null,
       drumReduction: this.scene?.drums?.glue.reduction ?? 0,
       glueReduction: this.mastering?.glue.reduction ?? 0, limiterReduction: this.mastering?.limiter.reduction ?? 0 };
@@ -325,6 +332,7 @@ export class MusicEngine {
     const context = this.context!;
     if (event.voice === 'kick' && event.duck && scene.liveRhythm) {
       scheduleDuck(scene.bassDuck.gain, time, event.duck, bpm, context.currentTime);
+      if (scene.pump) schedulePump(scene.pump.gain, time, pumpDepth(event.duck), bpm, context.currentTime);
       this.duckCount++;
     }
     if (event.layer === 'rhythm') {
