@@ -7,6 +7,7 @@ import { AUDIO_LAYERS, layerEnabled, type AudioLayer, type MusicEvent, type Sett
 import {playbackScore,playbackChord,capturePhrase,relativeEvent,compositionIdentity,type Playback,type SavedPhrase} from './saved-phrase';
 import clockUrl from './clock.worklet.js?url';
 import { scheduleDuck, schedulePump, pumpEnabled, pumpDepth } from './duck';
+import { houseV23, OPEN, scheduleSweep } from './house-v23';
 import { createMastering, volumeGain } from './mastering';
 import { instrumentVoice } from './synth';
 import {prepareNylon} from './nylon';
@@ -23,7 +24,7 @@ interface Scene {
   layers: Record<AudioLayer, GainNode>; nodes: AudioNode[]; sources: Set<AudioScheduledSourceNode>; cleanups: Set<() => void>;
   meters: Record<AudioLayer, {node:AnalyserNode; samples:Float32Array<ArrayBuffer>}>;
   bassDuck: GainNode; liveRhythm: boolean; roomWet: GainNode; drums: DrumBus; hats: HatVoice[];
-  throwBus?: GainNode; tape?: Tape; pump?: GainNode;
+  throwBus?: GainNode; tape?: Tape; pump?: GainNode; sweep?: BiquadFilterNode; sweepBar?: number;
 }
 export class MusicEngine {
   context: AudioContext | null = null;
@@ -127,8 +128,11 @@ export class MusicEngine {
     const dry = context.createGain(); dry.gain.value = settings.profile === 'ambient' ? .8 : 1;
     // v22 deep house: the music bus and its echo/room returns pump with the kick (drums bypass it).
     const pump = pumpEnabled(settings) ? context.createGain() : undefined;
-    const musicOut: AudioNode = pump ?? output;
-    pump?.connect(output);
+    // v23 house: before the pump, a form-following low-pass (filtered intro, breakdown, build-up).
+    const sweep = houseV23(settings) ? context.createBiquadFilter() : undefined;
+    if (sweep) { sweep.type = 'lowpass'; sweep.Q.value = .7; sweep.frequency.value = OPEN; }
+    const musicOut: AudioNode = sweep ?? pump ?? output;
+    if (pump) { sweep?.connect(pump); pump.connect(output); } else sweep?.connect(output);
     if(ambient&&!this.ambientImpulse)this.ambientImpulse=createAmbientImpulse(context);
     const room = createRoom(context, ambient?this.ambientImpulse!:this.impulse, settings.reverb,ambient);
     input.connect(dry).connect(musicOut);
@@ -182,8 +186,8 @@ export class MusicEngine {
     }
     drums.output.connect(layers.rhythm);
     const playback:Playback={settings:structuredClone(settings),phrase:phrase?structuredClone(phrase):undefined,opening:true};
-    const scene: Scene = { throwBus, tape, pump, drums, hats: [], settings, playback, output, input, layers, meters, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), cleanups: new Set(),
-      nodes: [...throwNodes, ...(tape?.nodes ?? []), ...(pump ? [pump] : []), ...drums.nodes, input, output, bassDuck, dry, ...room.nodes, ...sends, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers), ...Object.values(meters).map(m=>m.node)], transport: null! };
+    const scene: Scene = { throwBus, tape, pump, sweep, drums, hats: [], settings, playback, output, input, layers, meters, bassDuck, roomWet: room.wet, liveRhythm: settings.layers.rhythm, sources: new Set(), cleanups: new Set(),
+      nodes: [...throwNodes, ...(tape?.nodes ?? []), ...(pump ? [pump] : []), ...(sweep ? [sweep] : []), ...drums.nodes, input, output, bassDuck, dry, ...room.nodes, ...sends, delay, delayHp, delayFilter, feedback, delayWet, ...Object.values(layers), ...Object.values(meters).map(m=>m.node)], transport: null! };
     scene.transport = new Transport<Playback>({
       clock: () => context.currentTime,
       onError: (error) => {
@@ -194,7 +198,8 @@ export class MusicEngine {
         if (time < context.currentTime - .015) { this.late++; return; }
         this.triggered++;
         if(event.layer==='arpeggio')this.arpeggioTriggered++;
-        this.voice(scene, event, Math.max(time, context.currentTime + .003), duration, bpm, render.settings);
+        // Score bars map to the song's own bars: a recalled phrase continues from its source bar.
+        this.voice(scene, event, Math.max(time, context.currentTime + .003), duration, bpm, render.settings, render.phrase?.sourceBar ?? 0);
       },
     });
     scene.transport.start(playbackScore(playback), settings.bpm, playback);
@@ -222,7 +227,7 @@ export class MusicEngine {
     const scene = this.scene;
     if (!scene || !this.playing) return;
     const ambient=(s:Settings)=>s.profile==='ambient'&&s.generatorVersion>=13;
-    if(ambient(scene.settings)!==ambient(settings)||tapeEnabled(scene.settings)!==tapeEnabled(settings)||pumpEnabled(scene.settings)!==pumpEnabled(settings)){void this.regenerate(settings);return;}
+    if(ambient(scene.settings)!==ambient(settings)||tapeEnabled(scene.settings)!==tapeEnabled(settings)||pumpEnabled(scene.settings)!==pumpEnabled(settings)||houseV23(scene.settings)!==houseV23(settings)){void this.regenerate(settings);return;}
     scene.tape?.setWarmth(settings.warmth);
     for (const layer of AUDIO_LAYERS) this.ramp(scene.layers[layer].gain, layerGain(settings, layer), .08);
     scene.liveRhythm = settings.layers.rhythm;
@@ -292,7 +297,7 @@ export class MusicEngine {
       + Array.from(this.retired).reduce((sum, scene) => sum + scene.sources.size, 0), triggered: this.triggered, arpeggioTriggered: this.arpeggioTriggered,
       late: this.late, clockStalls: this.scene?.transport.stalled ?? 0, lastError: this.lastError, bar: this.bar, pending: this.pending, sampleRate: this.context?.sampleRate,
       sourceBar:this.bar+(this.scene?.playback.phrase?.sourceBar??0),savedOpening:!!this.scene?.playback.phrase&&this.scene.playback.opening&&this.bar<8,
-      reverbWet: this.scene?.roomWet.gain.value ?? 0, duckCount: this.duckCount, bassGain: this.scene?.bassDuck.gain.value ?? 1, pumpGain: this.scene?.pump?.gain.value ?? 1,
+      reverbWet: this.scene?.roomWet.gain.value ?? 0, duckCount: this.duckCount, bassGain: this.scene?.bassDuck.gain.value ?? 1, pumpGain: this.scene?.pump?.gain.value ?? 1, sweepHz: this.scene?.sweep?.frequency.value ?? null,
       drumBank: this.drumBank ? {sounds:this.drumBank.size, bytes:this.drumBank.bytes} : null,
       drumReduction: this.scene?.drums?.glue.reduction ?? 0,
       glueReduction: this.mastering?.glue.reduction ?? 0, limiterReduction: this.mastering?.limiter.reduction ?? 0 };
@@ -328,8 +333,15 @@ export class MusicEngine {
     param.cancelAndHoldAtTime(now); param.linearRampToValueAtTime(value, now + seconds);
   }
 
-  private voice(scene: Scene, event: MusicEvent, time: number, duration: number, bpm = scene.settings.bpm, render = scene.settings) {
+  private voice(scene: Scene, event: MusicEvent, time: number, duration: number, bpm = scene.settings.bpm, render = scene.settings, origin = 0) {
     const context = this.context!;
+    if (scene.sweep) {
+      const bar = Math.floor(event.at + 1e-9), barSeconds = 240 / bpm;
+      if (bar !== scene.sweepBar) {
+        scheduleSweep(scene.sweep.frequency, render, bar + origin, time - (event.at - bar) * barSeconds, barSeconds, context.currentTime, scene.sweepBar === undefined);
+        scene.sweepBar = bar;
+      }
+    }
     if (event.voice === 'kick' && event.duck && scene.liveRhythm) {
       scheduleDuck(scene.bassDuck.gain, time, event.duck, bpm, context.currentTime);
       if (scene.pump) schedulePump(scene.pump.gain, time, pumpDepth(event.duck), bpm, context.currentTime);
@@ -340,7 +352,7 @@ export class MusicEngine {
       return;
     }
     if (event.instrument) {
-      instrumentVoice(context, event, time, duration, this.noise, scene.layers[event.layer], scene.sources, scene.cleanups,render.profile==='ambient'&&render.generatorVersion>=13, scene.throwBus);
+      instrumentVoice(context, event, time, duration, this.noise, scene.layers[event.layer], scene.sources, scene.cleanups,render.profile==='ambient'&&render.generatorVersion>=13, scene.throwBus, houseV23(render));
       return;
     }
     const gain = context.createGain();

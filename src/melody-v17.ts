@@ -5,6 +5,7 @@ import { nextHarmonyBoundary } from './harmony-v5';
 import { chordScale, toneClass, keyPcs, tonicPc, type ToneClass } from './harmony-v17';
 import { gridShift, gridTime } from './timing';
 import { hash, random } from './seed';
+import { houseV23, houseLeadCutoff } from './house-v23';
 
 // Two-bar rhythmic identities in sixteenths. Onsets at 28–30 act as pickups into the next unit.
 const RHYTHMS = [[0,3,6,12,20,24], [2,6,10,16,19,26], [0,4,7,14,22], [0,2,8,18,22,26], [3,6,12,16,24],
@@ -248,7 +249,7 @@ export function melodySentenceV17(s: Settings, start: number, backing: MusicEven
     const kind: ToneClass = classes[i].get(path[i])!, passing = kind !== 'chord' && i + 1 < slots.length && Math.abs(path[i + 1] - path[i]) <= 2;
     return { at: slot.at, length: slot.length, voice: arp ? 'arp' : 'pluck', layer: 'motif', notes: [path[i]],
       gain: (ambient ? .048 : dnb ? .058 : .064) * slot.accent * (slot.stage === 2 ? 1.06 : slot.cadence ? .88 : 1) * (passing ? .92 : 1),
-      pan: slot.stage % 2 ? .10 : -.10, cutoff: 3400 - s.warmth * 20,
+      pan: slot.stage % 2 ? .10 : -.10, cutoff: houseV23(s) ? houseLeadCutoff(s.warmth) : 3400 - s.warmth * 20,
       role: arp ? 'arpeggio' : passing ? 'passing' : 'anchor', ...(passing && !arp ? { resolvesTo: path[i + 1] } : {}),
       release: Math.max(.025, Math.min(.14, (slot.available - slot.length) * 240 / s.bpm)),
       // v18: some phrase endings throw a gentle echo/reverb tail (never in ambient).

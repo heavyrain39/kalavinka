@@ -11,13 +11,13 @@ const make=(mode:typeof modes[number],extra:Partial<Settings>={}):Settings=>{
 const sha=(s:Settings)=>createHash('sha256').update(JSON.stringify(Array.from({length:96},(_,b)=>eventsForBar(s,b)))).digest('hex');
 
 test('v22 changes the deep-house sound only: scores equal v21; the pump is house-only',()=>{
-  assert.equal(DEFAULTS.generatorVersion,22);
+  assert.ok(DEFAULTS.generatorVersion>=22);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:22}).generatorVersion,22);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:21}).generatorVersion,21);
-  assert.equal(upgradeSettings(make('dub',{generatorVersion:21})).generatorVersion,22);
+  assert.equal(upgradeSettings(make("dub",{generatorVersion:21})).generatorVersion,DEFAULTS.generatorVersion);
   for(const mode of modes)for(const rep of [0,2] as const)
-    assert.equal(sha(make(mode,{melodyRepetition:rep})),sha(make(mode,{generatorVersion:21,melodyRepetition:rep})),`${mode}:${rep}`);
-  assert.equal(pumpEnabled(make('dub')),true);
+    assert.equal(sha(make(mode,{generatorVersion:22,melodyRepetition:rep})),sha(make(mode,{generatorVersion:21,melodyRepetition:rep})),`${mode}:${rep}`);
+  assert.equal(pumpEnabled(make('dub')),true);assert.equal(pumpEnabled(make('dub',{generatorVersion:22})),true);
   assert.equal(pumpEnabled(make('dub',{generatorVersion:21})),false);
   for(const mode of ['lofi','ambient','dnb'] as const)assert.equal(pumpEnabled(make(mode)),false);
 });
