@@ -4,7 +4,6 @@ import {arrangementAt} from './arrangement';
 import {nextHarmonyBoundary} from './harmony-v5';
 import {gridTime} from './timing';
 import {hash,random} from './seed';
-import {houseV23,houseChordCutoff,HOUSE_CHORD_GAIN} from './house-v23';
 
 // Generator v18 comping. Two-bar rhythm cells per mood with written dynamics:
 // l = long, m = medium, s = short stab, g = ghost chord, p = push (an eighth early into a new chord).
@@ -41,11 +40,11 @@ export function compingFilterV18(s:Settings,bar:number){
 export function compingV18(s:Settings,start:number,melody:MusicEvent[]):MusicEvent[]{
   if(s.profile==='ambient')return [];
   const dnb=s.groove==='dnb',lofi=s.profile==='lofi',seconds=240/s.bpm,out:MusicEvent[]=[];
-  const release=.6/seconds,lag=lofi?.006/seconds:0,base=houseV23(s)?houseChordCutoff(s.warmth):3200-s.warmth*23;
+  const release=.6/seconds,lag=lofi?.006/seconds:0,base=3200-s.warmth*23;
   const clash=(notes:number[],at:number,end:number)=>melody.some(m=>m.at<end&&m.at+m.length+(m.release??.1)/seconds>at
     &&notes.some(n=>[1,11].includes(pc(m.notes[0]-n))));
   const add=(at:number,length:number,notes:number[],velocity:number,kind:Kind,bar:number,push=false)=>{
-    const cutoff=Math.round(base*compingFilterV18(s,bar)),gain=(dnb?.12:.105)*velocity/.82*(houseV23(s)?HOUSE_CHORD_GAIN:1);
+    const cutoff=Math.round(base*compingFilterV18(s,bar)),gain=(dnb?.12:.105)*velocity/.82;
     const event:MusicEvent={at,length:+length.toFixed(8),voice:dnb?'pad':'keys',layer:'harmony',notes,gain,pan:0,cutoff,velocity:+velocity.toFixed(3),...(push?{role:'anticipation' as const}:{})};
     // Lo-fi rolls longer chords from the bottom up (12 ms), like a relaxed keyboard hand.
     if(lofi&&(kind==='l'||kind==='m')&&random(s.seed,`comp18:roll:${bar}:${at}`)<.55){

@@ -8,14 +8,12 @@ import {nylonVoice} from './nylon';
 // Small, locally synthesized palettes. Struck bodies decay continuously; sustained
 // instruments keep a breath/bow envelope. The score and bass gate remain unchanged.
 export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, time: number, duration: number,
-  noiseBuffer: AudioBuffer, destination: AudioNode, active: Set<AudioScheduledSourceNode>, cleanups?: Set<() => void>, ambient=false, throwBus?: AudioNode, house=false) {
+  noiseBuffer: AudioBuffer, destination: AudioNode, active: Set<AudioScheduledSourceNode>, cleanups?: Set<() => void>, ambient=false, throwBus?: AudioNode) {
   if(event.instrument==='m-nylon'){nylonVoice(context,event,time,duration,destination,active,cleanups);return;}
   const id = event.instrument!, percussion = event.layer === 'rhythm', bass = event.layer === 'bass';
   if ((!percussion && !event.notes.length) || !Number.isFinite(event.gain) || event.gain <= 0 || !Number.isFinite(duration) || duration <= 0) return;
   if(ambient&&event.gain<1e-7)return;
   const variation = random(id, `${event.at}:${event.notes.join(',')}:${event.voice}`);
-  // v23 deep house: chord voices gain upper partials (the stab's top end) at the same loudness.
-  const bright = house && event.layer === 'harmony';
   const velocity = Math.min(1, Math.max(.15, event.velocity??event.gain / (bass ? .18 : event.layer === 'harmony' ? .12 : .075)));
   const gain = context.createGain(), filter = context.createBiquadFilter(), pan = context.createStereoPanner();
   filter.type = 'lowpass'; filter.frequency.value = event.cutoff; filter.Q.value = .55; pan.pan.value = event.pan;
@@ -63,8 +61,7 @@ export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, ti
   if (!percussion) {
     const brightness = Math.min(context.sampleRate * .45, filter.frequency.value * (.8 + velocity * .35));
     filter.frequency.setValueAtTime(brightness, time);
-    // House stabs keep most of their top end through the note instead of closing to half.
-    filter.frequency.exponentialRampToValueAtTime(Math.max(120, brightness * (sustain ? .83 : bass ? .63 : bright ? .80 : .50)), time + Math.min(hold, bass ? .22 : .7));
+    filter.frequency.exponentialRampToValueAtTime(Math.max(120, brightness * (sustain ? .83 : bass ? .63 : .50)), time + Math.min(hold, bass ? .22 : .7));
   }
   const osc = (frequency: number, type: OscillatorType = 'sine', amount = 1, detune = 0, partialDecay = 0) => {
     const source = context.createOscillator(), mix = context.createGain();
@@ -127,28 +124,17 @@ export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, ti
     const f = 440 * 2 ** ((note - 69) / 12), detune = (random(id, `${event.at}:${note}`) - .5) * 3;
     switch (id) {
       case 'h-felt':
-        osc(f, 'sine', bright ? .64 : .70, detune); osc(f * 2.001, 'sine', .19 * velocity, detune, .7);
-        osc(f * 3.004, 'sine', .085 * velocity, detune, .28); osc(f * 4.009, 'sine', bright ? .05 : .025, detune, .12);
-        if (bright) { osc(f * 5.02, 'sine', .03 * velocity, detune, .09); osc(f * 6.03, 'sine', .02 * velocity, detune, .07); }
+        osc(f, 'sine', .70, detune); osc(f * 2.001, 'sine', .19 * velocity, detune, .7);
+        osc(f * 3.004, 'sine', .085 * velocity, detune, .28); osc(f * 4.009, 'sine', .025, detune, .12);
         noise(1500, .025, .012, true); break;
       case 'h-electric':
-        // House: a deeper, longer FM bark (tine) and a faint third partial.
-        fm(f, 2, bright ? 1.5 : .85, bright ? .38 : .25, bright ? .78 : .85); osc(f * 2, 'sine', .12, detune, .55);
-        if (bright) osc(f * 3, 'sine', .05, detune, .3);
-        noise(2200, bright ? .02 : .012, .008, true); break;
+        fm(f, 2, .85, .25, .85); osc(f * 2, 'sine', .12, detune, .55); noise(2200, .012, .008, true); break;
       case 'h-organ': {
-        // House: an M1-style organ stab, drawbars out to the 8th partial plus a key click.
-        const carriers = bright
-          ? [osc(f, 'sine', .50), osc(f * 2, 'sine', .22), osc(f * 3, 'sine', .12), osc(f * 4, 'sine', .10), osc(f * 6, 'sine', .07),
-             osc(f * 8, 'sine', .06), osc(f * 10, 'sine', .035), osc(f * 12, 'sine', .028), osc(f * 16, 'sine', .018)]
-          : [osc(f, 'sine', .64), osc(f * 2, 'sine', .23), osc(f * 3, 'sine', .10)];
-        if (bright) noise(3000, .035, .005, true);
+        const carriers = [osc(f, 'sine', .64), osc(f * 2, 'sine', .23), osc(f * 3, 'sine', .10)];
         vibrato(carriers, 2.5, 5.1); break;
       }
       case 'h-pad': {
-        const carriers = [osc(f, 'triangle', ambient?.22:bright?.30:.40, -4 + detune), osc(f, 'sine', ambient?.62:bright?.38:.45, 4 + detune), osc(f * 2, 'sine', .09, 1)];
-        // House: two detuned saws give the pad a string-machine top end.
-        if (bright) carriers.push(osc(f, 'sawtooth', .085, -7 + detune), osc(f, 'sawtooth', .085, 7 + detune));
+        const carriers = [osc(f, 'triangle', ambient?.22:.40, -4 + detune), osc(f, 'sine', ambient?.62:.45, 4 + detune), osc(f * 2, 'sine', .09, 1)];
         vibrato(carriers, ambient?1.6:3, ambient?.045+variation*.035:.7 + variation * .15); break;
       }
       case 'b-sub': osc(f, 'sine'); break;

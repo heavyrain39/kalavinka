@@ -352,7 +352,7 @@ export class MusicEngine {
       return;
     }
     if (event.instrument) {
-      instrumentVoice(context, event, time, duration, this.noise, scene.layers[event.layer], scene.sources, scene.cleanups,render.profile==='ambient'&&render.generatorVersion>=13, scene.throwBus, houseV23(render));
+      instrumentVoice(context, event, time, duration, this.noise, scene.layers[event.layer], scene.sources, scene.cleanups,render.profile==='ambient'&&render.generatorVersion>=13, scene.throwBus);
       return;
     }
     const gain = context.createGain();

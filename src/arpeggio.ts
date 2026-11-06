@@ -5,7 +5,6 @@ import { defaultArpeggioInstrument } from './instruments';
 import { ARP_PATTERNS, arpeggioPlan as legacyPlan, arpeggioEvents as legacyArpeggioEvents } from './arpeggio-v9';
 import { melodyRestsV17 } from './melody-v17';
 import { onGrid } from './timing';
-import { houseV23, houseArpCutoff } from './house-v23';
 export { ARP_PATTERNS } from './arpeggio-v9';
 
 // Eight-bar phrases: opening half, answering half, or a late entrance carried to the end.
@@ -73,7 +72,7 @@ export function arpeggioEvents(s:Settings,bar:number,backing:MusicEvent[]):Music
     return {at,length:Math.min(step*(nylon?2.2:.56),boundary-at-release*s.bpm/240-.01),
       voice:'arp' as const,layer:'arpeggio' as const,notes:[pitches[degree]],
       gain:(s.groove==='dnb'||s.profile==='ambient'?.013:.0175)*accent*(occupied?.9:1)*(.8+s.energy/500),pan:(plan.episode%2?1:-1)*.22,
-      cutoff:houseV23(s)?houseArpCutoff(s.warmth):1500+(100-s.warmth)*15,release,instrument,role:'arpeggio' as const,
+      cutoff:1500+(100-s.warmth)*15,release,instrument,role:'arpeggio' as const,
       ...(nylon?{velocity:.52+(hash(`${s.seed}:nylon-touch:${bar}:${i}`)%1000)/10000,variation:hash(`${s.seed}:nylon-hand:${bar}:${i}`)%2}:{})};
   });
 }
