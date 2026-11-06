@@ -6,7 +6,7 @@ import {pitchesOf} from './harmony';
 import {keyPcs,tonicPc} from './harmony-v17';
 import {fillBreak} from './fills-v17';
 import {hash,random} from './seed';
-import {gridTime} from './timing';
+import {gridShift,gridTime} from './timing';
 
 // v15's two-bar cells and kick-aware rhythm planning, with a second melodic voice on top:
 // approach notes into chord changes, octave/inversion lines, pedals and counterpoint to the lead.
@@ -54,7 +54,7 @@ export function bassV17(s:Settings,start:number,backing:MusicEvent[],melody:Musi
   const pulseSection=!ambient&&!dnb&&s.energy>=25&&form.section!=='open'
     &&hash(`${s.seed}:bass15-pulse:${chapter}`)%3===0;
   if(pulseSection){
-    const times=kicks.map(k=>k.at+.125).filter(at=>at<start+8&&
+    const times=kicks.map(k=>gridShift(s,k.at,2)).filter(at=>at<start+8&&
       !kicks.some(k=>{const gap=Math.abs(k.at-at)*seconds;return gap>.012&&gap<.085;}))
       .sort((a,b)=>a-b).filter((at,i,all)=>!i||at-all[i-1]>=.1);
     // House-style octave answers on alternate pulses in some chapters.

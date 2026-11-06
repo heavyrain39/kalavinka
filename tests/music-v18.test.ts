@@ -31,7 +31,7 @@ test('v17 and v18 favorites keep exact scores while new music, upgrades and new 
   const old=settings(mode,{generatorVersion:17,melodyRepetition:rep,bpm:mode==='dnb'?170:78});
   assert.equal(createHash('sha256').update(JSON.stringify(Array.from({length:96},(_,b)=>eventsForBar(old,b)))).digest('hex'),hashes[`${mode}:${rep}`]);
   assert.equal(normalizeSettings(old).generatorVersion,17);
-  assert.equal(upgradeSettings(old).generatorVersion,19);
+  assert.equal(upgradeSettings(old).generatorVersion,DEFAULTS.generatorVersion);
   assert.equal(upgradeSettings(old).melodyRepetition,rep);
  }
  // Recorded from v18 before v19 added catalogue entries: older v18 songs never pick them.
@@ -41,8 +41,8 @@ test('v17 and v18 favorites keep exact scores while new music, upgrades and new 
   assert.equal(createHash('sha256').update(JSON.stringify(Array.from({length:96},(_,b)=>eventsForBar(old,b)))).digest('hex'),v18[`${mode}:${rep}`]);
   assert.equal(normalizeSettings(old).generatorVersion,18);
  }
- assert.equal(DEFAULTS.generatorVersion,19);
- assert.equal(regenerateSettings(settings('lofi',{generatorVersion:17})).generatorVersion,19);
+ assert.ok(DEFAULTS.generatorVersion>=19);
+ assert.equal(regenerateSettings(settings("lofi",{generatorVersion:17})).generatorVersion,DEFAULTS.generatorVersion);
  assert.equal('harmonyEngine' in normalizeSettings({...DEFAULTS,harmonyEngine:18}),false);
 });
 

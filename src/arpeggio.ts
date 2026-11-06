@@ -4,6 +4,7 @@ import { nextHarmonyBoundary } from './harmony-v5';
 import { defaultArpeggioInstrument } from './instruments';
 import { ARP_PATTERNS, arpeggioPlan as legacyPlan, arpeggioEvents as legacyArpeggioEvents } from './arpeggio-v9';
 import { melodyRestsV17 } from './melody-v17';
+import { onGrid } from './timing';
 export { ARP_PATTERNS } from './arpeggio-v9';
 
 // Eight-bar phrases: opening half, answering half, or a late entrance carried to the end.
@@ -63,7 +64,8 @@ export function arpeggioEvents(s:Settings,bar:number,backing:MusicEvent[]):Music
   const melody=backing.filter(e=>e.layer==='motif');
   return Array.from({length:stepsPerBar},(_,i)=>{
     const index=(bar-plan.start)*stepsPerBar+i,degree=contour[index%contour.length];
-    const at=bar+i*step,release=nylon?.085:.04;
+    // v20: the sequencer clock follows the swung grid shared by drums, bass and melody.
+    const at=onGrid(s,bar+i*step),release=nylon?.085:.04;
     const occupied=melody.some(e=>e.at<at+step&&e.at+e.length>at);
     const accent=index%contour.length===0?1.08:.96;
     const boundary=nylon?Math.min(nextHarmonyBoundary(s,at),plan.end):nextHarmonyBoundary(s,at);

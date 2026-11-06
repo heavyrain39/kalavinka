@@ -3,7 +3,7 @@ import { chordAt, repetitionLevel, type Settings, type MusicEvent, type Chord } 
 import { arrangementAt } from './arrangement';
 import { nextHarmonyBoundary } from './harmony-v5';
 import { chordScale, toneClass, keyPcs, tonicPc, type ToneClass } from './harmony-v17';
-import { gridTime } from './timing';
+import { gridShift, gridTime } from './timing';
 import { hash, random } from './seed';
 
 // Two-bar rhythmic identities in sixteenths. Onsets at 28–30 act as pickups into the next unit.
@@ -261,7 +261,7 @@ export function melodySentenceV17(s: Settings, start: number, backing: MusicEven
     const target = notes[i], prior = notes[i - 1], bar = Math.floor(target.at), stage = Math.floor((target.at - start) / 2);
     if ((stage !== 1 && stage !== 2) || target.voice === 'arp' || prior.role === 'passing' || prior.at + prior.length + (prior.release ?? 0) * s.bpm / 240 > target.at - .135) continue;
     if (random(s.seed, `m17-neighbor:${plan.chapter}:${plan.index}:${i}`) > (stage === 2 ? .4 : .22)) continue;
-    const at = target.at - .125;
+    const at = gridShift(s, target.at, -2);
     if (Math.floor(at) !== bar || Math.round((at - bar) * 16) % 4 === 0 || backing.some(e => e.fill !== undefined && Math.abs(e.at - at) < .12)) continue;
     const chord = chordAt(s, bar), scale = chordScale(s, chord);
     const options = Array.from({ length: 5 }, (_, j) => target.notes[0] - 2 + j)
