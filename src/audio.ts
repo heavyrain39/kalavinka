@@ -8,6 +8,7 @@ import {playbackScore,playbackChord,capturePhrase,relativeEvent,compositionIdent
 import clockUrl from './clock.worklet.js?url';
 import { scheduleDuck, schedulePump, pumpEnabled, pumpDepth } from './duck';
 import { houseV23, OPEN, scheduleSweep } from './house-v23';
+import { tapeStopBar, scheduleTapeStop, STOP_AT } from './tapestop-v24';
 import { createMastering, volumeGain } from './mastering';
 import { instrumentVoice } from './synth';
 import {prepareNylon} from './nylon';
@@ -24,7 +25,7 @@ interface Scene {
   layers: Record<AudioLayer, GainNode>; nodes: AudioNode[]; sources: Set<AudioScheduledSourceNode>; cleanups: Set<() => void>;
   meters: Record<AudioLayer, {node:AnalyserNode; samples:Float32Array<ArrayBuffer>}>;
   bassDuck: GainNode; liveRhythm: boolean; roomWet: GainNode; drums: DrumBus; hats: HatVoice[];
-  throwBus?: GainNode; tape?: Tape; pump?: GainNode; sweep?: BiquadFilterNode; sweepBar?: number;
+  throwBus?: GainNode; tape?: Tape; pump?: GainNode; sweep?: BiquadFilterNode; sweepBar?: number; stopBar?: number;
 }
 export class MusicEngine {
   context: AudioContext | null = null;
@@ -52,6 +53,7 @@ export class MusicEngine {
   private triggered = 0;
   private arpeggioTriggered = 0;
   private late = 0;
+  private tapeStops = 0;
   private lastError: string | null = null;
   private duckCount = 0;
 
@@ -114,7 +116,7 @@ export class MusicEngine {
     if (token !== this.lifecycle) return;
     if (context.state !== 'running') throw new Error('AUDIO_LOCKED');
     if (this.playing) return;
-    this.triggered = 0; this.arpeggioTriggered = 0; this.late = 0; this.lastError = null; this.duckCount = 0;
+    this.triggered = 0; this.arpeggioTriggered = 0; this.late = 0; this.tapeStops = 0; this.lastError = null; this.duckCount = 0;
     this.startedAt = context.currentTime;
     this.playing = true;
     this.setVolume(settings.volume);
@@ -297,7 +299,7 @@ export class MusicEngine {
       + Array.from(this.retired).reduce((sum, scene) => sum + scene.sources.size, 0), triggered: this.triggered, arpeggioTriggered: this.arpeggioTriggered,
       late: this.late, clockStalls: this.scene?.transport.stalled ?? 0, lastError: this.lastError, bar: this.bar, pending: this.pending, sampleRate: this.context?.sampleRate,
       sourceBar:this.bar+(this.scene?.playback.phrase?.sourceBar??0),savedOpening:!!this.scene?.playback.phrase&&this.scene.playback.opening&&this.bar<8,
-      reverbWet: this.scene?.roomWet.gain.value ?? 0, duckCount: this.duckCount, bassGain: this.scene?.bassDuck.gain.value ?? 1, pumpGain: this.scene?.pump?.gain.value ?? 1, sweepHz: this.scene?.sweep?.frequency.value ?? null,
+      reverbWet: this.scene?.roomWet.gain.value ?? 0, duckCount: this.duckCount, bassGain: this.scene?.bassDuck.gain.value ?? 1, pumpGain: this.scene?.pump?.gain.value ?? 1, sweepHz: this.scene?.sweep?.frequency.value ?? null, tapeStops: this.tapeStops,
       drumBank: this.drumBank ? {sounds:this.drumBank.size, bytes:this.drumBank.bytes} : null,
       drumReduction: this.scene?.drums?.glue.reduction ?? 0,
       glueReduction: this.mastering?.glue.reduction ?? 0, limiterReduction: this.mastering?.limiter.reduction ?? 0 };
@@ -340,6 +342,16 @@ export class MusicEngine {
       if (bar !== scene.sweepBar) {
         scheduleSweep(scene.sweep.frequency, render, bar + origin, time - (event.at - bar) * barSeconds, barSeconds, context.currentTime, scene.sweepBar === undefined);
         scene.sweepBar = bar;
+      }
+    }
+    // v24 lo-fi: the tape winds down on the last beat before a breakdown (decided by the score).
+    if (scene.tape) {
+      const bar = Math.floor(event.at + 1e-9), barSeconds = 240 / bpm;
+      if (bar !== scene.stopBar) {
+        scene.stopBar = bar;
+        const barStart = time - (event.at - bar) * barSeconds;
+        if (tapeStopBar(render, bar + origin) && scheduleTapeStop(scene.tape.wow, scene.tape.level, scene.tape.base,
+          barStart + STOP_AT * barSeconds, barStart + barSeconds, context.currentTime)) this.tapeStops++;
       }
     }
     if (event.voice === 'kick' && event.duck && scene.liveRhythm) {

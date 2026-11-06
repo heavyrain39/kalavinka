@@ -12,13 +12,13 @@ const score=(s:Settings)=>Array.from({length:96},(_,b)=>eventsForBar(s,b));
 const sha=(x:unknown)=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 
 test('v23 changes no score in any mood; only deep house gets the bus filter',()=>{
-  assert.equal(DEFAULTS.generatorVersion,23);
+  assert.ok(DEFAULTS.generatorVersion>=23);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:23}).generatorVersion,23);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:22}).generatorVersion,22);
-  assert.equal(upgradeSettings(make('dub',{generatorVersion:22})).generatorVersion,23);
+  assert.equal(upgradeSettings(make('dub',{generatorVersion:22})).generatorVersion,DEFAULTS.generatorVersion);
   for(const mode of modes)for(const rep of [0,2] as const)for(const seed of ['SLOWFLOW','ZK9Q'])
-    assert.equal(sha(score(make(mode,{seed,melodyRepetition:rep}))),sha(score(make(mode,{seed,generatorVersion:22,melodyRepetition:rep}))),`${mode}:${rep}:${seed}`);
-  assert.equal(houseV23(make('dub')),true);
+    assert.equal(sha(score(make(mode,{seed,generatorVersion:23,melodyRepetition:rep}))),sha(score(make(mode,{seed,generatorVersion:22,melodyRepetition:rep}))),`${mode}:${rep}:${seed}`);
+  assert.equal(houseV23(make('dub')),true);assert.equal(houseV23(make('dub',{generatorVersion:23})),true);
   for(const s of [make('dub',{generatorVersion:22}),make('dnb'),make('lofi'),make('ambient')])assert.equal(houseV23(s),false);
 });
 

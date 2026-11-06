@@ -1,5 +1,6 @@
 // Copyright (C) 2026 Yakshawan. All rights reserved. See LICENSE.
 import type { Settings } from './music';
+import { tapeStopV24 } from './tapestop-v24';
 
 // Generator v21 lo-fi "tape" stage on the scene mix: slow pitch wow, gentle saturation,
 // a high roll-off and a quiet vinyl/tape noise bed. Everything is synthesized locally and
@@ -60,20 +61,23 @@ export function createTapeNoise(context: BaseAudioContext, seconds = 11.3): Audi
 
 export function createTape(context: BaseAudioContext, settings: Settings, noise: AudioBuffer) {
   const input = context.createGain();
-  const wow = context.createDelay(.05); wow.delayTime.value = BASE_DELAY;
+  // v24 needs room for a tape stop (about 0.35 s of delay); older songs keep their 50 ms line.
+  const wow = context.createDelay(tapeStopV24(settings) ? 1 : .05); wow.delayTime.value = BASE_DELAY;
   const lfos = WOW.map(({ rate, share }) => {
     const lfo = context.createOscillator(), depth = context.createGain();
     lfo.frequency.value = rate; depth.gain.value = wowDepth(wowCents(settings.warmth) * share, rate);
     lfo.connect(depth).connect(wow.delayTime); return { lfo, depth, rate, share };
   });
   // The scene mix peaks near -12 dBFS; drive it into the curve and back so peaks actually bend.
+  // v24: a unity gain that only moves during a tape stop.
+  const level = context.createGain();
   const drive = context.createGain(); drive.gain.value = SAT_DRIVE;
   const color = context.createWaveShaper(); color.oversample = '2x';
   const makeup = context.createGain(); makeup.gain.value = 1 / SAT_DRIVE;
   color.curve = Float32Array.from({ length: 4097 }, (_, i) => tapeCurve(i / 2048 - 1));
   const tone = context.createBiquadFilter(); tone.type = 'lowpass'; tone.Q.value = .6; tone.frequency.value = tapeCutoff(settings.warmth);
   const output = context.createGain();
-  input.connect(wow).connect(drive).connect(color).connect(makeup).connect(tone).connect(output);
+  input.connect(wow).connect(level).connect(drive).connect(color).connect(makeup).connect(tone).connect(output);
   // The noise bed joins before the scene fade so it fades in and out with the music.
   const bed = context.createBufferSource(); bed.buffer = noise; bed.loop = true;
   const bedGain = context.createGain(); bedGain.gain.value = tapeAmount(settings.warmth);
@@ -83,8 +87,8 @@ export function createTape(context: BaseAudioContext, settings: Settings, noise:
   bed.start(now);
   let stopped = false;
   return {
-    input, output, bed: bedGain,
-    nodes: [input, wow, drive, color, makeup, tone, output, bed, bedGain, ...lfos.flatMap(l => [l.lfo, l.depth])] as AudioNode[],
+    input, output, bed: bedGain, wow: wow.delayTime, level: level.gain, base: BASE_DELAY,
+    nodes: [input, wow, level, drive, color, makeup, tone, output, bed, bedGain, ...lfos.flatMap(l => [l.lfo, l.depth])] as AudioNode[],
     setWarmth(warmth: number, seconds = .12) {
       const t = context.currentTime;
       const ramp = (param: AudioParam, value: number) => { param.cancelAndHoldAtTime(t); param.linearRampToValueAtTime(value, t + seconds); };
