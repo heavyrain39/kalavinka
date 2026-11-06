@@ -10,8 +10,10 @@ import { fillPlanV17 } from './fills-v17';
 export const swellV25 = (s: Settings) => s.profile === 'dub' && s.groove !== 'dnb' && s.generatorVersion >= 25;
 /** Swell length in bars (two beats). */
 export const SWELL = .5;
-/** The cymbal's own 0.1 s bloom is skipped, so the swell peaks exactly on the downbeat. */
+/** The cymbal's own 0.1 s bloom, played backwards as the swell's fade-out. */
 export const CYMBAL_BLOOM = .1;
+/** The swell peaks 40 ms after the downbeat, over the crash's rising bloom, so the two overlap. */
+export const SWELL_LEAD = .04;
 
 /** The score already builds up into a crash on the return: the swell's natural place. */
 const eligible = (s: Settings, bar: number) => bar >= 0 && arrangementAt(s, bar).section === 'open'
