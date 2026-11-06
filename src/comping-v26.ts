@@ -24,7 +24,7 @@ const pc = (n: number) => ((n % 12) + 12) % 12;
 const stepOf = (at: number, bar: number) => Math.round((at - bar) * 16);
 
 export function interlockHits(s: Settings, bar: number, part: number, hits: readonly Hit[], melody: readonly MusicEvent[],
-  bass: readonly MusicEvent[], chord: Chord, next: Chord, intro: boolean): Hit[] {
+  bass: readonly MusicEvent[], chord: Chord, next: Chord, intro: boolean, hold: Partial<Record<Kind, number>> = {}): Hit[] {
   const lead = melody.filter(e => e.at >= bar - 1 && e.at < bar + 1);
   const onsets = new Set(lead.filter(e => e.at >= bar - 1e-9).map(e => stepOf(e.at, bar)));
   const sounding = Array.from({ length: 16 }, (_, k) => lead.some(e => {
@@ -55,7 +55,9 @@ export function interlockHits(s: Settings, bar: number, part: number, hits: read
       let end = k; while (end < 16 && !sounding[end]) end++;
       const gap: [number, number] = [k, end]; k = end;
       if (gap[1] - gap[0] < 4) continue;
-      const taken = (step: number) => out.some(h => Math.abs(local(h) - step) <= 2) || bassSteps.some(b => b.step === step);
+      // `hold` (v28 D&B): sixteenths a long chord rings, which an answer must not cut short.
+      const taken = (step: number) => out.some(h => Math.abs(local(h) - step) <= 2 || (step > local(h) && step < local(h) + (hold[h[1]] ?? 0)))
+        || bassSteps.some(b => b.step === step);
       const candidates: number[] = [];
       for (let step = Math.max(1, gap[0]); step < gap[1]; step++) {
         if (taken(step) || onsets.has(step)) continue;

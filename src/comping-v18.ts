@@ -5,6 +5,7 @@ import {nextHarmonyBoundary} from './harmony-v5';
 import {gridTime} from './timing';
 import {hash,random} from './seed';
 import {interlockV26,interlockHits,BREATH,LONG,MEDIUM,TAIL} from './comping-v26';
+import {dnbCompV28,rhythmSection,DNB,DNB_LONG,DNB_MEDIUM,DNB_TAIL,DNB_HOLD} from './comping-v28';
 
 // Generator v18 comping. Two-bar rhythm cells per mood with written dynamics:
 // l = long, m = medium, s = short stab, g = ghost chord, p = push (an eighth early into a new chord).
@@ -39,7 +40,7 @@ export function compingFilterV18(s:Settings,bar:number){
 }
 
 export function compingV18(s:Settings,start:number,melody:MusicEvent[],bass:MusicEvent[]=[]):MusicEvent[]{
-  const interlock=interlockV26(s);
+  const interlock=interlockV26(s),dnb28=dnbCompV28(s);
   if(s.profile==='ambient')return [];
   const dnb=s.groove==='dnb',lofi=s.profile==='lofi',seconds=240/s.bpm,out:MusicEvent[]=[];
   const release=.6/seconds,lag=lofi?.006/seconds:0,base=3200-s.warmth*23;
@@ -47,7 +48,7 @@ export function compingV18(s:Settings,start:number,melody:MusicEvent[],bass:Musi
     &&notes.some(n=>[1,11].includes(pc(m.notes[0]-n))));
   const add=(at:number,length:number,notes:number[],velocity:number,kind:Kind,bar:number,push=false)=>{
     const cutoff=Math.round(base*compingFilterV18(s,bar)),gain=(dnb?.12:.105)*velocity/.82;
-    const event:MusicEvent={at,length:+length.toFixed(8),voice:dnb?'pad':'keys',layer:'harmony',notes,gain,pan:0,cutoff,velocity:+velocity.toFixed(3),...(push?{role:'anticipation' as const}:{}),...(interlock?{release:TAIL[kind]}:{})};
+    const event:MusicEvent={at,length:+length.toFixed(8),voice:dnb?'pad':'keys',layer:'harmony',notes,gain,pan:0,cutoff,velocity:+velocity.toFixed(3),...(push?{role:'anticipation' as const}:{}),...(interlock?{release:TAIL[kind]}:dnb28&&rhythmSection(arrangementAt(s,bar).section)?{release:DNB_TAIL[kind]}:{})};
     // Lo-fi rolls longer chords from the bottom up (12 ms), like a relaxed keyboard hand.
     if(lofi&&(kind==='l'||kind==='m')&&random(s.seed,`comp18:roll:${bar}:${at}`)<.55){
       const split=Math.ceil(notes.length/2),late=.012/seconds;
@@ -59,7 +60,9 @@ export function compingV18(s:Settings,start:number,melody:MusicEvent[],bass:Musi
   };
   for(let bar=start;bar<start+8;bar++){
     const a=arrangementAt(s,bar),chord=chordAt(s,bar);
-    if(dnb){
+    // v28: while the break plays, D&B keys join its rhythm (see comping-v28.ts); the pad stays elsewhere.
+    const rhythm=dnb28&&rhythmSection(a.section),bend=interlock||rhythm;
+    if(dnb&&!rhythm){
       // Liquid pads: struck on every chord change and every second bar, sustained until the next strike.
       const changed=bar===0||chord.label!==chordAt(s,bar-1).label;
       if(!changed&&bar%2)continue;
@@ -74,14 +77,14 @@ export function compingV18(s:Settings,start:number,melody:MusicEvent[],bass:Musi
       if(length>=.1)add(bar+lag,length,chord.notes,.6,'l',bar);
       continue;
     }
-    const cells=lofi?LOFI:HOUSE,part=(bar-start)%2;
+    const cells=lofi?LOFI:dnb?DNB:HOUSE,part=(bar-start)%2;
     const cell=cells[(hash(`${s.seed}:comp18:${s.profile}`)+Math.floor(a.localBar/8)+a.variant)%cells.length];
     let hits=cell.filter(([step])=>step>=part*16&&step<part*16+16);
     if(a.section==='intro')hits=hits.filter(([,kind],i)=>!i||kind==='l'||kind==='m').slice(0,2);
     if(s.energy<30)hits=hits.filter(([,kind],i)=>!i||kind==='l'||kind==='m'||kind==='p');
     else if(s.energy<45)hits=hits.filter(([,kind])=>kind!=='g');
-    // v26 lo-fi: the cell bends around the lead and the bass (see comping-v26.ts).
-    if(interlock)hits=interlockHits(s,bar,part,hits,melody,bass,chord,chordAt(s,bar+1),a.section==='intro');
+    // v26 lo-fi and v28 D&B: the cell bends around the lead and the bass (see comping-v26.ts).
+    if(bend)hits=interlockHits(s,bar,part,hits,melody,bass,chord,chordAt(s,bar+1),a.section==='intro',rhythm?DNB_HOLD:{});
     // Dynamics follow the form: a softer intro and a crescendo through the build-up.
     const ramp=a.section==='intro'?.85:a.section==='open'?.7+(a.localBar%8-4)*.08:1;
     hits.forEach(([cellStep,kind,velocity],i)=>{
@@ -95,8 +98,8 @@ export function compingV18(s:Settings,start:number,melody:MusicEvent[],bass:Musi
         }
       }
       const following=hits[i+1]?gridTime(s,bar,hits[i+1][0]%16)+lag:bar+1;
-      const room=following-at-(interlock?BREATH:0);
-      const wanted=kind==='l'?Math.min(interlock?LONG:.45,room):kind==='m'?(interlock?Math.min(MEDIUM,room):.25):kind==='g'?.06:lofi?.12:.1;
+      const room=following-at-(bend?BREATH:0);
+      const wanted=kind==='l'?Math.min(rhythm?DNB_LONG:interlock?LONG:.45,room):kind==='m'?(rhythm?Math.min(DNB_MEDIUM,room):interlock?Math.min(MEDIUM,room):.25):kind==='g'?.06:lofi?.12:.1;
       const length=Math.min(wanted,boundary-at-release);
       if(length<.025)return;
       const v=clamp(velocity*ramp+(random(s.seed,`comp18:v:${a.localBar}:${step}:${a.variant}`)-.5)*.06,.2,1);
