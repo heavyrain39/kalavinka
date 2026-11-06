@@ -16,12 +16,12 @@ const sha=(x:unknown)=>createHash('sha256').update(JSON.stringify(x)).digest('he
 const score=(s:Settings,bars=96)=>Array.from({length:bars},(_,b)=>eventsForBar(s,b));
 
 test('v25 only adds to deep house; lo-fi, ambient and D&B keep the v24 score',()=>{
-  assert.equal(DEFAULTS.generatorVersion,25);
+  assert.ok(DEFAULTS.generatorVersion>=25);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:25}).generatorVersion,25);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:24}).generatorVersion,24);
-  assert.equal(upgradeSettings(make('dub',{generatorVersion:24})).generatorVersion,25);
+  assert.equal(upgradeSettings(make('dub',{generatorVersion:24})).generatorVersion,DEFAULTS.generatorVersion);
   for(const mode of ['lofi','ambient','dnb'] as const)for(const rep of [0,2] as const)
-    assert.equal(sha(score(make(mode,{melodyRepetition:rep}))),sha(score(make(mode,{generatorVersion:24,melodyRepetition:rep}))),`${mode}:${rep}`);
+    assert.equal(sha(score(make(mode,{generatorVersion:25,melodyRepetition:rep}))),sha(score(make(mode,{generatorVersion:24,melodyRepetition:rep}))),`${mode}:${rep}`);
   assert.equal(swellV25(make('dub')),true);
   for(const s of [make('dub',{generatorVersion:24}),make('dnb'),make('lofi'),make('ambient')])assert.equal(swellV25(s),false);
 });

@@ -17,13 +17,14 @@ export function narrativeEvents(s:Settings,bar:number):MusicEvent[]{
   if(!events){
     const v17=s.generatorVersion>=17,v18=s.generatorVersion>=18;
     // v17 keeps the v6 drums and comping rhythm, voiced with v17 chords.
-    let backing=Array.from({length:8},(_,i)=>ensembleEvents({...s,generatorVersion:6,...(v17?{harmonyEngine:s.generatorVersion as 17|18|19|20|21|22|23|24|25}:{})},start+i)).flat().filter(e=>e.layer!=='motif');
+    let backing=Array.from({length:8},(_,i)=>ensembleEvents({...s,generatorVersion:6,...(v17?{harmonyEngine:s.generatorVersion as 17|18|19|20|21|22|23|24|25|26}:{})},start+i)).flat().filter(e=>e.layer!=='motif');
     // v18 writes its own comping (after the melody) and D&B hat line; ambient keeps the v13 bed.
     if(v18)backing=dnbHatsV18(s,start,backing.filter(e=>e.layer!=='harmony'||s.profile==='ambient'));
     if(v17){
       // The lead is written first; the bass then plays against it as a second voice.
       const melody=melodySentenceV17(s,start,backing);
-      events=[...backing.filter(e=>e.layer!=='bass'),...bassV17(s,start,backing,melody),...melody,...(v18?compingV18(s,start,melody):[])];
+      const bass=bassV17(s,start,backing,melody);
+      events=[...backing.filter(e=>e.layer!=='bass'),...bass,...melody,...(v18?compingV18(s,start,melody,bass):[])];
       // Ensemble break: bass and comping rest (with their release) while a big fill plays.
       const cut=fillBreak(s,start+7);
       if(cut!==undefined)events=events.flatMap(e=>{

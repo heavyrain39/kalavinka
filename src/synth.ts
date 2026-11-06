@@ -43,7 +43,8 @@ export function instrumentVoice(context: BaseAudioContext, event: MusicEvent, ti
     decay = hold / (event.voice === 'hat' ? 4 : 3.5);
     level = id === 'r-brush' ? .78 : id === 'r-click' ? .80 : 1;
   }
-  if((event.layer==='motif'||event.layer==='arpeggio')&&event.release!==undefined)release=Math.min(release,Math.max(.025,event.release));
+  // Melodic parts, and v26 lo-fi comping stabs, may ask for a shorter tail (older chords never carry one).
+  if((event.layer==='motif'||event.layer==='arpeggio'||event.layer==='harmony')&&event.release!==undefined)release=Math.min(release,Math.max(.025,event.release));
   if(ambient&&!percussion&&!bass){
     if(id==='h-pad'){attack=Math.min(.95,duration*.25);sustain=.78;release=1.6;level=.82;}
     if(id==='h-organ'){attack=Math.min(.35,duration*.2);release=1.1;}

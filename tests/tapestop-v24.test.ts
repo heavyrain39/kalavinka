@@ -26,7 +26,7 @@ test('v24 only touches lo-fi; other moods keep the v23 score',()=>{
 
 test('a stop bar keeps every note before beat four and starts nothing inside the stop',()=>{
   for(const seed of SEEDS){
-    const now={...make('lofi'),seed},old={...now,generatorVersion:23 as const};
+    const now={...make('lofi',{generatorVersion:24}),seed},old={...now,generatorVersion:23 as const};
     for(let bar=0;bar<192;bar++){
       const a=eventsForBar(now,bar),b=eventsForBar(old,bar);
       if(!tapeStopBar(now,bar)){assert.deepEqual(a,b,`${seed}:${bar}`);continue;}
