@@ -160,10 +160,23 @@ input[type="range"]::-moz-range-thumb { width: 8px; height: 14px; border: 0; bor
 .timer-options button { padding: 8px 2px; border: 0; background: transparent; font-size: 10px; }
 .timer-options button + button { border-left: 1px solid var(--line); }
 .timer-options [aria-pressed="true"] { color: var(--accent-text); background: var(--accent); }
-.saved-panel { display: flex; align-items: center; gap: 18px; padding: 8px 16px; }
-.saved-panel h2 { white-space: nowrap; font-size: 11px; }
-#favorites { flex: 1; min-width: 0; }
-.favorite-grid { display: flex; gap: 8px; overflow-x: auto; padding: 3px; }
+/* The saved list fills the panel height so its scrollbar sits on the panel's bottom edge. The
+   scrollbar's 4px is always reserved (overflow-x: scroll) and balanced by 4px more padding on top,
+   so the items stay centred and never move when the list starts to overflow. The thumb only shows
+   while the pointer is over the panel. */
+.saved-panel { display: flex; align-items: stretch; gap: 18px; padding: 0 16px; }
+.saved-panel h2 { align-self: center; white-space: nowrap; font-size: 11px; }
+#favorites { flex: 1; min-width: 0; display: flex; }
+#favorites .collection-empty { align-self: center; }
+.favorite-grid { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; overflow-x: scroll; padding: 7px 3px 3px; }
+/* Chromium repaints the scrollbar only when the scroller's own style changes, so the panel hover
+   sets a variable on the list itself rather than styling the thumb through the ancestor. */
+.favorite-grid { --thumb: transparent; }
+.saved-panel:hover .favorite-grid,.saved-panel:focus-within .favorite-grid { --thumb: color-mix(in srgb, var(--line-strong) 70%, var(--panel-bg)); }
+.favorite-grid::-webkit-scrollbar-thumb { background: var(--thumb); }
+@supports not selector(::-webkit-scrollbar) {
+  .favorite-grid { scrollbar-width: thin; scrollbar-color: var(--thumb) transparent; }
+}
 .favorite-item { display: flex; border: 1px solid var(--line); flex-shrink: 0; }
 .favorite-load { padding: 6px 12px; border: 0; background: transparent; text-align: left; font-size: 11px; }
 .favorite-delete { border: 0; background: transparent; width: 26px; font-size: 17px; color: var(--text-dim); }
@@ -259,7 +272,7 @@ dialog p { color: var(--text-dim); font-size: 12px; margin: 16px 0; word-break: 
   .fader:last-child { grid-column: auto; }
   .timer-section { padding: 14px 18px; }
   .help .tooltip { right: -70px; max-width: 150px; }
-  .saved-panel { padding: 8px 12px; gap: 10px; }
+  .saved-panel { padding: 0 12px; gap: 10px; }
   footer { height: auto; min-height: 36px; padding: 10px 12px; flex-wrap: wrap; gap: 6px 16px; font-size: 8px; }
   footer > div { gap: 12px; }
 }
