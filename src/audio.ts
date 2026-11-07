@@ -340,7 +340,7 @@ export class MusicEngine {
     if (scene.sweep) {
       const bar = Math.floor(event.at + 1e-9), barSeconds = 240 / bpm;
       if (bar !== scene.sweepBar) {
-        scheduleSweep(scene.sweep.frequency, render, bar + origin, time - (event.at - bar) * barSeconds, barSeconds, context.currentTime, scene.sweepBar === undefined);
+        scheduleSweep(scene.sweep, render, bar + origin, time - (event.at - bar) * barSeconds, barSeconds, context.currentTime, scene.sweepBar === undefined);
         scene.sweepBar = bar;
       }
     }

@@ -23,7 +23,7 @@ test('v23 changes no score in any mood; only deep house gets the bus filter',()=
 });
 
 test('the filter arc works where the warm house voices live (below ~600 Hz)',()=>{
-  const s=make('dub'),arc=Array.from({length:32},(_,b)=>sweepHz(s,b));
+  const s=make('dub',{generatorVersion:30}),arc=Array.from({length:32},(_,b)=>sweepHz(s,b));
   assert.deepEqual(Array.from({length:32},(_,b)=>sweepHz(s,b+32)),arc);
   for(let b=0;b<7;b++)assert.ok(arc[b+1]>arc[b],`intro ${b}`);
   assert.ok(arc[0]<=200&&arc[6]<=600,'the intro stays muffled until its last bars');

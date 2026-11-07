@@ -14,10 +14,10 @@ const score=(s:Settings,bars=64)=>Array.from({length:bars},(_,b)=>eventsForBar(s
 const strip=(e:MusicEvent)=>{const {breath,...rest}=e;return rest;};
 
 test('v30 only marks the ambient pad voices; every note and every other mood keeps the v29 score',()=>{
-  assert.equal(DEFAULTS.generatorVersion,30);
+  assert.ok(DEFAULTS.generatorVersion>=30);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:30}).generatorVersion,30);
   assert.equal(normalizeSettings({...DEFAULTS,generatorVersion:29}).generatorVersion,29);
-  assert.equal(upgradeSettings(make('ambient',{generatorVersion:29})).generatorVersion,30);
+  assert.equal(upgradeSettings(make('ambient',{generatorVersion:29})).generatorVersion,DEFAULTS.generatorVersion);
   for(const mode of ['lofi','dub','dnb'] as const)assert.equal(sha(score(make(mode))),sha(score(make(mode,{generatorVersion:29}))),mode);
   let pads=0;
   for(const seed of SEEDS)for(const harmony of ['h-pad','h-organ','h-felt'] as const){

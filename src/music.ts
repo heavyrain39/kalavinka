@@ -27,12 +27,12 @@ export type Layer = 'harmony' | 'bass' | 'rhythm' | 'motif';
 export type AudioLayer = Layer | 'arpeggio';
 export type Voice = 'keys' | 'pad' | 'bass' | 'pluck' | 'arp' | 'kick' | 'snare' | 'hat' | 'tom' | 'rim' | 'crash';
 export interface Settings {
-  generatorVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30; profile: ProfileId; seed: string; bpm: number; energy: number; warmth: number;
+  generatorVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31; profile: ProfileId; seed: string; bpm: number; energy: number; warmth: number;
   arpeggio?: boolean;
   melodyRepetition?: 0 | 1 | 2 | 3;
   evolution: number; reverb: number; volume: number; layers: Record<Layer, boolean>; instruments: InstrumentMix; groove: 'straight' | 'dnb';
   /** Internal only: the v17+ backing compiler runs as v6 with v17/v18 chords. Never stored or shared. */
-  harmonyEngine?: 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30;
+  harmonyEngine?: 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31;
 }
 export interface MusicEvent {
   at: number; length: number; voice: Voice; layer: AudioLayer; notes: number[];
@@ -65,18 +65,18 @@ export const PROFILES = {
   ambient: { name: 'Quiet space', subtitle: '넓은 공간, 느리게 번지는 화음', description: '문장과 생각 사이에, 조용한 여백을.', bpm: 64, energy: 25, warmth: 60, evolution: 25, tag: 'AMBIENT', number: '02' },
   dub: { name: 'After hours', subtitle: '둥근 저음, 절제된 전자 리듬', description: '일정한 박자에 몸을 맡기고, 한 걸음 더.', bpm: 108, energy: 48, warmth: 62, evolution: 40, tag: 'DEEP ELECTRONIC', number: '03' },
 } as const;
-export const DEFAULTS: Settings = { generatorVersion: 30, melodyRepetition: 2, arpeggio: true, groove: 'straight', instruments: chooseInstruments('lofi', 'SLOWFLOW'), profile: 'lofi', seed: 'SLOWFLOW', bpm: 78, energy: 42, warmth: 72, evolution: 35, reverb: 28, volume: 55, layers: { harmony: true, bass: true, rhythm: true, motif: true } };
+export const DEFAULTS: Settings = { generatorVersion: 31, melodyRepetition: 2, arpeggio: true, groove: 'straight', instruments: chooseInstruments('lofi', 'SLOWFLOW'), profile: 'lofi', seed: 'SLOWFLOW', bpm: 78, energy: 42, warmth: 72, evolution: 35, reverb: 28, volume: 55, layers: { harmony: true, bass: true, rhythm: true, motif: true } };
 export const repetitionLevel = (s:Settings) => s.generatorVersion>=14 ? s.melodyRepetition??2 : 2;
 export const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 export function normalizeSettings(input: unknown): Settings {
   const s = input && typeof input === 'object' ? input as Partial<Settings> : {};
-  if (s.generatorVersion !== undefined && s.generatorVersion !== 1 && s.generatorVersion !== 2 && s.generatorVersion !== 3 && s.generatorVersion !== 4 && s.generatorVersion !== 5 && s.generatorVersion !== 6 && s.generatorVersion !== 7 && s.generatorVersion !== 8 && s.generatorVersion !== 9 && s.generatorVersion !== 10 && s.generatorVersion !== 11 && s.generatorVersion !== 12 && s.generatorVersion !== 13 && s.generatorVersion !== 14 && s.generatorVersion !== 15 && s.generatorVersion !== 16 && s.generatorVersion !== 17 && s.generatorVersion !== 18 && s.generatorVersion !== 19 && s.generatorVersion !== 20 && s.generatorVersion !== 21 && s.generatorVersion !== 22 && s.generatorVersion !== 23 && s.generatorVersion !== 24 && s.generatorVersion !== 25 && s.generatorVersion !== 26 && s.generatorVersion !== 27 && s.generatorVersion !== 28 && s.generatorVersion !== 29 && s.generatorVersion !== 30) return structuredClone(DEFAULTS);
+  if (s.generatorVersion !== undefined && s.generatorVersion !== 1 && s.generatorVersion !== 2 && s.generatorVersion !== 3 && s.generatorVersion !== 4 && s.generatorVersion !== 5 && s.generatorVersion !== 6 && s.generatorVersion !== 7 && s.generatorVersion !== 8 && s.generatorVersion !== 9 && s.generatorVersion !== 10 && s.generatorVersion !== 11 && s.generatorVersion !== 12 && s.generatorVersion !== 13 && s.generatorVersion !== 14 && s.generatorVersion !== 15 && s.generatorVersion !== 16 && s.generatorVersion !== 17 && s.generatorVersion !== 18 && s.generatorVersion !== 19 && s.generatorVersion !== 20 && s.generatorVersion !== 21 && s.generatorVersion !== 22 && s.generatorVersion !== 23 && s.generatorVersion !== 24 && s.generatorVersion !== 25 && s.generatorVersion !== 26 && s.generatorVersion !== 27 && s.generatorVersion !== 28 && s.generatorVersion !== 29 && s.generatorVersion !== 30 && s.generatorVersion !== 31) return structuredClone(DEFAULTS);
   const number = (key: 'bpm' | 'energy' | 'warmth' | 'evolution' | 'volume', lo: number, hi: number) =>
     typeof s[key] === 'number' && Number.isFinite(s[key]) ? Math.round(clamp(s[key]!, lo, hi)) : DEFAULTS[key];
   const profile = typeof s.profile === 'string' && Object.hasOwn(PROFILES, s.profile) ? s.profile : 'lofi';
   const seed = typeof s.seed === 'string' && /^[A-Z0-9]{4,16}$/.test(s.seed) ? s.seed : DEFAULTS.seed;
-  const version = s.generatorVersion === 1 || (s.generatorVersion === undefined && typeof s.seed === 'string') ? 1 : s.generatorVersion === 2 ? 2 : s.generatorVersion === 3 ? 3 : s.generatorVersion === 4 ? 4 : s.generatorVersion === 5 ? 5 : s.generatorVersion === 6 ? 6 : s.generatorVersion === 7 ? 7 : s.generatorVersion === 8 ? 8 : s.generatorVersion === 9 ? 9 : s.generatorVersion === 10 ? 10 : s.generatorVersion === 11 ? 11 : s.generatorVersion === 12 ? 12 : s.generatorVersion === 13 ? 13 : s.generatorVersion === 14 ? 14 : s.generatorVersion === 15 ? 15 : s.generatorVersion === 16 ? 16 : s.generatorVersion === 17 ? 17 : s.generatorVersion === 18 ? 18 : s.generatorVersion === 19 ? 19 : s.generatorVersion === 20 ? 20 : s.generatorVersion === 21 ? 21 : s.generatorVersion === 22 ? 22 : s.generatorVersion === 23 ? 23 : s.generatorVersion === 24 ? 24 : s.generatorVersion === 25 ? 25 : s.generatorVersion === 26 ? 26 : s.generatorVersion === 27 ? 27 : s.generatorVersion === 28 ? 28 : s.generatorVersion === 29 ? 29 : 30;
+  const version = s.generatorVersion === 1 || (s.generatorVersion === undefined && typeof s.seed === 'string') ? 1 : s.generatorVersion === 2 ? 2 : s.generatorVersion === 3 ? 3 : s.generatorVersion === 4 ? 4 : s.generatorVersion === 5 ? 5 : s.generatorVersion === 6 ? 6 : s.generatorVersion === 7 ? 7 : s.generatorVersion === 8 ? 8 : s.generatorVersion === 9 ? 9 : s.generatorVersion === 10 ? 10 : s.generatorVersion === 11 ? 11 : s.generatorVersion === 12 ? 12 : s.generatorVersion === 13 ? 13 : s.generatorVersion === 14 ? 14 : s.generatorVersion === 15 ? 15 : s.generatorVersion === 16 ? 16 : s.generatorVersion === 17 ? 17 : s.generatorVersion === 18 ? 18 : s.generatorVersion === 19 ? 19 : s.generatorVersion === 20 ? 20 : s.generatorVersion === 21 ? 21 : s.generatorVersion === 22 ? 22 : s.generatorVersion === 23 ? 23 : s.generatorVersion === 24 ? 24 : s.generatorVersion === 25 ? 25 : s.generatorVersion === 26 ? 26 : s.generatorVersion === 27 ? 27 : s.generatorVersion === 28 ? 28 : s.generatorVersion === 29 ? 29 : s.generatorVersion === 30 ? 30 : 31;
   return {
     instruments: version >= 3 ? normalizeInstruments(s.instruments, profile, seed) : legacyInstruments(),
     generatorVersion: version,
@@ -93,18 +93,18 @@ export function normalizeSettings(input: unknown): Settings {
 }
 export function selectProfile(settings: Settings, profile: ProfileId, instruments?: InstrumentMix): Settings {
   const p = PROFILES[profile];
-  return { ...settings, generatorVersion: 30, melodyRepetition: repetitionLevel(settings), arpeggio: true, groove: 'straight', instruments: instruments ? {...instruments} : chooseInstruments(profile, settings.seed), profile, bpm: p.bpm, energy: p.energy, warmth: p.warmth, evolution: p.evolution,
+  return { ...settings, generatorVersion: 31, melodyRepetition: repetitionLevel(settings), arpeggio: true, groove: 'straight', instruments: instruments ? {...instruments} : chooseInstruments(profile, settings.seed), profile, bpm: p.bpm, energy: p.energy, warmth: p.warmth, evolution: p.evolution,
     reverb: settings.reverb === (settings.profile==='ambient'?76:28) ? (profile==='ambient'?76:28) : settings.reverb,
     layers: { harmony: true, bass: true, rhythm: profile !== 'ambient', motif: true } };
 }
 
 export function upgradeSettings(input: unknown): Settings {
   const s = normalizeSettings(input);
-  return s.generatorVersion === 30 ? s : { ...s, generatorVersion: 30, melodyRepetition:repetitionLevel(s), arpeggio: s.arpeggio !== false, instruments: s.generatorVersion >= 3 ? s.instruments : chooseInstruments(s.profile, s.seed) };
+  return s.generatorVersion === 31 ? s : { ...s, generatorVersion: 31, melodyRepetition:repetitionLevel(s), arpeggio: s.arpeggio !== false, instruments: s.generatorVersion >= 3 ? s.instruments : chooseInstruments(s.profile, s.seed) };
 }
 export function regenerateSettings(settings: Settings, seed = newSeed(), keepInstruments = false): Settings {
   // Pre-palette favorites need their original engine to retain their legacy sounds.
-  return { ...settings, generatorVersion: keepInstruments&&settings.generatorVersion<3?settings.generatorVersion:30,
+  return { ...settings, generatorVersion: keepInstruments&&settings.generatorVersion<3?settings.generatorVersion:31,
     melodyRepetition:repetitionLevel(settings), arpeggio: keepInstruments?layerEnabled(settings,'arpeggio'):settings.arpeggio!==false, seed,
     instruments: keepInstruments ? {...settings.instruments} : chooseInstruments(settings.profile, seed, settings.instruments) };
 }
