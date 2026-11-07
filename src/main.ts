@@ -117,7 +117,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer" data-i18n="terms">${t('terms')}</a><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.36.2 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.36.3 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 // Keep the crawlable, static overview in the compact footer after the player mounts.
 document.querySelector('footer > div')!.append(document.querySelector('.app-overview')!);
@@ -310,6 +310,16 @@ $('#favorite').addEventListener('click', () => {
   const stored = storeFavorites(); renderFavorites();
   toast(stored ? 'savedDone' : 'savedTemporary');
 });
+// A vertical wheel over the saved list scrolls it sideways. At either end the wheel goes back to
+// the page, and horizontal gestures (trackpads, shift + wheel) keep their own behaviour.
+$('#favorites').addEventListener('wheel', (event) => {
+  const grid = (event.currentTarget as HTMLElement).querySelector<HTMLElement>('.favorite-grid');
+  if (!grid || event.ctrlKey || event.shiftKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+  const room = grid.scrollWidth - grid.clientWidth;
+  if (room <= 0 || (event.deltaY < 0 ? grid.scrollLeft <= 0 : grid.scrollLeft >= room - 1)) return;
+  event.preventDefault();
+  grid.scrollLeft += event.deltaY * (event.deltaMode === 1 ? 32 : event.deltaMode === 2 ? grid.clientWidth : 1);
+}, { passive: false });
 $('#favorites').addEventListener('click', (event) => {
   const target = (event.target as HTMLElement).closest<HTMLButtonElement>('button');
   if (!target) return;
