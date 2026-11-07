@@ -91,9 +91,9 @@ export function normalizeSettings(input: unknown): Settings {
     layers: Object.fromEntries(LAYERS.map((key) => [key, typeof s.layers?.[key] === 'boolean' ? s.layers[key] : true])) as Record<Layer, boolean>,
   };
 }
-export function selectProfile(settings: Settings, profile: ProfileId): Settings {
+export function selectProfile(settings: Settings, profile: ProfileId, instruments?: InstrumentMix): Settings {
   const p = PROFILES[profile];
-  return { ...settings, generatorVersion: 30, melodyRepetition: repetitionLevel(settings), arpeggio: true, groove: 'straight', instruments: chooseInstruments(profile, settings.seed), profile, bpm: p.bpm, energy: p.energy, warmth: p.warmth, evolution: p.evolution,
+  return { ...settings, generatorVersion: 30, melodyRepetition: repetitionLevel(settings), arpeggio: true, groove: 'straight', instruments: instruments ? {...instruments} : chooseInstruments(profile, settings.seed), profile, bpm: p.bpm, energy: p.energy, warmth: p.warmth, evolution: p.evolution,
     reverb: settings.reverb === (settings.profile==='ambient'?76:28) ? (profile==='ambient'?76:28) : settings.reverb,
     layers: { harmony: true, bass: true, rhythm: profile !== 'ambient', motif: true } };
 }

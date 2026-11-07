@@ -3,7 +3,8 @@
 ## User-facing behavior
 
 - Arpeggio now includes **나일론 기타 / Nylon guitar**. Other layers retain their existing palettes. It is a manual choice; historical seeded instrument choices remain unchanged.
-- **악기 유지 / Keep sounds** applies to New flow. It preserves the five sound choices and current mute states while generating a new composition. The switch survives reloads. Manual sound changes remain available; loading a favorite or selecting a mood still loads that selection's sounds.
+- **악기 유지 / Keep sounds** applies to New flow and, since v0.36.1, to switching atmospheres: while it is on, each atmosphere (lo-fi, ambient, late night) remembers its own last sound mix (`worksong.kept-instruments.v1`), and returning to it restores that mix. An atmosphere visited for the first time keeps its seeded mix. Turning the switch off forgets the remembered mixes.
+- On New flow it preserves the five sound choices and current mute states while generating a new composition. The switch survives reloads. Manual sound changes remain available; loading a favorite or selecting a mood still loads that selection's sounds.
 - After hours rhythm selection now lives in the instrument toolbar as two explicit buttons. Selecting Four on the floor starts at 108 BPM; Drum & bass starts at 170 BPM. On narrow screens the pair occupies a full row below the toolbar title and switch.
 - Saved labels cycle from 1 through 999 separately for each mood, skipping numbers still in the collection. For example, counter 999 with existing (1) and (2) produces (3). The collection limit remains 12. Existing valid labels are preserved, with invalid or duplicate old labels repaired without replacing the saved settings or phrase.
 

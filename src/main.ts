@@ -9,6 +9,7 @@ import { isV18, recipeV18 } from './harmony-v18';
 import { INSTRUMENTS, defaultArpeggioInstrument, resolveDrumKit } from './instruments';
 import { MusicEngine } from './audio';
 import {capturePhrase,normalizePhrase,favoriteIdentity,playbackScore,compositionIdentity,type SavedPhrase} from './saved-phrase';
+import { normalizeKept, rememberMix, type KeptMixes } from './kept-instruments';
 import { AUDIO_LAYERS, layerEnabled, PROFILES, normalizeSettings, upgradeSettings, regenerateSettings, selectProfile, progression, repetitionLevel, type Settings, type ProfileId, type AudioLayer } from './music';
 
 const PORTFOLIO = 'https://heavyrain39.github.io/portfolio/';
@@ -16,6 +17,7 @@ const STORAGE = 'worksong.v1';
 const SELECTION = 'worksong.selection.v1';
 const FAVORITES = 'worksong.favorites.v3';
 const KEEP_INSTRUMENTS = 'worksong.keep-instruments.v1';
+const KEPT_INSTRUMENTS = 'worksong.kept-instruments.v1';
 const read = (key: string) => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, value: unknown) => { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } };
 let language: Language = browserLanguage(navigator.language);
@@ -24,6 +26,7 @@ const aria = (key: TextKey) => `data-i18n-aria="${key}" aria-label="${t(key)}"`;
 const label = (key: TextKey) => `<span data-i18n="${key}">${t(key)}</span>`;
 const saved = read(STORAGE);
 let keepInstruments=read(KEEP_INSTRUMENTS)===true;
+let keptInstruments:KeptMixes=keepInstruments?normalizeKept(read(KEPT_INSTRUMENTS)):{};
 let settings = upgradeSettings(saved);
 let selectedPhrase:SavedPhrase|undefined;
 const savedSelection=read(SELECTION),savedPhrase=normalizePhrase(savedSelection?.phrase);
@@ -35,6 +38,7 @@ if (location.hash.startsWith('#mix=')) {
   try { settings = normalizeSettings(JSON.parse(decodeURIComponent(location.hash.slice(5))));selectedPhrase=undefined; shared = true; } catch { /* ignore invalid links */ }
 }
 let selectedComposition=compositionIdentity(settings);
+rememberInstruments();
 interface Favorite { id: string; number: number; settings: Settings; phrase?:SavedPhrase }
 const currentFavorites=read(FAVORITES),previousFavorites=read('worksong.favorites.v2');
 const storedFavorites = Array.isArray(currentFavorites?.items)?currentFavorites:Array.isArray(previousFavorites?.items)?previousFavorites:null;
@@ -113,7 +117,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer" data-i18n="terms">${t('terms')}</a><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.36.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.36.1 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 // Keep the crawlable, static overview in the compact footer after the player mounts.
 document.querySelector('footer > div')!.append(document.querySelector('.app-overview')!);
@@ -132,7 +136,14 @@ function persist() {
   selectedComposition=compositionIdentity(settings);
   if(location.hash.startsWith('#mix='))history.replaceState(null,'',location.pathname+location.search);
   const stored=write(STORAGE,settings),selectionStored=write(SELECTION,selectedPhrase?{settings,phrase:selectedPhrase}:null);
-  if(!stored||!selectionStored)toast('storageFailed');
+  if(!stored||!selectionStored||!rememberInstruments())toast('storageFailed');
+}
+/** While "keep sounds" is on, each atmosphere keeps the sounds it had when it was last heard. */
+function rememberInstruments(){
+  if(!keepInstruments)return true;
+  const next=rememberMix(keptInstruments,settings.profile,settings.instruments);
+  if(JSON.stringify(next)===JSON.stringify(keptInstruments))return true;
+  keptInstruments=next;return write(KEPT_INSTRUMENTS,keptInstruments);
 }
 function renderSettings() {
   $<HTMLInputElement>('#bpm').max = settings.generatorVersion >= 3 ? '180' : '130';
@@ -252,10 +263,11 @@ $('#keep-instruments').addEventListener('click',()=>{
   if(busy)return;
   keepInstruments=!keepInstruments;
   $('#keep-instruments').setAttribute('aria-pressed',String(keepInstruments));
-  if(!write(KEEP_INSTRUMENTS,keepInstruments))toast('storageFailed');
+  keptInstruments={};
+  if(!write(KEEP_INSTRUMENTS,keepInstruments)||!write(KEPT_INSTRUMENTS,null)||!rememberInstruments())toast('storageFailed');
 });
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-profile]')) button.addEventListener('click', () => {
-  if (button.dataset.profile !== settings.profile) void replace(selectProfile(settings, button.dataset.profile as ProfileId));
+  if (button.dataset.profile !== settings.profile) { const profile=button.dataset.profile as ProfileId; void replace(selectProfile(settings, profile, keepInstruments ? keptInstruments[profile] : undefined)); }
 });
 for (const key of ['bpm', 'energy', 'warmth', 'evolution', 'melodyRepetition', 'reverb', 'volume'] as const) {
   $<HTMLInputElement>(`#${key}`).addEventListener('input', (event) => {

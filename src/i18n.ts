@@ -2,7 +2,7 @@
 export type Language = 'ko' | 'en';
 export const browserLanguage = (language: string): Language => /^ko(?:-|$)/i.test(language) ? 'ko' : 'en';
 const ko = {
-  keepInstruments:'악기 유지', keepInstrumentsTip:'새 흐름을 눌러도 현재 악기 음색을 유지합니다.',
+  keepInstruments:'악기 유지', keepInstrumentsTip:'새 흐름을 누르거나 분위기를 바꿔도 분위기마다 고른 악기 음색을 유지합니다.',
   pageTitle:'가릉빈가 Kalavinka — 무료 절차적 노동요 생성기',
   overviewTitle:'가릉빈가 소개와 사용법',
   overviewIntro:'가릉빈가(Kalavinka)는 작업과 공부할 때 들을 무료 절차적 음악 생성기입니다. 로그인이나 음악 생성 API 없이 Web Audio 엔진이 브라우저에서 보컬 없는 배경 음악을 합성합니다.',
@@ -36,7 +36,7 @@ const ko = {
 } as const;
 export type TextKey = keyof typeof ko;
 const en: Record<TextKey, string> = {
-  keepInstruments:'Keep sounds', keepInstrumentsTip:'Keep the current instrument sounds when creating a new flow.',
+  keepInstruments:'Keep sounds', keepInstrumentsTip:'Keep the instrument sounds of each atmosphere when creating a new flow or switching atmospheres.',
   pageTitle:'Kalavinka — Free generative work music',
   overviewTitle:'About Kalavinka and how to listen',
   overviewIntro:'Kalavinka is a free procedural music generator for work and study. Its Web Audio engine synthesizes instrumental background music in your browser, without sign-in or a music generation API.',
