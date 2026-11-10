@@ -5,6 +5,7 @@ import {melodySentence} from './melody';
 import {repetitionLevel} from './music';
 import {responsiveBass} from './bass-v15';
 import {melodySentenceV17} from './melody-v17';
+import {melodySentenceV32,melodyV32,laybackV32} from './melody-v32';
 import {bassV17} from './bass-v17';
 import {fillBreak} from './fills-v17';
 import {compingV18} from './comping-v18';
@@ -17,14 +18,15 @@ export function narrativeEvents(s:Settings,bar:number):MusicEvent[]{
   if(!events){
     const v17=s.generatorVersion>=17,v18=s.generatorVersion>=18;
     // v17 keeps the v6 drums and comping rhythm, voiced with v17 chords.
-    let backing=Array.from({length:8},(_,i)=>ensembleEvents({...s,generatorVersion:6,...(v17?{harmonyEngine:s.generatorVersion as 17|18|19|20|21|22|23|24|25|26|27|28|29|30|31}:{})},start+i)).flat().filter(e=>e.layer!=='motif');
+    let backing=Array.from({length:8},(_,i)=>ensembleEvents({...s,generatorVersion:6,...(v17?{harmonyEngine:s.generatorVersion}:{})},start+i)).flat().filter(e=>e.layer!=='motif');
     // v18 writes its own comping (after the melody) and D&B hat line; ambient keeps the v13 bed.
     if(v18)backing=dnbHatsV18(s,start,backing.filter(e=>e.layer!=='harmony'||s.profile==='ambient'));
     if(v17){
       // The lead is written first; the bass then plays against it as a second voice.
-      const melody=melodySentenceV17(s,start,backing);
+      // v32 writes the lead from rhythm cells and a contour (see melody-v32.ts).
+      const melody=melodyV32(s)?melodySentenceV32(s,start,backing):melodySentenceV17(s,start,backing);
       const bass=bassV17(s,start,backing,melody);
-      events=[...backing.filter(e=>e.layer!=='bass'),...bass,...melody,...(v18?compingV18(s,start,melody,bass):[])];
+      events=laybackV32(s,[...backing.filter(e=>e.layer!=='bass'),...bass,...melody,...(v18?compingV18(s,start,melody,bass):[])]);
       // Ensemble break: bass and comping rest (with their release) while a big fill plays.
       const cut=fillBreak(s,start+7);
       if(cut!==undefined)events=events.flatMap(e=>{

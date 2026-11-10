@@ -6,6 +6,7 @@ import {gridTime} from './timing';
 import {hash,random} from './seed';
 import {interlockV26,interlockHits,BREATH,LONG,MEDIUM,TAIL} from './comping-v26';
 import {dnbCompV28,rhythmSection,DNB,DNB_LONG,DNB_MEDIUM,DNB_TAIL,DNB_HOLD} from './comping-v28';
+import {alignV27,MAX_LEAD_MS} from './align-v27';
 
 // Generator v18 comping. Two-bar rhythm cells per mood with written dynamics:
 // l = long, m = medium, s = short stab, g = ghost chord, p = push (an eighth early into a new chord).
@@ -44,6 +45,7 @@ export function compingV18(s:Settings,start:number,melody:MusicEvent[],bass:Musi
   if(s.profile==='ambient')return [];
   const dnb=s.groove==='dnb',lofi=s.profile==='lofi',seconds=240/s.bpm,out:MusicEvent[]=[];
   const release=.6/seconds,lag=lofi?.006/seconds:0,base=3200-s.warmth*23;
+  const early=s.generatorVersion>=32&&alignV27(s)?(.006+MAX_LEAD_MS/1000)/seconds:0;
   const clash=(notes:number[],at:number,end:number)=>melody.some(m=>m.at<end&&m.at+m.length+(m.release??.1)/seconds>at
     &&notes.some(n=>[1,11].includes(pc(m.notes[0]-n))));
   const add=(at:number,length:number,notes:number[],velocity:number,kind:Kind,bar:number,push=false)=>{
@@ -93,7 +95,8 @@ export function compingV18(s:Settings,start:number,melody:MusicEvent[],bass:Musi
       if(kind==='p'){
         const next=chordAt(s,bar+1);
         if(next.label!==chord.label){
-          if(clash(next.notes,at,bar+1+.06))return;
+          // v32: a push may later start up to 26 ms early to meet the arpeggio (v27), so it is checked from there.
+          if(clash(next.notes,at-early,bar+1+.06))return;
           notes=next.notes;boundary=nextHarmonyBoundary(s,bar+1);push=true;
         }
       }

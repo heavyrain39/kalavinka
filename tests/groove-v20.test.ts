@@ -35,8 +35,9 @@ test('v20 lo-fi: one swung grid, the off-sixteenths at half the offbeat delay, n
     const gaps=Array.from({length:16},(_,i)=>gridTime(s,0,i+1)-gridTime(s,0,i));
     assert.ok(Math.max(...gaps)-Math.min(...gaps)<=swing+1e-12);
     // Bass, melody, arpeggio and kick land exactly on that grid; drums keep their small fixed lean.
+    // From v32 the lead lies 10–25 ms behind it (see melody-v32.test.ts).
     for(let bar=8;bar<72;bar++)for(const e of eventsForBar(s,bar)){
-      if(!(e.layer==='bass'||e.layer==='motif'||e.layer==='arpeggio'||e.voice==='kick'))continue;
+      if(!(e.layer==='bass'||e.layer==='motif'&&s.generatorVersion<32||e.layer==='arpeggio'||e.voice==='kick'))continue;
       const b=Math.floor(e.at),step=Math.round((e.at-b)*16);
       assert.ok(Math.abs(e.at-gridTime(s,b,step))<1e-9,`${seed} ${e.layer} at ${e.at}`);
     }

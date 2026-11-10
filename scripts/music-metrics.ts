@@ -15,7 +15,8 @@ const bars=256;
 for(const mode of modes){
   const m={notes:0,moves:0,repeat:0,step:0,leap:0,chordTone:0,belowComp:0,climax:0,phrases:0,sounding:0,ranges:[] as number[],
     bass:0,root:0,nonChord:0,octave:0,shared:0,harsh:0,chords:[] as number[],hooks:[] as number[],shapes:[] as number[],
-    boundaries:0,fills:0,strokes:0,kinds:new Map<string,number>(),comp:0,velocities:new Set<number>(),hats:0,grooveBars:0,qualities:new Set<string>()};
+    boundaries:0,fills:0,strokes:0,kinds:new Map<string,number>(),comp:0,velocities:new Set<number>(),hats:0,grooveBars:0,qualities:new Set<string>(),
+    windows:0,rocking:0,runs:[] as number[],units:0,breath:0,landings:new Map<number,number>(),leadLevels:new Set<number>()};
   for(const seed of seeds){
     const base=selectProfile({...DEFAULTS,seed},mode==='dnb'?'dub':mode);
     const s:Settings={...base,seed,generatorVersion:version,melodyRepetition:repetition,groove:mode==='dnb'?'dnb':'straight',bpm:mode==='dnb'?170:base.bpm};
@@ -39,6 +40,19 @@ for(const mode of modes){
         const peak=lead.find(e=>e.notes[0]===top)!.at-start;
         if(peak>=3.5&&peak<6.5)m.climax++;
       }
+      // Shape of the line (added with v32): A–B–A turns, same-direction runs, the rest after each two-bar idea, where the closing note lands.
+      const pitches=lead.map(e=>e.notes[0]);
+      for(let i=2;i<pitches.length;i++){m.windows++;if(pitches[i]===pitches[i-2]&&pitches[i]!==pitches[i-1])m.rocking++;}
+      let run=0,dir=0;
+      for(let i=1;i<pitches.length;i++){const d=Math.sign(pitches[i]-pitches[i-1]);if(d&&d===dir)run++;else{if(run)m.runs.push(run);run=d?1:0;dir=d;}}
+      if(run)m.runs.push(run);
+      for(let k=0;k<4&&lead.length;k++){
+        const unit=lead.filter(e=>e.at>=start+k*2&&e.at<start+k*2+2),last=unit.at(-1),next=lead.find(e=>e.at>=start+k*2+2);
+        if(!last)continue;
+        m.units++;if(((next?next.at:start+8)-last.at-last.length)*4>=.95)m.breath++;
+      }
+      if(lead.length){const landing=Math.floor((lead.at(-1)!.at-start-6)*16+.2);m.landings.set(landing,(m.landings.get(landing)??0)+1);}
+      for(const e of lead)m.leadLevels.add(Math.round((e.velocity??e.gain/.075)*50));
       lead.forEach((e,i)=>{
         const chord=chordAt(s,Math.floor(e.at)),n=e.notes[0];m.notes++;
         if((chord.tones??chord.notes).some(c=>pc(c)===pc(n)))m.chordTone++;
@@ -60,6 +74,7 @@ for(const mode of modes){
   console.log(`${mode.padEnd(7)} v${version} rep${repetition}`
     +` | lead/bar ${(m.notes/m.phrases/8).toFixed(2)} repeat ${pct(m.repeat,m.moves)} step ${pct(m.step,m.moves)} leap ${pct(m.leap,m.moves)}`
     +` range ${avg(m.ranges)} chordTone ${pct(m.chordTone,m.notes)} belowComp ${pct(m.belowComp,m.notes)} climaxMid ${pct(m.climax,m.sounding)} restingPhrases ${pct(m.phrases-m.sounding,m.phrases)}`
+    +` | A–B–A turns ${pct(m.rocking,m.windows)} run ${(m.runs.reduce((x,y)=>x+y,0)/Math.max(1,m.runs.length)).toFixed(2)} restAfterIdea ${pct(m.breath,m.units)} landing ${[...m.landings].sort((a,b)=>a[0]-b[0]).map(([k,v])=>`${k}:${pct(v,m.sounding)}`).join(' ')} leadLevels ${m.leadLevels.size}`
     +` | hooks/seed rhythm ${avg(m.hooks)} shape ${avg(m.shapes)}`
     +` | bass/bar ${(m.bass/m.phrases/8).toFixed(2)} root ${pct(m.root,m.bass)} nonChord ${pct(m.nonChord,m.bass)} octave ${(m.octave/(seeds.length*bars)).toFixed(2)}/bar harsh ${pct(m.harsh,m.shared)}`
     +` | chords/seed ${avg(m.chords)} (${m.qualities.size} qualities) | groove comping ${(m.comp/Math.max(1,m.grooveBars)).toFixed(2)}/bar, ${m.velocities.size} velocity levels, hats ${(m.hats/Math.max(1,m.grooveBars)).toFixed(1)}/bar`

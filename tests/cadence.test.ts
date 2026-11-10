@@ -23,7 +23,8 @@ test('v10 retains a late closing note in every eight-bar melody, including the i
 test('mixed-version cache queries cannot rewrite old favorites or the new cadence',()=>{
  const current={...DEFAULTS,arpeggio:false},old={...current,generatorVersion:9 as const};
  const original=phrase(old,0),updated=phrase(current,0);
- assert.ok(original.at(-1)!.at<7.5&&updated.at(-1)!.at>=7.5);
+ // v32 moves the closing note between the eighth before bar eight and its third beat.
+ assert.ok(original.at(-1)!.at<7.5&&updated.at(-1)!.at>=6.75);
  assert.deepEqual(phrase(old,0),original);
  assert.deepEqual(phrase(current,0),updated);
 });

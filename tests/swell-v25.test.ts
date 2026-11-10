@@ -10,7 +10,8 @@ const modes=['lofi','ambient','dub','dnb'] as const;
 const SEEDS=['SLOWFLOW','AB12CD','RAIN3','DESK01','MOON77','ZK9Q','NIGHT8','PULSE2'];
 const make=(mode:typeof modes[number],extra:Partial<Settings>={}):Settings=>{
   const base=selectProfile({...DEFAULTS,seed:'SLOWFLOW'},mode==='dnb'?'dub':mode);
-  return {...base,groove:mode==='dnb'?'dnb':'straight',bpm:mode==='dnb'?170:base.bpm,...extra};
+  // Pinned to v25: later generators (the v32 lead) have their own suites.
+  return {...base,generatorVersion:25,groove:mode==='dnb'?'dnb':'straight',bpm:mode==='dnb'?170:base.bpm,...extra};
 };
 const sha=(x:unknown)=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const score=(s:Settings,bars=96)=>Array.from({length:bars},(_,b)=>eventsForBar(s,b));
