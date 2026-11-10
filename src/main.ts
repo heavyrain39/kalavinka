@@ -4,6 +4,7 @@ import {browserLanguage, translate, instrumentName, type Language, type TextKey}
 import {resetSliders} from './controls';
 import {validFavoriteNumber, nextFavoriteNumber, reconcileFavoriteNumbers} from './favorite-numbers';
 import { Starfield } from './starfield';
+import { ribbonLayout, drawRibbon, type RibbonNote } from './ribbon';
 import { recipeFor, hasEnding } from './harmony-v5';
 import { isV18, recipeV18 } from './harmony-v18';
 import { INSTRUMENTS, defaultArpeggioInstrument, resolveDrumKit } from './instruments';
@@ -62,6 +63,7 @@ const icons = {
   focus: '<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',
   focusExit: '<path d="M3 8h5V3m8 0v5h5M3 16h5v5m13-5h-5v5"/>',
   arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
+  volume: '<path d="M4 9.5v5h3.5l4.5 4v-13l-4.5 4z"/><path d="M15.5 9a4.5 4.5 0 0 1 0 6m2.5-9a8.5 8.5 0 0 1 0 12"/>',
 };
 const icon = (name: keyof typeof icons) => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="${name === 'play' || name === 'pause' ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.4" stroke-linecap="square" stroke-linejoin="miter">${icons[name]}</svg>`;
 const profileGraphic = (id: ProfileId) => id === 'lofi'
@@ -71,8 +73,11 @@ const profileGraphic = (id: ProfileId) => id === 'lofi'
   : '<path d="M12 20v8m10-15v22m10-29v36m10-29v22m10-15v8"/>';
 const FADERS = [
   ['bpm',50,180,'BPM',''], ['energy',0,100,'%','energyTip'], ['warmth',0,100,'%','warmthTip'],
-  ['evolution',0,100,'%','evolutionTip'], ['melodyRepetition',0,3,'','repetitionTip'], ['reverb',0,100,'%',''], ['volume',0,100,'%',''],
+  ['evolution',0,100,'%','evolutionTip'], ['melodyRepetition',0,3,'','repetitionTip'], ['reverb',0,100,'%',''],
 ] as const;
+// The first five shape the music; reverb shapes the sound. Volume lives beside the transport.
+const MUSIC_FADERS = 5;
+const fader = ([key,min,max,unit,tip]: typeof FADERS[number]) => `<div class="fader ${key==='melodyRepetition'?'repetition-fader':key==='reverb'?'reverb-fader':''}"><div class="fader-heading"><label for="${key}" data-i18n="${key}">${t(key)}</label>${tip ? `<button class="help tip" data-help="${key}" aria-label="${t('help',{label:t(key)})}" aria-describedby="${key}-tip">?<span id="${key}-tip" class="tooltip" role="tooltip" data-i18n="${tip}">${t(tip)}</span></button>` : ''}<span class="fader-value"><output id="${key}-value" for="${key}"></output><span class="unit">${unit}</span></span></div><input id="${key}" type="range" min="${min}" max="${max}" step="1"/>${key==='melodyRepetition'?`<div class="repetition-scale" aria-hidden="true">${REPETITION_LABELS.map((text,i)=>`<span data-repeat-tick="${i}" data-i18n="${text}">${t(text)}</span>`).join('')}</div>`:''}</div>`;
 const REPETITION_LABELS=['repetitionOff','repetitionLow','repetitionNormal','repetitionHigh'] as const;
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <header class="site-header">
@@ -88,12 +93,13 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <section class="panel player-panel" ${aria('player')}>
         <div class="deck">
           <div class="deck-top"><h2 id="now-title"></h2><span class="mono" id="elapsed">00:00</span></div>
-          <div class="scope-wrap"><canvas id="scope" ${aria('waveform')}></canvas></div>
-          <div class="playback-info"><span id="status-text" role="status"></span><span class="mono" id="bar-label"></span></div>
+          <span id="status-text" class="visually-hidden" role="status"></span>
+          <div class="scope-wrap"><canvas id="scope" role="img" ${aria('waveform')}></canvas></div>
           <div class="chord-lane" id="chords" ${aria('chords')}></div>
           <div class="transport">
             <button class="play-button" id="play">${icon('play')}${label('play')}</button>
             <button class="compact-btn regenerate" id="regenerate">${icon('refresh')}${label('regenerate')}</button>
+            <div class="volume-control">${icon('volume')}<input id="volume" type="range" min="0" max="100" step="1" ${aria('volume')}/><output id="volume-value" for="volume"></output></div>
             <button class="icon-button tip" id="favorite" ${aria('save')}>${icon('save')}<span class="tooltip" role="tooltip" data-i18n="save">${t('save')}</span></button>
             <button class="icon-button tip" id="share" ${aria('share')}>${icon('share')}<span class="tooltip" role="tooltip" data-i18n="share">${t('share')}</span></button>
             <button class="icon-button tip" id="focus" aria-pressed="false" aria-label="${t('focus')}">${icon('focus')}<span class="tooltip" role="tooltip">${t('focus')}</span></button>
@@ -109,7 +115,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       </section>
       <aside class="right-column"><div class="panel starfield"><canvas id="starfield" role="img" ${aria('sky')}></canvas></div><section class="panel controls-panel">
         <div class="panel-head controls-head"><h2 data-i18n="controls">${t('controls')}</h2><button class="text-button" id="reset-controls" ${aria('resetLabel')}>${label('reset')}</button></div>
-        <div class="fader-list">${FADERS.map(([key,min,max,unit,tip]) => `<div class="fader ${key==='melodyRepetition'?'repetition-fader':''}"><div class="fader-heading"><label for="${key}" data-i18n="${key}">${t(key)}</label>${tip ? `<button class="help tip" data-help="${key}" aria-label="${t('help',{label:t(key)})}" aria-describedby="${key}-tip">?<span id="${key}-tip" class="tooltip" role="tooltip" data-i18n="${tip}">${t(tip)}</span></button>` : ''}<span class="fader-value"><output id="${key}-value" for="${key}"></output><span class="unit">${unit}</span></span></div><input id="${key}" type="range" min="${min}" max="${max}" step="1"/>${key==='melodyRepetition'?`<div class="repetition-scale" aria-hidden="true">${REPETITION_LABELS.map((text,i)=>`<span data-repeat-tick="${i}" data-i18n="${text}">${t(text)}</span>`).join('')}</div>`:''}</div>`).join('')}</div>
+        <div class="fader-list"><h3 class="group-label" data-i18n="groupMusic">${t('groupMusic')}</h3>${FADERS.slice(0,MUSIC_FADERS).map(fader).join('')}<h3 class="group-label" data-i18n="groupSound">${t('groupSound')}</h3>${FADERS.slice(MUSIC_FADERS).map(fader).join('')}</div>
         <div class="timer-section"><div class="timer-head">${label('timer')}<span class="mono" id="timer-left"></span></div><div class="timer-options" role="group" ${aria('focusTimer')}><button data-timer="0" aria-pressed="true" data-i18n="continuous">${t('continuous')}</button><button data-timer="25" aria-pressed="false" data-i18n-minutes="25">${t('minutes',{count:25})}</button><button data-timer="50" aria-pressed="false" data-i18n-minutes="50">${t('minutes',{count:50})}</button></div></div>
       </section></aside>
     </div>
@@ -117,7 +123,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer" data-i18n="terms">${t('terms')}</a><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.37.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.38.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 // Keep the crawlable, static overview in the compact footer after the player mounts.
 document.querySelector('footer > div')!.append(document.querySelector('.app-overview')!);
@@ -178,10 +184,13 @@ let chordRuns:{label:string;start:number;length:number}[]=[];
 function renderChords(chords=currentCapture().phrase.chords) {
   const labels=JSON.stringify(chords.map(c=>c.label));if(labels===chordLabels)return;chordLabels=labels;
   chordRuns=[];chords.forEach((chord,i)=>{const last=chordRuns.at(-1);if(last?.label===chord.label)last.length++;else chordRuns.push({label:chord.label,start:i,length:1});});
-  const lane=$('#chords');lane.replaceChildren();lane.style.gridTemplateColumns=`repeat(${chordRuns.length},minmax(0,1fr))`;lane.classList.toggle('dense',chordRuns.length>4);
-  chordRuns.forEach((chord,i)=>{const cell=document.createElement('div');cell.className='chord-cell';cell.dataset.chord=String(i);
+  // Eight equal bars: each chord spans the bars it lasts, so the lane is the ribbon's time axis.
+  const lane=$('#chords');lane.replaceChildren();
+  chordRuns.forEach((chord,i)=>{const cell=document.createElement('div');cell.className='chord-cell';cell.dataset.chord=String(i);cell.dataset.bars=String(chord.length);cell.style.gridColumn=`span ${chord.length}`;
     const name=document.createElement('span');name.className='chord-name';name.textContent=chord.label;name.title=chord.label;
-    const progress=document.createElement('div');progress.className='chord-progress';cell.append(name,progress);lane.append(cell);});
+    const progress=document.createElement('div');progress.className='chord-progress';cell.append(name,progress);
+    for(let bar=1;bar<chord.length;bar++){const tick=document.createElement('i');tick.className='bar-tick';tick.style.left=`${bar/chord.length*100}%`;cell.append(tick);}
+    lane.append(cell);});
 }
 let captureCache:{key:string;value:ReturnType<MusicEngine['capture']>}|undefined;
 let pausedCapture:{settingsKey:string;value:ReturnType<MusicEngine['capture']>}|undefined;
@@ -202,7 +211,7 @@ function renderSaveState(){
 function renderFavorites() {
   favoriteKeys.clear();for(const item of favorites)favoriteKeys.set(item.id,favoriteIdentity(item.settings,item.phrase??capturePhrase({settings:item.settings,opening:true})));
   heartKey='';renderSaveState();
-  $('#favorites').innerHTML = favorites.length ? `<div class="favorite-grid">${favorites.map((item) => `<div class="favorite-item"><button class="favorite-load" data-load="${item.id}" aria-label="${t('loadSaved',{name:favoriteName(item),seed:item.settings.seed})}"><span>${favoriteName(item)}</span></button><button class="favorite-delete" data-delete="${item.id}" aria-label="${t('deleteSaved',{name:favoriteName(item),seed:item.settings.seed})}">×</button></div>`).join('')}</div>` : `<span class="collection-empty">—</span>`;
+  $('#favorites').innerHTML = favorites.length ? `<div class="favorite-grid">${favorites.map((item) => `<div class="favorite-item"><button class="favorite-load" data-load="${item.id}" aria-label="${t('loadSaved',{name:favoriteName(item),seed:item.settings.seed})}"><span>${favoriteName(item)}</span></button><button class="favorite-delete" data-delete="${item.id}" aria-label="${t('deleteSaved',{name:favoriteName(item),seed:item.settings.seed})}">×</button></div>`).join('')}</div>` : `<span class="collection-empty">${t('savedEmpty')}</span>`;
 }
 function renderPlayback() {
   const playing = engine.playing;
@@ -397,6 +406,7 @@ const context = canvas.getContext('2d')!;
 let samples = new Float32Array(2048);
 let lastFrame = 0;
 let peak = 0;
+let ribbonKey = '', ribbonNotes: RibbonNote[] = [];
 const partActivity:Record<AudioLayer,number>={harmony:0,bass:0,rhythm:0,motif:0,arpeggio:0};
 const partButtons=Array.from(document.querySelectorAll<HTMLElement>('[data-layer]'));
 const starfield = new Starfield($<HTMLCanvasElement>('#starfield'));
@@ -419,28 +429,20 @@ function draw(timestamp: number) {
   if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
     canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
   }
-  context.setTransform(dpr, 0, 0, dpr, 0, 0); context.clearRect(0, 0, width, height);
+  context.setTransform(dpr, 0, 0, dpr, 0, 0);
   const style = getComputedStyle(document.documentElement);
-  context.strokeStyle = style.getPropertyValue('--line'); context.lineWidth = 1;
-  for (let y = 1; y < 4; y++) { context.beginPath(); context.moveTo(0, height * y / 4); context.lineTo(width, height * y / 4); context.stroke(); }
-  for (let x = 1; x < 12; x++) { context.beginPath(); context.moveTo(width * x / 12, 0); context.lineTo(width * x / 12, height); context.stroke(); }
-  peak = 0;
-  if (engine.playing && engine.analyser) {
-    engine.analyser.getFloatTimeDomainData(samples); context.strokeStyle = style.getPropertyValue('--text'); context.lineWidth = 1.2;
-    context.beginPath();
-    for (let i = 0; i < samples.length; i += 4) {
-      peak = Math.max(peak, Math.abs(samples[i]));
-      const x = i / samples.length * width, y = height / 2 - samples[i] * height * .52;
-      if (i === 0) context.moveTo(x, y); else context.lineTo(x, y);
-    }
-    context.stroke();
-  } else {
-    context.strokeStyle = style.getPropertyValue('--line-strong'); context.beginPath(); context.moveTo(0, height / 2); context.lineTo(width, height / 2); context.stroke();
-  }
-  $('#elapsed').textContent = time(engine.elapsed);
   const view=engine.harmonyWindow,barWithin=view?.bar??0;
   renderChords(view?.chords??currentCapture().phrase.chords);renderSaveState();
-  $('#bar-label').textContent = engine.playing ? `${Math.floor(barWithin) + 1} / 8` : '';
+  // The ribbon shows the eight bars being heard (or about to be): notes, a playhead and the
+  // live output waveform faintly behind them. The chord lane below is its time axis.
+  peak = 0;
+  const live = engine.playing && engine.analyser ? samples : null;
+  if (live) { engine.analyser!.getFloatTimeDomainData(samples); for (let i = 0; i < samples.length; i += 4) peak = Math.max(peak, Math.abs(samples[i])); }
+  const capture = currentCapture();
+  if (ribbonKey !== captureCache!.key) { ribbonKey = captureCache!.key; ribbonNotes = ribbonLayout(capture.phrase.events); }
+  drawRibbon(context, width, height, ribbonNotes, { position: view ? view.bar : null, samples: live,
+    colors: { dim: style.getPropertyValue('--line-strong'), mid: style.getPropertyValue('--text-dim'), bright: style.getPropertyValue('--text') } });
+  $('#elapsed').textContent = time(engine.elapsed);
   $('#status-text').textContent = busy ? t('preparing') : engine.playing ? engine.pending ? t('pending') : t('playing') : t('stop');
   for (const cell of document.querySelectorAll<HTMLElement>('[data-chord]')) {
     const run=chordRuns[Number(cell.dataset.chord)];
