@@ -20,6 +20,7 @@ import { applyTapeStop } from './tapestop-v24';
 import { swellEvent } from './swell-v25';
 import { alignChordsV27 } from './align-v27';
 import { halftimeEvents, applySilence } from './drop-v29';
+import { breakdownDrums } from './breakdown-v33';
 export { hash, random, newSeed } from './seed';
 
 export type ProfileId = 'lofi' | 'ambient' | 'dub';
@@ -27,7 +28,7 @@ export type Layer = 'harmony' | 'bass' | 'rhythm' | 'motif';
 export type AudioLayer = Layer | 'arpeggio';
 export type Voice = 'keys' | 'pad' | 'bass' | 'pluck' | 'arp' | 'kick' | 'snare' | 'hat' | 'tom' | 'rim' | 'crash';
 export interface Settings {
-  generatorVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31 | 32; profile: ProfileId; seed: string; bpm: number; energy: number; warmth: number;
+  generatorVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31 | 32 | 33; profile: ProfileId; seed: string; bpm: number; energy: number; warmth: number;
   arpeggio?: boolean;
   melodyRepetition?: 0 | 1 | 2 | 3;
   evolution: number; reverb: number; volume: number; layers: Record<Layer, boolean>; instruments: InstrumentMix; groove: 'straight' | 'dnb';
@@ -65,7 +66,7 @@ export const PROFILES = {
   ambient: { name: 'Quiet space', subtitle: '넓은 공간, 느리게 번지는 화음', description: '문장과 생각 사이에, 조용한 여백을.', bpm: 64, energy: 25, warmth: 60, evolution: 25, tag: 'AMBIENT', number: '02' },
   dub: { name: 'After hours', subtitle: '둥근 저음, 절제된 전자 리듬', description: '일정한 박자에 몸을 맡기고, 한 걸음 더.', bpm: 108, energy: 48, warmth: 62, evolution: 40, tag: 'DEEP ELECTRONIC', number: '03' },
 } as const;
-export const DEFAULTS: Settings = { generatorVersion: 32, melodyRepetition: 2, arpeggio: true, groove: 'straight', instruments: chooseInstruments('lofi', 'SLOWFLOW'), profile: 'lofi', seed: 'SLOWFLOW', bpm: 78, energy: 42, warmth: 72, evolution: 35, reverb: 28, volume: 55, layers: { harmony: true, bass: true, rhythm: true, motif: true } };
+export const DEFAULTS: Settings = { generatorVersion: 33, melodyRepetition: 2, arpeggio: true, groove: 'straight', instruments: chooseInstruments('lofi', 'SLOWFLOW'), profile: 'lofi', seed: 'SLOWFLOW', bpm: 78, energy: 42, warmth: 72, evolution: 35, reverb: 28, volume: 55, layers: { harmony: true, bass: true, rhythm: true, motif: true } };
 export const repetitionLevel = (s:Settings) => s.generatorVersion>=14 ? s.melodyRepetition??2 : 2;
 export const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
@@ -168,7 +169,9 @@ export function eventsForBar(settings: Settings, bar: number): MusicEvent[] {
   // v29 D&B: a halftime beat through the build, voiced from the groove two bars into the drop.
   const template=bar-bar%8+10;
   performed.push(...halftimeEvents(settings,bar,()=>drumPerformance(settings,template,narrativeEvents(settings,template))));
-  const combined = settings.generatorVersion >= 8 ? [...performed, ...arpeggioEvents(settings, bar, events)] : performed;
+  // v33: some breakdowns keep the hats, or a halftime skeleton, instead of going fully silent.
+  const drums=breakdownDrums(settings,bar,performed,from=>drumPerformance(settings,from,narrativeEvents(settings,from)));
+  const combined = settings.generatorVersion >= 8 ? [...drums, ...arpeggioEvents(settings, bar, events)] : drums;
   return alignChordsV27(settings,bar,applySilence(settings,bar,applyTapeStop(settings,bar,ambientEvents(settings,bar,combined))).filter(e=>layerEnabled(settings,e.layer)).map(e=>({ ...e, instrument: e.layer === 'arpeggio' ? e.instrument : settings.instruments[e.layer] })));
 }
 export function musicScore(settings: Settings): Score {
