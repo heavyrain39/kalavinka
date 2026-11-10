@@ -36,7 +36,8 @@ if(savedPhrase&&JSON.stringify(normalizeSettings(savedSelection.settings))===JSO
 }
 let shared = false;
 if (location.hash.startsWith('#mix=')) {
-  try { settings = normalizeSettings(JSON.parse(decodeURIComponent(location.hash.slice(5))));selectedPhrase=undefined; shared = true; } catch { /* ignore invalid links */ }
+  // A shared link brings its music, not the sender's volume.
+  try { settings = {...normalizeSettings(JSON.parse(decodeURIComponent(location.hash.slice(5)))),volume:settings.volume};selectedPhrase=undefined; shared = true; } catch { /* ignore invalid links */ }
 }
 let selectedComposition=compositionIdentity(settings);
 rememberInstruments();
@@ -123,7 +124,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><a href="./LICENSE.txt" target="_blank" rel="noopener noreferrer" data-i18n="terms">${t('terms')}</a><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.40.0 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><p data-i18n="aboutMusic">${t('aboutMusic')}</p><p data-i18n="aboutPrivacy">${t('aboutPrivacy')}</p><p data-i18n="aboutKeys">${t('aboutKeys')}</p><p>v0.40.1 · © 2026 Yakshawan · ${label('rights')}</p><div class="dialog-links"><a class="inline-link" href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener noreferrer">${label('thirdParty')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 // Keep the crawlable, static overview in the compact footer after the player mounts.
 document.querySelector('footer > div')!.append(document.querySelector('.app-overview')!);
@@ -334,7 +335,8 @@ $('#favorites').addEventListener('click', (event) => {
   if (!target) return;
   if (target.dataset.load) {
     const favorite = favorites.find((item) => item.id === target.dataset.load);
-    if (favorite) void replace(structuredClone(favorite.settings),favorite.phrase?structuredClone(favorite.phrase):undefined);
+    // A saved song comes back at the volume the listener has now.
+    if (favorite) void replace({...structuredClone(favorite.settings),volume:settings.volume},favorite.phrase?structuredClone(favorite.phrase):undefined);
   }
   if (target.dataset.delete) {
     favorites = favorites.filter((item) => item.id !== target.dataset.delete);

@@ -11,6 +11,9 @@ test('eight-bar saves freeze explicit notes/chords and continue at the original 
   const clip=capturePhrase({settings:s,opening:true},24),copy=normalizePhrase(JSON.parse(JSON.stringify(clip)));
   assert.ok(copy,`${generatorVersion}/${profile}`);
   assert.equal(favoriteIdentity(s,clip),favoriteIdentity(s,copy));
+  // The listener's volume is not part of a favorite; the reverb is.
+  assert.equal(favoriteIdentity({...s,volume:12},clip),favoriteIdentity(s,clip));
+  assert.notEqual(favoriteIdentity({...s,reverb:s.reverb+7},clip),favoriteIdentity(s,clip));
   const playback=playbackScore({settings:s,phrase:copy,opening:true});
   assert.deepEqual(playback.onsets(0,8),JSON.parse(JSON.stringify(clip.events)));
   assert.deepEqual(playback.onsets(8,16),musicScore(s).onsets(32,40).map(e=>relativeEvent(e,24)));

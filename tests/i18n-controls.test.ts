@@ -24,12 +24,13 @@ test('all copy and instrument choices have complete English translations', () =>
   assert.equal(translate('en','timerReady',{count:25}),'The 25-minute timer starts when you press Play.');
 });
 
-test('reset restores six sliders while preserving the composition and muted parts', () => {
+test('reset restores five sliders while preserving the composition, muted parts and the volume', () => {
   for (const profile of ['lofi','ambient','dub'] as ProfileId[]) for (const groove of ['straight','dnb'] as const) {
     const s=normalizeSettings({...selectProfile(DEFAULTS,profile),groove,seed:'KEEPMIX1',bpm:180,energy:99,warmth:1,evolution:99,reverb:1,volume:99,layers:{...DEFAULTS.layers,bass:false}});
     const before=structuredClone(s), result=resetSliders(s);
     assert.deepEqual(s,before);
-    const expected={lofi:[78,42,72,35,28,55],ambient:[64,25,60,25,76,55],dub:[groove==='dnb'?170:108,48,62,40,28,55]}[profile];
+    // The volume is the listener's own setting: reset leaves it where it was.
+    const expected={lofi:[78,42,72,35,28,99],ambient:[64,25,60,25,76,99],dub:[groove==='dnb'?170:108,48,62,40,28,99]}[profile];
     assert.deepEqual([result.bpm,result.energy,result.warmth,result.evolution,result.reverb,result.volume],expected);
     const composition=({bpm,energy,warmth,evolution,reverb,volume,...rest}: typeof s)=>rest;
     assert.deepEqual(composition(result),composition(s));

@@ -26,7 +26,8 @@ export function capturePhrase(p:Playback,start=0):SavedPhrase{
 }
 const canonical=(v:unknown):unknown=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'
   ?Object.fromEntries(Object.entries(v).filter(([,value])=>value!==undefined).sort(([a],[b])=>a.localeCompare(b)).map(([key,value])=>[key,canonical(value)])):v;
-export const favoriteIdentity=(settings:Settings,phrase:SavedPhrase)=>JSON.stringify(canonical([settings,phrase]));
+// The volume is the listener's, not the song's: the same song at another volume is the same favorite.
+export const favoriteIdentity=(settings:Settings,phrase:SavedPhrase)=>JSON.stringify(canonical([{...settings,volume:0},phrase]));
 // Explicit edits can recompose the opening at the next scheduled bar; volume/reverb do not.
 export const compositionIdentity=(s:Settings)=>JSON.stringify({...s,volume:0,reverb:0});
 
