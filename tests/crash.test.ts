@@ -65,11 +65,11 @@ test('v16 adds only cymbals; saved accents survive reload, mute and arbitrary sc
  }
 });
 
-test('existing drum samples stay byte-exact and cymbals have an independent long decay',()=>{
+test('kick, rim and tom samples stay byte-exact and cymbals have an independent long decay',()=>{
  const digest=createHash('sha256');
- for(const kit of DRUM_KITS)for(const mode of ['house','dnb'] as const)for(const sound of DRUM_SOUNDS.filter(s=>s!=='crash'))
+ for(const kit of DRUM_KITS)for(const mode of ['house','dnb'] as const)for(const sound of DRUM_SOUNDS.filter(s=>s==='kick'||s==='rim'||s==='tom'))
   digest.update(new Uint8Array(renderDrum(48000,kit,mode,sound,.65,0).buffer));
- assert.equal(digest.digest('hex'),'a6fed502809dc907e0280288816aaf4b80cf47efe47595a49624bb54ebbdbeaa');
+ assert.equal(digest.digest('hex'),'eb39c0862eddefa8dd15656a875fa883cc8782f7841720d4e19f2aa6d3deb717');
  const rms=(data:Float32Array,from:number,to:number)=>Math.sqrt(data.slice(from*48000,to*48000).reduce((a,x)=>a+x*x,0)/((to-from)*48000));
  for(const kit of DRUM_KITS){
   const cymbal=renderDrum(48000,kit,'house','crash',1,0);

@@ -19,7 +19,26 @@ function highpass(rate:number,frequency:number) {
   const a=Math.exp(-2*Math.PI*frequency/rate);let last=0,lp=0;
   return (x:number)=>{lp=(1-a)*x+a*lp;last=x-lp;return last;};
 }
+// Two-pole filters for the snare wires and the hats (the one-pole high-pass above leaks too much).
+function highpass2(rate:number,frequency:number,q=.707) {
+  const w=2*Math.PI*Math.min(rate*.45,frequency)/rate,c=Math.cos(w),a=Math.sin(w)/(2*q);
+  const b0=(1+c)/2/(1+a),b1=-(1+c)/(1+a),a1=-2*c/(1+a),a2=(1-a)/(1+a);
+  let x1=0,x2=0,y1=0,y2=0;
+  return (x:number)=>{const y=b0*x+b1*x1+b0*x2-a1*y1-a2*y2;x2=x1;x1=x;y2=y1;y1=y;return y;};
+}
+function bandpass(rate:number,frequency:number,q:number) {
+  const w=2*Math.PI*Math.min(rate*.45,frequency)/rate,a=Math.sin(w)/(2*q);
+  const b=a/(1+a),a1=-2*Math.cos(w)/(1+a),a2=(1-a)/(1+a);
+  let x1=0,x2=0,y1=0,y2=0;
+  return (x:number)=>{const y=b*(x-x2)-a1*y1-a2*y2;x2=x1;x1=x;y2=y1;y1=y;return y;};
+}
+// A band-limited square (polyBLEP) from a phase in [0,1) that advances by `step` per sample.
+const blep=(p:number,step:number)=>p<step?(p/=step,p+p-p*p-1):p>1-step?(p=(p-1)/step,p*p+p+p+1):0;
+const square=(p:number,step:number)=>(p<.5?1:-1)+blep(p,step)-blep((p+.5)%1,step);
 const attack=(t:number,seconds:number)=>1-Math.exp(-t/seconds);
+// A hat is noise ringing through inharmonic resonances: it hisses with a metallic colour and
+// holds no pitch. The square oscillators only speak in the first milliseconds, as the stick.
+const HAT_RESONANCES=[3300,4600,5900,7400,9200,11400,14000],HAT_OSCILLATORS=[211,293,379,509,547,811];
 
 /** Original drum design: 2x synthesis, saturation, anti-alias filtering, then decimation. */
 export function renderDrum(rate:number,kit:string,mode:DrumMode,sound:DrumSound,velocity:number,variant:number): Float32Array<ArrayBuffer> {
@@ -30,15 +49,27 @@ export function renderDrum(rate:number,kit:string,mode:DrumMode,sound:DrumSound,
   const count=Math.ceil(rate*duration),output=new Float32Array(count),sr=rate*2;
   const aa1=lowpass(sr,rate*.40),aa2=lowpass(sr,rate*.40),dc=highpass(sr,20);
   const color=lowpass(sr,brush?(sound==='kick'?9000:6500):tape?(sound==='kick'?10500:8000):12000);
-  const wireHP=highpass(sr,brush?900:1400),crackHP=highpass(sr,2200),hatHP=highpass(sr,brush?4500:6200);
+  const crackHP=highpass(sr,2200);
+  // Snare: the wires are noise above the body, with a presence band where real wires speak.
+  // A soft stroke is darker, not only quieter.
+  const wireHP=highpass2(sr,brush?650:tape?850:electro?1300:1700),wireBand=bandpass(sr,brush?2400:tape?2100:electro?3800:4800,.8);
+  const strokeTone=lowpass(sr,sound==='snare'?2600+velocity*9000:(brush?8500:tape?9500:17000)*(.5+.5*velocity));
+  const snarePitch=(brush?172:electro?186:minimal?206:190)*(variant?1.004:.996);
+  let snarePhase=0,snareOver=0;
+  // Hats: tuned per kit, coloured by seven resonances, then cut below the kit's own floor.
+  const hatTune=(electro?1:minimal?1.1:tape?.92:1.05)*(variant?1.004:.996);
+  const hatSteps=HAT_OSCILLATORS.map(f=>f*hatTune/sr),hatPhases=HAT_OSCILLATORS.map((_,k)=>k*.37%1);
+  // Equal-Q bands grow wider and louder upwards; the tilt keeps each kit's top end in proportion.
+  const hatTilt=brush?1:tape?1.3:electro?1.15:1.45,hatWeights=HAT_RESONANCES.map(f=>(5900/f)**hatTilt);
+  const hatBands=HAT_RESONANCES.map(f=>bandpass(sr,f*hatTune,9)),hatStick=highpass2(sr,5200);
+  const hatHP=highpass2(sr,brush?4200:tape?4800:electro?6000:7400),hatTrim=brush?.68:tape?.2:electro?.165:.165;
   let rng=hash(`${kit}:${mode}:${sound}:${variant}`)||1;
   const noise=()=>{rng^=rng<<13;rng^=rng>>>17;rng^=rng<<5;return (rng>>>0)/2147483648-1;};
   const fundamental=electro?48:tape?52:brush?55:60;
   const rr=1+(variant?1:-1)*.004;
   let phase=0;
-  const metalFreq=[413,617,883,1327,1789,2411].map(f=>f*rr*(electro?1.12:1));
   for(let i=0;i<count*2;i++) {
-    const t=i/sr,n=color(noise()),fade=.5-.5*Math.cos(Math.PI*Math.min(1,(duration-t)/.02)),v=velocity;
+    const t=i/sr,white=noise(),n=color(white),fade=.5-.5*Math.cos(Math.PI*Math.min(1,(duration-t)/.02)),v=velocity;
     let x=0;
     if(sound==='kick') {
       // Stable low fundamental; a fast punch and a slower body pitch fall.
@@ -52,20 +83,29 @@ export function renderDrum(rate:number,kit:string,mode:DrumMode,sound:DrumSound,
       const beater=(brush||tape)?Math.sin(2*Math.PI*(brush?1700:2400)*t)*attack(t,.0003)*Math.exp(-t/.002)*(.025+v*.035):0;
       x=Math.tanh((body+punch)*1.25)/1.2*(brush?.96:tape?.94:1)+click+beater;
     } else if(sound==='snare') {
-      const body=(Math.sin(2*Math.PI*(brush?172:electro?194:184)*rr*t)*.52*Math.exp(-t/.040)
-        +Math.sin(2*Math.PI*327*rr*t)*.24*Math.exp(-t/.027))*attack(t,.0009);
-      const wireNoise=wireHP(n);
-      const wire=wireNoise*attack(t,.0014)*Math.exp(-t/(brush?.052:dnb?.029:.039))*(.48+v*.28);
-      const crack=crackHP(n)*attack(t,.0004)*Math.exp(-t/.006)*(.12+v*.50);
+      // The head: two modes that start sharp and settle within a few milliseconds, like a
+      // struck membrane; a steady sine reads as a beep.
+      const bend=1+(electro?.14:.24)*Math.exp(-t/.011);
+      snarePhase+=2*Math.PI*snarePitch*bend/sr;snareOver+=2*Math.PI*snarePitch*1.76*bend/sr;
+      const ring=brush?.032:tape?.030:electro?.040:.022;
+      const body=(Math.sin(snarePhase)*.52*Math.exp(-t/(ring*(dnb?.85:1)))+Math.sin(snareOver)*.24*Math.exp(-t/(ring*.68)))*attack(t,.0009)
+        *(brush?1.25:tape?1.4:electro?1.35:1.05);
+      const air=strokeTone(n),wireNoise=wireHP(air)*.55+wireBand(air)*1.15;
+      const wireDecay=brush?(dnb?.052:.062):tape?(dnb?.040:.050):electro?(dnb?.038:.045):dnb?.024:.027;
+      const wire=wireNoise*attack(t,brush?.004:.0012)*Math.exp(-t/wireDecay)*(.62+v*.38)*(brush?.62:tape?.82:electro?.9:.92);
+      const crack=crackHP(n)*attack(t,.0004)*Math.exp(-t/.006)*(.10+v*.55)*(brush?.4:1);
       // A small staggered noise component gives tape kits a restrained clap texture.
       const clap=tape?wireNoise*Math.max(0,Math.sin(Math.min(1,t/.023)*Math.PI*3))*Math.exp(-t/.014)*.12:0;
-      x=Math.tanh((body*(.55+v*.30)+wire+crack+clap)*(electro?1.35:1.1))*.78;
+      x=Math.tanh((body*(.42+v*.22)+wire+crack+clap)*(electro?1.35:1.1))*(brush?.85:electro?.7:.78);
     } else if(sound==='closed'||sound==='half'||sound==='open') {
       const decay=sound==='closed'?(brush?.014:.010):sound==='half'?.030:dnb?.052:.075;
-      // Inharmonic oscillators, ring interaction and air give a metallic body.
-      let metal=0;for(const f of metalFreq)metal+=Math.sin(2*Math.PI*f*t)+.24*Math.sin(2*Math.PI*f*5*t);
-      metal=metal/6+.16*Math.sin(2*Math.PI*metalFreq[1]*t)*Math.sin(2*Math.PI*metalFreq[5]*t);
-      x=hatHP(metal*(brush?.25:.72)+n*(brush?.8:.38))*attack(t,.0006)*Math.exp(-t/decay)*(.55+v*.35);
+      let squares=0;
+      for(let k=0;k<hatSteps.length;k++){let p=hatPhases[k]+hatSteps[k];p-=Math.floor(p);hatPhases[k]=p;squares+=square(p,hatSteps[k]);}
+      let metal=0;for(let k=0;k<hatBands.length;k++)metal+=hatBands[k](white)*hatWeights[k];
+      // Metal and air in the kit's own proportion: a brush is mostly air, a minimal kit mostly metal.
+      const mix=metal*(brush?.9:tape?2.2:electro?3:3.2)+n*(brush?.8:tape?.4:electro?.22:.14);
+      const stick=hatStick(squares)*Math.exp(-t/.004)*(brush?.03:.1)*(.4+v*.6);
+      x=(strokeTone(hatHP(mix))*Math.exp(-t/decay)+stick)*attack(t,brush?.0015:.0006)*(.55+v*.35)*hatTrim;
       x+=crackHP(n)*attack(t,.0003)*Math.exp(-t/.0025)*.1*v;
     } else if(sound==='tom') {
       phase+=2*Math.PI*(110+45*Math.exp(-t/.013))/sr;
