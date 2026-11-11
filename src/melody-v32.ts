@@ -12,6 +12,13 @@ import { chapterBarsV17, melodyRestsV17 } from './melody-v17';
 // a rest, lines follow a contour instead of a random walk, the last four bars are one breath that
 // climbs to a peak and comes down, the closing note moves, and the notes carry dynamics.
 export const melodyV32 = (s: Settings) => s.generatorVersion >= 32;
+// Generator v34: the cell is not sequenced everywhere at once. In v32 the idea stepped its cell,
+// the answer copied that, and the development stepped it three more times, so most sentences
+// opened with the same half bar four times. Now a sentence has one sequence of two steps:
+// in the idea (a quarter of the themes) or in the development (the others).
+export const melodyV34 = (s: Settings) => s.generatorVersion >= 34;
+/** Share of the v34 themes whose idea still steps its own cell. */
+const SEQUENCED = .25;
 
 const JOIN = 0, PART = 1, RING = 2;
 type Size = 2 | 3;
@@ -42,7 +49,11 @@ interface Gesture {
   push?: number;
   peak?: boolean; cadence?: boolean;
 }
-interface Theme { a: number[]; shape: number[]; b: number[]; rise: number[]; template: number; arch: number; push: boolean }
+interface Theme {
+  a: number[]; shape: number[]; b: number[]; rise: number[]; template: number; arch: number; push: boolean;
+  /** The idea restates its cell a step away (always, until v34); otherwise `c` with the contour `turn` follows it. */
+  seq: boolean; c: number[]; turn: number[];
+}
 interface Slot {
   at: number; length: number; available: number; bar: number; pos: number; stage: number; chord: Chord; scale: number[];
   strong: boolean; change: boolean; target: number; dir: number; repeat: boolean; id: string; hold: number;
@@ -62,11 +73,24 @@ function theme(s: Settings, key: string, density: number): Theme {
   const arch = Math.floor(r('arch') * 4);
   if (!density) {
     const a = of(SPARSE, 'a');
-    return { a, shape: a.length === 1 ? [0] : [0, of([1, -1, 2, -2], 'shape')], b: [0], rise: [0], template: 0, arch, push: r('push') < .4 };
+    return { a, shape: a.length === 1 ? [0] : [0, of([1, -1, 2, -2], 'shape')], b: [0], rise: [0], template: 0, arch, push: r('push') < .4, seq: true, c: a, turn: [0] };
   }
   const size: Size = r('size') < (density === 1 ? .6 : .3) ? 2 : 3;
-  return { a: of(CELLS[size], 'a'), shape: of(SHAPES[size], 'shape'), b: of(CELLS[2], 'b'), rise: of(RISES, 'rise'),
-    template: Math.floor(r('template') * 5), arch, push: r('push') < .45 };
+  const a = of(CELLS[size], 'a'), shape = of(SHAPES[size], 'shape');
+  return { a, shape, b: of(CELLS[2], 'b'), rise: of(RISES, 'rise'), template: Math.floor(r('template') * 5), arch, push: r('push') < .45,
+    seq: true, c: a, turn: shape };
+}
+
+/** v34: the theme's second cell, of another rhythm and another contour, and whether the idea sequences instead. */
+function secondCell(s: Settings, key: string, t: Theme): Theme {
+  const r = (label: string) => random(s.seed, `m34:${key}:${label}`);
+  const of = <T>(list: T[], label: string) => list[Math.floor(r(label) * list.length)];
+  const same = (x: number[], y: number[]) => x.join() === y.join();
+  const b = same(t.b, t.a) ? of(CELLS[2].filter(x => !same(x, t.a)), 'b') : t.b;
+  // Never busier than the cell it follows: a three-note cell may be answered by two notes, not the reverse.
+  const size: Size = t.a.length === 3 && r('size') < .7 ? 3 : 2;
+  return { ...t, b, seq: r('seq') < SEQUENCED, c: of(CELLS[size].filter(x => !same(x, t.a) && !same(x, b)), 'c'),
+    turn: of(SHAPES[size].filter(x => !same(x, t.shape)), 'turn') };
 }
 
 /** The two-bar idea: the cell, the cell again a step away, a turn, then a long note and a rest. */
@@ -84,29 +108,37 @@ function idea(t: Theme, key: string, density: number): Gesture[] {
   }
   // A long note may arrive an eighth early when the cell before it leaves the room.
   const early = (cell: number[]) => t.push && cell.at(-1)! < 5;
-  const rise = t.rise.map(x => x * up);
+  const rise = t.rise.map(x => x * up), [next, contour] = t.seq ? [t.a, t.shape] : [t.c, t.turn];
   put(t.a, t.shape, 0, b0, 'a');
   if (t.template === 0) {
-    put(t.a, t.shape, 8, b1, 'r'); put(t.push ? t.b.filter(o => o < 5) : t.b, rise, 16, b2, 'b'); ring(t.push ? 22 : 24, 28, 'l');
+    put(next, contour, 8, b1, 'r'); put(t.push ? t.b.filter(o => o < 5) : t.b, rise, 16, b2, 'b'); ring(t.push ? 22 : 24, 28, 'l');
   } else if (t.template === 1) {
-    put(t.a, t.shape, 8, b1, 'r'); ring(early(t.a) ? 14 : 16, 26, 'l', early(t.a) ? 16 : undefined);
+    put(next, contour, 8, b1, 'r'); ring(early(next) ? 14 : 16, 26, 'l', early(next) ? 16 : undefined);
   } else if (t.template === 2) {
-    put(t.a, t.shape, 16, b1, 'r'); ring(early(t.a) ? 22 : 24, 28, 'l');
+    put(next, contour, 16, b1, 'r'); ring(early(next) ? 22 : 24, 28, 'l');
   } else if (t.template === 3) {
     put(t.b, rise, 8, b1, 'b'); ring(early(t.b) ? 14 : 16, 26, 'l', early(t.b) ? 16 : undefined);
   } else {
-    ring(8, 12, 'm'); put(t.a, t.shape, 16, b1, 'r'); ring(early(t.a) ? 22 : 24, 28, 'l');
+    ring(8, 12, 'm'); put(next, contour, 16, b1, 'r'); ring(early(next) ? 22 : 24, 28, 'l');
   }
   return out;
 }
 
 /** The answer keeps the idea's rhythm and its whole head; only the tail turns the other way and stays open. */
 function reply(s: Settings, source: Gesture[], t: Theme, key: string, density: number): Gesture[] {
-  const n = source.length, count = Math.min(n - 1, Math.max(2, density && t.template === 0 ? source.filter(g => g.step >= 16).length : 2));
-  const turn = -(Math.sign(source[n - 1].degree - source[n - 2].degree) || 1);
-  let degree = source[n - count - 1].degree;
-  return source.map((g, i) => {
-    if (i < n - count) return { ...g, id: `${key}:h${i}`, src: g.id, shift: 0 };
+  // v34: an idea that stepped its cell is answered by the cell and something else, and a third
+  // of the other answers keep only the cell and close early. Only the notes still shared with
+  // the statement aim at its pitches.
+  let base = source, shared = source.length, template = t.template;
+  if (melodyV34(s) && density && !riffMode(s)) {
+    if (t.seq) { base = idea({ ...t, seq: false }, key, density); shared = t.a.length; }
+    else if (t.template !== 3 && random(s.seed, `m34:${key}:free`) < .35) { base = idea({ ...t, template: template = 3 }, key, density); shared = t.a.length; }
+  }
+  const n = base.length, count = Math.min(n - 1, Math.max(2, density && template === 0 ? base.filter(g => g.step >= 16).length : 2));
+  const turn = -(Math.sign(source.at(-1)!.degree - source.at(-2)!.degree) || 1);
+  let degree = base[n - count - 1].degree;
+  return base.map((g, i) => {
+    if (i < n - count) return i < shared ? { ...g, id: `${key}:h${i}`, src: source[i].id, shift: 0 } : { ...g, id: `${key}:h${i}` };
     degree += turn * (random(s.seed, `m32:${key}:tail:${i}`) < .3 ? 2 : 1);
     if (i === n - 1 && degree === 0) degree = turn;
     return { ...g, degree, id: `${key}:t${i}` };
@@ -128,7 +160,7 @@ function close(list: Gesture[], landing: number, key: string, density: number): 
  * Bars five to eight as one breath. The idea's head is broken off and restated higher
  * (fragmentation), the line reaches its single peak, then comes down to the closing note.
  */
-function develop(t: Theme, hook: Gesture[], kind: number, landing: number, key: string, density: number): Gesture[][] {
+function develop(t: Theme, hook: Gesture[], kind: number, landing: number, key: string, density: number, v34: boolean): Gesture[][] {
   const cell = hook.slice(0, t.a.length), top = Math.max(...cell.map(g => g.degree)), high = Math.min(3, 4 - top);
   const frag = (at: number, shift: number, tag: string): Gesture[] =>
     cell.map((g, i) => ({ step: at + g.step, degree: g.degree + shift, hold: g.hold, id: `${key}:${tag}${i}`, src: g.id, shift }));
@@ -142,6 +174,26 @@ function develop(t: Theme, hook: Gesture[], kind: number, landing: number, key: 
   const fall = t.rise.map(x => -x), summit = top + high + 1;
   const cellAt = (onsets: number[], shape: number[], at: number, base: number, tag: string): Gesture[] =>
     onsets.map((o, i) => ({ step: at + o, degree: base + shape[i], hold: i === onsets.length - 1 ? PART : JOIN, id: `${key}:${tag}${i}` }));
+  if (v34 && t.seq) {
+    // The idea already climbed in steps, so the development is one line: the second cell runs up to the peak.
+    // After a three-note head the run is two notes, so the bar holds five lead notes at most.
+    const steps = cell.length === 3 ? t.c.slice(-2) : t.c;
+    const run = (at: number, tag: string) => cellAt(steps, steps.map((_, i) => i), at, summit - steps.length, tag);
+    if (kind === 0) return [[...frag(0, high - 1, 'f'), ...run(8, 'u'), peak(16, 24, summit)], close(cellAt(t.b, fall, 0, summit - 1, 'd'), landing, key, density)];
+    if (kind === 1) return [[...cellAt(t.c, t.turn, 0, 1, 'u'), note(8, 2, 'n'), ...frag(16, high, 'g')], close([peak(0, 6, summit)], landing, key, density)];
+    return [[...cellAt(t.b, t.rise, 0, summit - steps.length - 1 - Math.max(...t.rise), 'v'), ...run(8, 'u'), peak(16, 26, summit)],
+      close(frag(0, 0, 'h'), landing, key, density)];
+  }
+  if (v34) {
+    // The one sequence of the sentence: two steps up to the peak, where v32 took three.
+    const echo = (step: number, shift: number, tag: string) => density >= 2 ? [note(step, cell.at(-1)!.degree + shift - 1, tag)] : [];
+    if (kind === 0) return [[...frag(0, high - 1, 'f'), ...echo(12, high - 1, 'e'), ...frag(16, high, 'g'), ...echo(28, high, 'k')],
+      close([peak(0, 6, summit)], landing, key, density)];
+    if (kind === 1) return [[...frag(0, high - 1, 'f'), ...frag(8, high, 'g'), peak(16, 24, summit)], close(cellAt(t.b, fall, 0, summit - 1, 'd'), landing, key, density)];
+    const base = 3 - Math.max(...t.rise);
+    return [[...cellAt(t.b, t.rise, 0, base, 'u'), ...cellAt(t.b, t.rise, 8, base + 1, 'v'), peak(16, 24, base + 2 + Math.max(...t.rise))],
+      close(frag(0, 0, 'h'), landing, key, density)];
+  }
   if (kind === 0) {
     // The head three times, a step higher each bar, then the peak.
     const echo = (step: number, shift: number, tag: string) => density >= 2 ? [note(step, cell.at(-1)!.degree + shift - 1, tag)] : [];
@@ -190,6 +242,8 @@ function sentence(s: Settings, start: number, density: number) {
     const hook = t; key = `L${start}`;
     t = { ...theme(s, key, density), a: hook.a, shape: hook.shape };
   }
+  const v34 = melodyV34(s) && density > 0 && !riffMode(s);
+  if (v34) t = secondCell(s, key, t);
   const quoting = level >= 2 && chapter > 0 && index === 0;
   const before = `A${chapter - 1}`;
   if (riffMode(s) && density) {
@@ -207,9 +261,9 @@ function sentence(s: Settings, start: number, density: number) {
       lift: contrast ? 1 : 0, chapter, index, full, riffs: true };
   }
   // A new chapter opens by recalling the last one: its idea and answer, then the new idea takes over the development.
-  const statement = idea(t, key, density), old = quoting ? theme(s, before, density) : t;
+  const statement = idea(t, key, density), old = !quoting ? t : v34 ? secondCell(s, before, theme(s, before, density)) : theme(s, before, density);
   const opening = quoting ? idea(old, before, density) : statement;
-  return { stages: [opening, reply(s, opening, old, `r:${vary}`, density), ...develop(t, statement, turn % 3, landing, `d:${vary}`, density)],
+  return { stages: [opening, reply(s, opening, old, `r:${vary}`, density), ...develop(t, statement, turn % 3, landing, `d:${vary}`, density, v34)],
     lift: contrast ? 1 : 0, chapter, index, full, riffs: false };
 }
 
@@ -378,6 +432,8 @@ export function melodySentenceV32(s: Settings, start: number, backing: MusicEven
     if (stage === 0 || slots[i].src !== undefined || target.voice === 'arp' || prior.role === 'passing'
       || prior.at + prior.length + (prior.release ?? 0) * seconds > target.at - .135) continue;
     if (random(s.seed, `m32-neighbor:${plan.chapter}:${plan.index}:${i}`) > (stage === 1 ? .2 : .3)) continue;
+    // v34 answers hold new notes that may take a pickup; a bar stays within six lead notes.
+    if (melodyV34(s) && notes.filter(e => Math.floor(e.at) === bar).length >= 6) continue;
     const at = gridShift(s, target.at, -2);
     if (Math.floor(at) !== bar || Math.round((at - bar) * 16) % 4 === 0 || backing.some(e => e.fill !== undefined && Math.abs(e.at - at) < .12)) continue;
     const chord = chordAt(s, bar), scale = chordScale(s, chord);

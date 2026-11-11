@@ -22,7 +22,8 @@ test('all profiles keep note range, event density and duration bounded over a lo
     const settings = { ...selectProfile(DEFAULTS, profile), energy: 100, evolution: 100, layers: { harmony: true, bass: true, rhythm: true, motif: true } };
     for (let bar = 0; bar < 256; bar++) {
       const events = eventsForBar(settings, bar);
-      assert.ok(events.filter(e=>e.layer!=='arpeggio').length <= 24);
+      // The busiest bars hold 26–27 events on some seeds since v32 (a six-note lead bar over a full kit); 24 held only for the default seed.
+      assert.ok(events.filter(e=>e.layer!=='arpeggio').length <= 28);
       assert.ok(events.filter(e=>e.layer==='arpeggio').length <= 8);
       for (const event of events) {
         assert.ok(event.at >= bar && event.at < bar + 1);
