@@ -17,8 +17,17 @@ export const melodyV32 = (s: Settings) => s.generatorVersion >= 32;
 // opened with the same half bar four times. Now a sentence has one sequence of two steps:
 // in the idea (a quarter of the themes) or in the development (the others).
 export const melodyV34 = (s: Settings) => s.generatorVersion >= 34;
+// Generator v35: the same care for the other grammars. The sparse moods (ambient, D&B, low energy)
+// answered every statement in its own rhythm and brought the cell back in bars five and six, so a
+// sentence was one bar rhythm four times; house played one bar four times, twice more a step up,
+// and once again. Now a sparse answer may use a second cell or close early, the development
+// restates the cell only when the answer did not, and the house riff is two bars long.
+export const melodyV35 = (s: Settings) => s.generatorVersion >= 35;
 /** Share of the v34 themes whose idea still steps its own cell. */
 const SEQUENCED = .25;
+
+/** v35, sparse moods: share of the answers in the statement's rhythm, and of those that keep the cell and close early. */
+const ANSWERS = [.4, .2];
 
 const JOIN = 0, PART = 1, RING = 2;
 type Size = 2 | 3;
@@ -93,6 +102,13 @@ function secondCell(s: Settings, key: string, t: Theme): Theme {
     turn: of(SHAPES[size].filter(x => !same(x, t.shape)), 'turn') };
 }
 
+/** v35, sparse moods: a second one-bar cell of another rhythm, and its own contour. */
+function secondSparse(s: Settings, key: string, t: Theme): Theme {
+  const of = <T>(list: T[], label: string) => list[Math.floor(random(s.seed, `m35:${key}:${label}`) * list.length)];
+  const c = of([[0], [4], [2], [0, 8], [0, 10], [4, 12]].filter(x => x.join() !== t.a.join()), 'c');
+  return { ...t, c, turn: c.length === 1 ? [0] : [0, of([1, -1, 2, -2].filter(x => x !== t.shape[1]), 'turn')] };
+}
+
 /** The two-bar idea: the cell, the cell again a step away, a turn, then a long note and a rest. */
 function idea(t: Theme, key: string, density: number): Gesture[] {
   const out: Gesture[] = [], up = ending(t), [b0, b1, b2] = STARTS[t.arch];
@@ -125,7 +141,7 @@ function idea(t: Theme, key: string, density: number): Gesture[] {
 }
 
 /** The answer keeps the idea's rhythm and its whole head; only the tail turns the other way and stays open. */
-function reply(s: Settings, source: Gesture[], t: Theme, key: string, density: number): Gesture[] {
+function reply(s: Settings, source: Gesture[], t: Theme, key: string, density: number, answer = 0): Gesture[] {
   // v34: an idea that stepped its cell is answered by the cell and something else, and a third
   // of the other answers keep only the cell and close early. Only the notes still shared with
   // the statement aim at its pitches.
@@ -133,6 +149,17 @@ function reply(s: Settings, source: Gesture[], t: Theme, key: string, density: n
   if (melodyV34(s) && density && !riffMode(s)) {
     if (t.seq) { base = idea({ ...t, seq: false }, key, density); shared = t.a.length; }
     else if (t.template !== 3 && random(s.seed, `m34:${key}:free`) < .35) { base = idea({ ...t, template: template = 3 }, key, density); shared = t.a.length; }
+  }
+  if (answer && !density) {
+    // v35, sparse: the second cell with its long note somewhere else (1), or the statement's cell
+    // and a long note straight after it, which leaves the next bar silent (2).
+    // The second cell stays under the height the development will climb to.
+    const room = Math.min(3, Math.max(...source.slice(0, t.a.length).map(g => g.degree)) + 2) - Math.max(0, ...t.turn) - Math.max(0, ending(t));
+    const [cell, shape, from] = answer === 1 ? [t.c, t.turn, Math.min(STARTS[t.arch][1], room)] : [t.a, t.shape, STARTS[t.arch][0]], last = cell.at(-1)!;
+    const at = answer === 2 ? (last <= 4 ? 8 : 12) : last <= 4 && random(s.seed, `m35:${key}:early`) < .4 ? 8 : 20;
+    base = [...cell.map((o, i): Gesture => ({ step: o, degree: from + shape[i], hold: i === cell.length - 1 ? PART : JOIN, id: `${key}:a${i}` })),
+      { step: at, degree: from + shape.at(-1)! + ending(t), hold: RING, until: Math.min(28, at + 12), id: `${key}:l` }];
+    shared = answer === 2 ? t.a.length : 0;
   }
   const n = base.length, count = Math.min(n - 1, Math.max(2, density && template === 0 ? base.filter(g => g.step >= 16).length : 2));
   const turn = -(Math.sign(source.at(-1)!.degree - source.at(-2)!.degree) || 1);
@@ -160,12 +187,18 @@ function close(list: Gesture[], landing: number, key: string, density: number): 
  * Bars five to eight as one breath. The idea's head is broken off and restated higher
  * (fragmentation), the line reaches its single peak, then comes down to the closing note.
  */
-function develop(t: Theme, hook: Gesture[], kind: number, landing: number, key: string, density: number, v34: boolean): Gesture[][] {
+function develop(t: Theme, hook: Gesture[], kind: number, landing: number, key: string, density: number, v34: boolean, line = false): Gesture[][] {
   const cell = hook.slice(0, t.a.length), top = Math.max(...cell.map(g => g.degree)), high = Math.min(3, 4 - top);
   const frag = (at: number, shift: number, tag: string): Gesture[] =>
     cell.map((g, i) => ({ step: at + g.step, degree: g.degree + shift, hold: g.hold, id: `${key}:${tag}${i}`, src: g.id, shift }));
   const peak = (step: number, until: number, degree: number): Gesture => ({ step, degree, hold: RING, until, id: `${key}:peak`, peak: true });
   const note = (step: number, degree: number, tag: string): Gesture => ({ step, degree, hold: PART, id: `${key}:${tag}` });
+  if (!density && line) {
+    // v35: the answer already restated the cell, so the second cell climbs to the peak instead.
+    const n = t.c.length, lead = t.c.map((o, i): Gesture => ({ step: o, degree: top + high - n + i, hold: i === n - 1 ? PART : JOIN, id: `${key}:u${i}` }));
+    return kind % 2 === 0 ? [[...lead, peak(20, 28, top + high)], close([], landing, key, density)]
+      : [[...lead, note(24, top + high, 'n')], close([peak(0, 10, top + high + 1)], landing, key, density)];
+  }
   if (!density) {
     return kind % 2 === 0
       ? [[...frag(0, high - 1, 'f'), peak(16, 28, top + high)], close([], landing, key, density)]
@@ -217,6 +250,26 @@ function riffBar(t: Theme, key: string, density: number): Gesture[] {
     onsets.map((o, i) => ({ step: at + o, degree: base + shape[i], hold: i === onsets.length - 1 ? PART : JOIN, id: `${key}:${tag}${i}` }));
   return [...cellAt(t.a, t.shape, 0, 0, 'a'), ...cellAt(density >= 2 && t.a.length === 2 ? t.b : t.b.slice(0, 1), t.rise.map(x => x * ending(t)), 8, [1, 2, -1, 0][t.arch], 'b')];
 }
+/**
+ * v35 house: the riff is two bars. The second bar keeps the head and ends on one long note
+ * somewhere else, or answers with the second cell.
+ */
+function riffPair(s: Settings, t: Theme, key: string, density: number): Gesture[] {
+  const first = riffBar(t, key, density), head = first.slice(0, t.a.length), tail = first[t.a.length];
+  const { c, turn } = secondCell(s, key, t), other = [-1, 0, 1, 2][t.arch];
+  // The pair ends on a held note and a beat of silence, where the one-bar riff rested in every bar.
+  const long = (step: number, degree: number): Gesture => ({ step: 16 + step, degree, hold: RING, until: 28, id: `${key}:z` });
+  if (random(s.seed, `m35:${key}:riff`) < .5)
+    return [...first, ...head.map((g, i): Gesture => ({ ...g, step: g.step + 16, id: `${key}:y${i}`, src: g.id, shift: 0 })),
+      long(tail.step > 8 ? 8 : 10, other)];
+  // The answering bar stays low enough for the change to rise above it.
+  const from = Math.min(other, 3 - Math.max(0, ...turn) - Math.max(0, ending(t)));
+  return [...first, ...c.map((o, i): Gesture => ({ step: 16 + o, degree: from + turn[i], hold: i === c.length - 1 ? PART : JOIN, id: `${key}:y${i}` })),
+    long(c.at(-1)! <= 4 ? 8 : 10, from + turn.at(-1)! + ending(t))];
+}
+/** A restatement: every note points back at the note it copies. */
+const again = (list: Gesture[], key: string, shift = 0): Gesture[] =>
+  list.map((g, i) => ({ ...g, degree: g.degree + shift, id: `${key}:${i}`, src: g.src ?? g.id, shift: (g.shift ?? 0) + shift }));
 /** The riff bar twice. Every restatement points back at the bar it copies. */
 const twice = (bar: Gesture[], key: string, shift = 0, own = false): Gesture[] => [0, 16].flatMap(at => bar.map((g, i) =>
   own && !at ? { ...g } : { ...g, step: g.step + at, degree: g.degree + shift, id: `${key}:${at}:${i}`, src: g.id, shift }));
@@ -244,8 +297,22 @@ function sentence(s: Settings, start: number, density: number) {
   }
   const v34 = melodyV34(s) && density > 0 && !riffMode(s);
   if (v34) t = secondCell(s, key, t);
+  const sparse = melodyV35(s) && !density;
+  if (sparse) t = secondSparse(s, key, t);
   const quoting = level >= 2 && chapter > 0 && index === 0;
   const before = `A${chapter - 1}`;
+  if (riffMode(s) && density && melodyV35(s)) {
+    // The two-bar riff, its exact repeat, one change (a step or two up, a nudged note, or the second riff), then its first bar and the close.
+    const pair = riffPair(s, t, key, density), opening = quoting ? riffPair(s, theme(s, before, density), before, density) : pair;
+    const technique = turn % 4, other = `${contrast ? 'A' : 'B'}${chapter}`;
+    let change = again(pair, `c:${vary}`, technique === 0 ? 2 : 1);
+    if (technique === 1) {
+      const i = 1 + hash(`${s.seed}:m32-mutate:${vary}`) % (pair.length - 1), by = random(s.seed, `m32-mutate:${vary}`) < .5 ? -1 : 1;
+      change = change.map((g, j) => j === i ? { ...g, degree: g.degree + by, src: undefined } : g);
+    } else if (technique === 2) change = riffPair(s, theme(s, other, density), other, density).map(g => ({ ...g, degree: g.degree + 1 }));
+    return { stages: [opening, again(opening, `r:${key}`), change, close(again(pair.filter(g => g.step < 16), `e:${vary}`), landing, `e:${vary}`, density)],
+      lift: contrast ? 1 : 0, chapter, index, full, riffs: true };
+  }
   if (riffMode(s) && density) {
     // Riff, exact repeat, one change (a step up, a nudged note, the second riff, or none), close.
     const bar = riffBar(t, key, density), opening = quoting ? riffBar(theme(s, before, density), before, density) : bar;
@@ -261,9 +328,14 @@ function sentence(s: Settings, start: number, density: number) {
       lift: contrast ? 1 : 0, chapter, index, full, riffs: true };
   }
   // A new chapter opens by recalling the last one: its idea and answer, then the new idea takes over the development.
-  const statement = idea(t, key, density), old = !quoting ? t : v34 ? secondCell(s, before, theme(s, before, density)) : theme(s, before, density);
+  const statement = idea(t, key, density), recalled = theme(s, before, density);
+  const old = !quoting ? t : v34 ? secondCell(s, before, recalled) : sparse ? secondSparse(s, before, recalled) : recalled;
   const opening = quoting ? idea(old, before, density) : statement;
-  return { stages: [opening, reply(s, opening, old, `r:${vary}`, density), ...develop(t, statement, turn % 3, landing, `d:${vary}`, density, v34)],
+  // v35, sparse: how this sentence answers. 0 in the statement's rhythm, 1 with the second cell, 2 the cell and an early long note.
+  const pick = sparse ? random(s.seed, `m35:${vary}:answer`) : 0;
+  const answer = !sparse || pick < ANSWERS[0] ? 0 : pick < ANSWERS[0] + ANSWERS[1] && old.a.at(-1)! <= 8 ? 2 : 1;
+  return { stages: [opening, reply(s, opening, old, `r:${vary}`, density, answer),
+    ...develop(t, statement, turn % 3, landing, `d:${vary}`, density, v34, sparse && answer !== 1)],
     lift: contrast ? 1 : 0, chapter, index, full, riffs: false };
 }
 
