@@ -118,10 +118,17 @@ Vite의 `base: './'`로 JS·CSS·폰트·오디오 클록을 저장소 하위 �
 
 ### 검색과 공유 메타데이터
 
-`index.html`에 제목·설명·canonical·Open Graph·Twitter 카드·WebApplication JSON-LD와 JavaScript 없이도 읽을 수 있는 소개/사용 안내가 있습니다. 플레이어의 KO/EN 전환은 문서 언어·제목·설명·안내를 바꿉니다. 공유 봇용 정적 메타데이터는 영어를 기본으로 하고 프로젝트 이름은 한국어도 표기합니다. 언어별 별도 URL은 제공하지 않습니다.
+`index.html`에 제목·설명·canonical·Open Graph·Twitter 카드·WebApplication JSON-LD와 JavaScript 없이도 읽을 수 있는 소개/사용 안내가 있습니다. 플레이어의 KO/EN 전환은 문서 언어·제목·설명·안내를 바꿉니다.
 
-- `public/sitemap.xml`에는 공식 앱 URL 하나만 포함합니다. `#mix=` 공유 설정은 같은 앱의 URL 프래그먼트이므로 별도 검색 페이지로 나열하지 않습니다.
-- `public/social-card.png`는 1200×630 공유 이미지입니다. 기본 곡의 실제 8마디 멜로디와 화음을 앱의 리본·화음 칸·별자리 코드로 그린 것이며, `node scripts/social-card.mjs [시작 마디]`로 다시 만듭니다(Playwright의 Chromium, 없으면 시스템의 Chrome이나 Edge 사용).
+검색엔진이 언어마다 페이지를 따로 읽도록 두 개의 주소를 둡니다. 같은 앱이고 정적 HTML만 다릅니다.
+
+- `/kalavinka/` (`index.html`): 영어 제목·설명·소개와 영어 공유 카드. 플레이어는 브라우저 언어를 따릅니다.
+- `/kalavinka/ko/` (`ko/index.html`): 한국어 제목("…노동요 생성기")·설명·소개와 한국어 공유 카드. 플레이어는 한국어로 열립니다.
+- 두 페이지는 각자 자기를 canonical로, 서로를 `hreflang`(en·ko, 기본은 영어)으로 가리키고, 사이트맵에도 같은 짝이 들어 있습니다. 정적 소개 문구는 `src/i18n.ts`의 문구와 같아야 하며 `tests/seo.test.ts`가 확인합니다.
+
+- `public/sitemap.xml`에는 두 언어 페이지만 포함합니다. `#mix=` 공유 설정은 같은 앱의 URL 프래그먼트이므로 별도 검색 페이지로 나열하지 않습니다.
+- `public/social-card.png`와 `public/social-card-ko.png`는 1200×630 공유 이미지입니다. 기본 곡의 실제 8마디 멜로디와 화음을 앱의 리본·화음 칸·별자리 코드로 그린 것이며, `node scripts/brand-images.mjs [시작 마디]`로 다시 만듭니다(Playwright의 Chromium, 없으면 시스템의 Chrome이나 Edge 사용). 같은 스크립트가 `public/apple-touch-icon.png`(180×180)도 `public/favicon.svg`에서 만듭니다.
+- `public/favicon.svg`는 워드마크의 K(MuseoModerno, 굵기 850)와 십자(JetBrains Mono)의 글리프 윤곽을 그대로 옮긴 것입니다. 두 폰트는 OFL이며 고지는 `public/licenses/`에 있습니다.
 - `public/robots.txt`는 크롤링 허용과 사이트맵 주소를 담은 **참조 정책**입니다. GitHub Pages에서는 `/kalavinka/robots.txt`로 배포되지만, 검색엔진이 적용하는 파일은 도메인 루트의 `https://heavyrain39.github.io/robots.txt`입니다. 이 저장소의 파일만으로 루트 정책이나 사이트맵 자동 발견을 설정할 수 없습니다. 루트 사이트를 운영한다면 기존 규칙을 검토한 후 사이트맵 항목을 통합해야 합니다. [Google의 robots.txt 위치 규칙](https://developers.google.com/search/docs/crawling-indexing/robots/create-robots-txt)
 
 다른 도메인이나 경로로 배포하도록 허가받았다면 canonical, OG URL/이미지, Twitter 이미지, JSON-LD URL/라이선스, sitemap과 robots의 주소도 함께 바꿔야 합니다. 검색엔진 계정 등록·사이트맵 제출은 별도 운영 작업이며 이 코드에 포함되지 않습니다.

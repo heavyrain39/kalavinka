@@ -25,7 +25,7 @@ const ko = {
   energyTip:'음표와 리듬의 밀도', warmthTip:'건반·멜로디의 고음을 부드럽게', evolutionTip:'모티프 변주의 폭과 빈도',
   timer:'타이머', focusTimer:'집중 타이머', continuous:'계속', minutes:'{count}분', saved:'저장한 음악', savedEmpty:'하트를 누르면 지금 듣는 8마디가 여기에 저장됩니다.', loadSaved:'{name} {seed} 불러오기', deleteSaved:'{name} {seed} 저장 삭제',
   about:'앱 정보', close:'닫기', portfolio:'개발자 포트폴리오', authorPortfolio:'Yakshawan 개발자 포트폴리오',
-  description:'로그인 없이 브라우저에서 만드는 무료 작업·공부용 배경 음악. 로파이·앰비언트·전자 음악 분위기를 고르고, 악기와 템포를 조절하고, 마음에 드는 구절을 저장하세요.', album:'당신의 속도로 흐르는 음악',
+  description:'작업·공부할 때 듣는 노동요를 브라우저에서 무료로 만듭니다. 로파이·앰비언트·전자 음악 분위기를 고르고, 악기와 템포를 조절하고, 마음에 드는 구절을 저장하세요. 로그인 없이 바로 재생됩니다.', album:'당신의 속도로 흐르는 음악',
   storageFailed:'브라우저 저장 공간을 사용할 수 없어 이번 설정은 저장되지 않았어요.', startFailed:'음악을 시작하지 못했어요. 다시 시도해 주세요.', changeFailed:'음악을 바꾸지 못했어요. 다시 재생해 주세요.',
   audioUnavailable:'오디오 엔진을 시작하지 못했어요. 최신 Chrome·Edge·Firefox에서 다시 시도해 주세요.', audioLocked:'오디오가 잠겨 있어요. 재생 버튼을 다시 눌러 주세요.', audioError:'음악 재생 중 오류가 생겼어요. 정지 후 다시 재생해 주세요.',
   alreadySaved:'이미 저장한 구절이에요.', savedLimit:'12개까지 저장할 수 있어요. 이전 구절을 지우고 새로 저장해 주세요.', savedDone:'지금 구절의 8마디를 저장했어요.', savedTemporary:'브라우저 저장 공간이 없어 새로고침하면 저장이 사라져요.', deleted:'저장한 구절을 지웠어요.',

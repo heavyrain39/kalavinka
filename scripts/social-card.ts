@@ -7,7 +7,14 @@ import { capturePhrase } from '../src/saved-phrase';
 import { ribbonLayout, drawRibbon } from '../src/ribbon';
 import { Starfield } from '../src/starfield';
 
-const start = Number(new URLSearchParams(location.search).get('bar') ?? 24);
+const query = new URLSearchParams(location.search), start = Number(query.get('bar') ?? 24);
+if (query.get('lang') === 'ko') {
+  // The Korean card, for /ko/.
+  document.documentElement.lang = 'ko';
+  document.querySelector('#line')!.innerHTML = '작업과 공부를 위한 끝없는 음악,<br /><span>브라우저에서 실시간으로 작곡합니다.</span>';
+  document.querySelector('#moods')!.textContent = '로파이 · 앰비언트 · 전자 음악';
+  document.querySelector('#address')!.textContent = 'heavyrain39.github.io/kalavinka/ko';
+}
 const phrase = capturePhrase({ settings: { ...DEFAULTS }, opening: true }, start);
 const style = getComputedStyle(document.documentElement), token = (name: string) => style.getPropertyValue(name);
 

@@ -21,7 +21,8 @@ const KEEP_INSTRUMENTS = 'worksong.keep-instruments.v1';
 const KEPT_INSTRUMENTS = 'worksong.kept-instruments.v1';
 const read = (key: string) => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, value: unknown) => { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } };
-let language: Language = browserLanguage(navigator.language);
+// The Korean page (/ko/) opens in Korean; the main page follows the browser.
+let language: Language = document.documentElement.dataset.pageLanguage === 'ko' ? 'ko' : browserLanguage(navigator.language);
 const t = (key: TextKey, values: Record<string, string | number> = {}) => translate(language, key, values);
 const aria = (key: TextKey) => `data-i18n-aria="${key}" aria-label="${t(key)}"`;
 const label = (key: TextKey) => `<span data-i18n="${key}">${t(key)}</span>`;
