@@ -121,7 +121,7 @@ Vite의 `base: './'`로 JS·CSS·폰트·오디오 클록을 저장소 하위 �
 `index.html`에 제목·설명·canonical·Open Graph·Twitter 카드·WebApplication JSON-LD와 JavaScript 없이도 읽을 수 있는 소개/사용 안내가 있습니다. 플레이어의 KO/EN 전환은 문서 언어·제목·설명·안내를 바꿉니다. 공유 봇용 정적 메타데이터는 영어를 기본으로 하고 프로젝트 이름은 한국어도 표기합니다. 언어별 별도 URL은 제공하지 않습니다.
 
 - `public/sitemap.xml`에는 공식 앱 URL 하나만 포함합니다. `#mix=` 공유 설정은 같은 앱의 URL 프래그먼트이므로 별도 검색 페이지로 나열하지 않습니다.
-- `public/social-card.png`는 1200×630 공유 이미지입니다.
+- `public/social-card.png`는 1200×630 공유 이미지입니다. 기본 곡의 실제 8마디 멜로디와 화음을 앱의 리본·화음 칸·별자리 코드로 그린 것이며, `node scripts/social-card.mjs [시작 마디]`로 다시 만듭니다(Playwright의 Chromium, 없으면 시스템의 Chrome이나 Edge 사용).
 - `public/robots.txt`는 크롤링 허용과 사이트맵 주소를 담은 **참조 정책**입니다. GitHub Pages에서는 `/kalavinka/robots.txt`로 배포되지만, 검색엔진이 적용하는 파일은 도메인 루트의 `https://heavyrain39.github.io/robots.txt`입니다. 이 저장소의 파일만으로 루트 정책이나 사이트맵 자동 발견을 설정할 수 없습니다. 루트 사이트를 운영한다면 기존 규칙을 검토한 후 사이트맵 항목을 통합해야 합니다. [Google의 robots.txt 위치 규칙](https://developers.google.com/search/docs/crawling-indexing/robots/create-robots-txt)
 
 다른 도메인이나 경로로 배포하도록 허가받았다면 canonical, OG URL/이미지, Twitter 이미지, JSON-LD URL/라이선스, sitemap과 robots의 주소도 함께 바꿔야 합니다. 검색엔진 계정 등록·사이트맵 제출은 별도 운영 작업이며 이 코드에 포함되지 않습니다.
