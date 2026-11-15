@@ -28,7 +28,7 @@ test('v35 favorites keep exact scores while new music and upgrades use v36',()=>
     'dub:0':'b6ddd2484929651c433151eda6d29d255cc337e1775d527111e22a58eec00c1b','dub:2':'8bb723444566c1c8546cd9ee01208f8c0723db1473b92d9fb4693efd69303a11',
     'dnb:0':'b490c13b8d9505674542e06ea1a3937675eddcd222419ee3c91d5c3589579a71','dnb:2':'4b40242499ada8236884b592ea5bb50ad5f700699384a98ec5fc68c24392a75a',
   };
-  assert.equal(DEFAULTS.generatorVersion,36);
+  assert.ok(DEFAULTS.generatorVersion>=36);
   for(const mode of modes)for(const rep of [0,2] as const){
     const old=make(mode,{generatorVersion:35,melodyRepetition:rep});
     assert.equal(sha(Array.from({length:96},(_,b)=>eventsForBar(old,b))),hashes[`${mode}:${rep}`],`${mode}:${rep}`);

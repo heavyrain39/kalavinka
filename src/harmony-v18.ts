@@ -43,6 +43,9 @@ function pair(s: Settings) {
 // where it always did.
 interface Era { index: number; a: ProgressionV18; b: ProgressionV18; tonic: number; key: number[] }
 const eraOn = (s: Settings) => catalogue(s) >= 36;
+// Generator v37: the seam between two eras is always prepared (see windowPlan), the companion is
+// new to the last two eras as well, and a parallel move never crosses from minor to lydian.
+const seamOn = (s: Settings) => catalogue(s) >= 37;
 const TYPICAL_BPM: Record<BankV18, number> = { lofi: 78, ambient: 64, house: 108, dnb: 170 };
 const RELATIVE: Record<string, number> = { major: 0, lydian: 7, minor: 3, dorian: 10 };
 /** Bars per era: whole forms, about ten minutes at no evolution and four at full, never under two forms. */
@@ -75,11 +78,15 @@ function eraAt(s: Settings, bar: number): Era {
     const a = weighted(bank.filter(r => !recent.has(r.id)), h('a'));
     let pool = bank.filter(r => r.id !== a.id && r.mode === a.mode);
     if (!pool.length) pool = bank.filter(r => r.id !== a.id && family(r) === family(a));
-    const b = weighted(pool, h('b'));
+    // v37: the companion is new to the last two eras too, where its mode has one to offer.
+    const fresh = version >= 37 ? pool.filter(r => !recent.has(r.id)) : [];
+    const b = weighted(fresh.length ? fresh : pool, h('b'));
     // Move the parent scale by nothing or a fifth, or keep the tonic and change the mode.
-    const parent = previous.tonic + RELATIVE[previous.a.mode];
+    // v37: minor and lydian on one tonic are four fifths apart, so that parallel move is left out.
+    const parent = previous.tonic + RELATIVE[previous.a.mode], modes = [a.mode, previous.a.mode];
+    const parallel = a.mode !== previous.a.mode && !(version >= 37 && modes.includes('minor') && modes.includes('lydian'));
     const tonic = pc(pick<number>([[parent - RELATIVE[a.mode], 3], [parent + 7 - RELATIVE[a.mode], 2], [parent + 5 - RELATIVE[a.mode], 2],
-      ...(a.mode !== previous.a.mode ? [[previous.tonic, 1] as const] : [])], h('key')));
+      ...(parallel ? [[previous.tonic, 1] as const] : [])], h('key')));
     list.push({ index: e, a, b, tonic, key: keyOf(a.mode, tonic) });
   }
   return list[index];
@@ -161,16 +168,22 @@ function windowPlan(s: Settings, w: number) {
   const r = (bar: number, label: string) => random(s.seed, `harmony-v18:approach:${arrangementAt(s, bar).localBar}:${form.variant}${round}:${label}`);
   let budget = form.variant ? 2 : 1;
   const order = Array.from({ length: 8 }, (_, i) => i).sort((x, y) => r(first + x, 'order') - r(first + y, 'order'));
+  // v37: the last bar of an era always leads into the next one where an approach chord fits. The
+  // authored turnaround points at its own first chord, so the 68% plan left one seam in three unprepared.
+  const seam = seamOn(s) && eraAt(s, first + 8) !== era;
+  // An authored one-bar dominant that would not resolve into the new era gives its bar to one that does.
+  const stranded = seam && DOMINANT.has(base[7][1]) && !same(at(6), base[7]) && ![5, 11].includes(pc(at(8)[0] - base[7][0]));
   for (const i of order) {
     const bar = first + i, a = arrangementAt(s, bar), next = at(i + 1);
     if (a.section === 'intro' || same(base[i], next)) continue;
-    let room = 1;
-    while (room < 8 && same(at(i - room), base[i])) room++;
-    if (room < 2) continue;
     // The eighth bar is a turnaround: the v5 68% cadence plan; elsewhere a budgeted approach.
     const turnaround = i === 7;
+    let room = 1;
+    while (room < 8 && same(at(i - room), base[i])) room++;
+    if (stranded && turnaround) room = 2;
+    if (room < 2 || (stranded && i === 6)) continue;
     const weight = a.section === 'groove' ? .8 : a.section === 'return' ? 1.2 : 1;
-    const chance = turnaround ? .68 * (ambient ? .6 : bank === 'house' ? .5 : 1)
+    const chance = turnaround ? (seam ? 1 : .68 * (ambient ? .6 : bank === 'house' ? .5 : 1))
       : ((ambient ? .15 : bank === 'lofi' ? .32 : bank === 'dnb' ? .28 : .14) + evolution * (ambient ? .2 : .35)) * weight;
     if ((!turnaround && !budget) || r(bar, 'chance') >= chance) continue;
     const options = approaches(s, era, base[i], next, room).filter(([chords]) => chords.length <= i + 1 && chords.length < room);

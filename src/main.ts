@@ -125,7 +125,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><div class="dialog-links"><span class="mono about-version">v0.44.0</span><a class="inline-link" href="https://github.com/heavyrain39/kalavinka" target="_blank" rel="noopener noreferrer">${label('overviewRepository')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><div class="dialog-links"><span class="mono about-version">v0.45.0</span><a class="inline-link" href="https://github.com/heavyrain39/kalavinka" target="_blank" rel="noopener noreferrer">${label('overviewRepository')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 // The crawlable, static overview becomes the body of the one about dialog.
 const overview = document.querySelector('.app-overview')!;
