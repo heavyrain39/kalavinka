@@ -36,21 +36,71 @@ function pair(s: Settings) {
   pairs.set(key, result);
   return result;
 }
-export const recipeV18 = (s: Settings) => pair(s).a;
-export const companionV18 = (s: Settings) => pair(s).b;
-export const tonicPcV18 = (s: Settings) => hash(s.seed) % 12;
-export const keyPcsV18 = (s: Settings) => MODES_V18[recipeV18(s).mode].map(n => pc(n + tonicPcV18(s)));
+
+// Generator v36: a long flow moves on. Every few minutes (fewer with more evolution) a new era
+// starts at a form's intro with a fresh pair of progressions in a related key: the same parent
+// scale, a fifth either way, or the parallel key. Era 0 is the v18 pair, so a song still begins
+// where it always did.
+interface Era { index: number; a: ProgressionV18; b: ProgressionV18; tonic: number; key: number[] }
+const eraOn = (s: Settings) => catalogue(s) >= 36;
+const TYPICAL_BPM: Record<BankV18, number> = { lofi: 78, ambient: 64, house: 108, dnb: 170 };
+const RELATIVE: Record<string, number> = { major: 0, lydian: 7, minor: 3, dorian: 10 };
+/** Bars per era: whole forms, about ten minutes at no evolution and four at full, never under two forms. */
+export function eraBarsV36(s: Settings) {
+  const form = arrangementAt(s, 0).formLength, minutes = form * 4 / TYPICAL_BPM[bankV18(s)];
+  return form * Math.max(2, Math.round((10 - s.evolution * .06) / minutes));
+}
+const pick = <T,>(list: readonly (readonly [T, number])[], h: number): T => {
+  let x = h % list.reduce((sum, [, w]) => sum + w, 0);
+  for (const [v, w] of list) { if (x < w) return v; x -= w; }
+  return list[0][0];
+};
+const keyOf = (mode: ProgressionV18['mode'], tonic: number) => MODES_V18[mode].map(n => pc(n + tonic));
+const eraLists = new Map<string, Era[]>();
+function eraAt(s: Settings, bar: number): Era {
+  const name = bankV18(s), version = catalogue(s), length = eraOn(s) ? eraBarsV36(s) : Infinity;
+  const index = Number.isFinite(length) ? Math.floor(Math.max(0, bar) / length) : 0;
+  const id = `${name}:${version}:${s.seed}:${length}`;
+  let list = eraLists.get(id);
+  if (!list) {
+    const { a, b } = pair(s), tonic = hash(s.seed) % 12;
+    list = [{ index: 0, a, b, tonic, key: keyOf(a.mode, tonic) }];
+    if (eraLists.size >= 64) eraLists.delete(eraLists.keys().next().value!);
+    eraLists.set(id, list);
+  }
+  const bank = list.length <= index ? PROGRESSIONS_V18.filter(r => r.bank === name && (r.since ?? 18) <= version) : [];
+  while (list.length <= index) {
+    const e = list.length, previous = list[e - 1], before = list[e - 2], h = (label: string) => hash(`${s.seed}:harmony-v36:era:${e}:${label}`);
+    const recent = new Set([previous.a.id, previous.b.id, before?.a.id, before?.b.id]);
+    const a = weighted(bank.filter(r => !recent.has(r.id)), h('a'));
+    let pool = bank.filter(r => r.id !== a.id && r.mode === a.mode);
+    if (!pool.length) pool = bank.filter(r => r.id !== a.id && family(r) === family(a));
+    const b = weighted(pool, h('b'));
+    // Move the parent scale by nothing or a fifth, or keep the tonic and change the mode.
+    const parent = previous.tonic + RELATIVE[previous.a.mode];
+    const tonic = pc(pick<number>([[parent - RELATIVE[a.mode], 3], [parent + 7 - RELATIVE[a.mode], 2], [parent + 5 - RELATIVE[a.mode], 2],
+      ...(a.mode !== previous.a.mode ? [[previous.tonic, 1] as const] : [])], h('key')));
+    list.push({ index: e, a, b, tonic, key: keyOf(a.mode, tonic) });
+  }
+  return list[index];
+}
+export const recipeV18 = (s: Settings, bar = 0) => eraAt(s, bar).a;
+export const companionV18 = (s: Settings, bar = 0) => eraAt(s, bar).b;
+export const tonicPcV18 = (s: Settings, bar = 0) => eraAt(s, bar).tonic;
+export const keyPcsV18 = (s: Settings, bar = 0) => [...eraAt(s, bar).key];
+/** A degree of one era written in another era's key, so a turnaround can lead into the next era. */
+const inFrame = (d: Degree, from: Era, to: Era): Degree => from === to ? d : [pc(d[0] + from.tonic - to.tonic), d[1]];
 const expanded = (r: ProgressionV18, unit: number): Degree[] => r.chords.flatMap(([d, q, u]) => Array.from({ length: u * unit }, () => [d, q] as Degree));
 
-interface Base { degree: Degree; which: 'A' | 'B'; offset: number; start: number; block: number }
+interface Base { degree: Degree; which: 'A' | 'B'; offset: number; start: number; block: number; era: Era }
 /** The authored chord at a bar: A through intro, groove and return (continuing modulo its length), B in the breakdown. */
 function baseAt(s: Settings, bar: number): Base {
-  const n = Math.max(0, bar), a = arrangementAt(s, n), { a: A, b: B } = pair(s), unit = unitBars(s);
+  const n = Math.max(0, bar), a = arrangementAt(s, n), era = eraAt(s, n), { a: A, b: B } = era, unit = unitBars(s);
   const which = a.section === 'open' ? 'B' : 'A', bars = expanded(which === 'B' ? B : A, unit);
   const local = which === 'B' ? a.localBar - a.formLength / 2 : a.localBar, offset = local % bars.length;
   let first = offset;
   while (first > 0 && same(bars[first - 1], bars[offset])) first--;
-  return { degree: bars[offset], which, offset, start: n - (offset - first), block: Math.floor(local / bars.length) };
+  return { degree: bars[offset], which, offset, start: n - (offset - first), block: Math.floor(local / bars.length), era };
 }
 
 // Chord colour: richer extensions of the same function (only tones that already fit its chord-scale).
@@ -60,25 +110,27 @@ const COLOUR: Partial<Record<QualityV18, QualityV18[]>> = {
   '7': ['9','13'], '9': ['13'], '13': ['9'], '7sus4': ['9sus4'],
 };
 const AMBIENT_COLOURS = new Set<QualityV18>(['add9','maj9','6/9','m9','m11','madd9','9sus4','maj7#11']);
-const fits = (s: Settings, d: Degree, q: QualityV18) => {
-  const scale = chordScaleV18(s, chordOf(s, d));
-  return QUALITIES_V18[q].every(i => scale.includes(pc(tonicPcV18(s) + d[0] + i)));
+const fits = (s: Settings, era: Era, d: Degree, q: QualityV18) => {
+  const scale = chordScaleV18(s, chordOf(s, era, d));
+  return QUALITIES_V18[q].every(i => scale.includes(pc(era.tonic + d[0] + i)));
 };
 function colouredAt(s: Settings, bar: number): Degree {
   const base = baseAt(s, bar), a = arrangementAt(s, base.start);
   if (a.section === 'intro') return base.degree;
   const ambient = s.profile === 'ambient', evolution = s.evolution / 100;
-  const r = (label: string) => random(s.seed, `harmony-v18:${base.which}:${base.block}:${base.offset - (bar - base.start)}:${a.variant}:${label}`);
+  // v36 draws the colours afresh in every form, not once per form variant (evolution 0 keeps the form steady).
+  const round = eraOn(s) && s.evolution > 0 ? `:${Math.floor(base.start / a.formLength)}` : '';
+  const r = (label: string) => random(s.seed, `harmony-v18:${base.which}:${base.block}:${base.offset - (bar - base.start)}:${a.variant}${round}:${label}`);
   const chance = (ambient ? .2 : .15) + evolution * .3 + (a.variant ? .1 : 0);
-  const options = (COLOUR[base.degree[1]] ?? []).filter(q => (!ambient || AMBIENT_COLOURS.has(q)) && fits(s, base.degree, q));
+  const options = (COLOUR[base.degree[1]] ?? []).filter(q => (!ambient || AMBIENT_COLOURS.has(q)) && fits(s, base.era, base.degree, q));
   return options.length && r('colour') < chance ? [base.degree[0], options[Math.floor(r('colour-pick') * options.length)]] : base.degree;
 }
 
 const MINORISH = new Set<QualityV18>(['m7','m9','m11','m6','madd9','m6/9']);
 const DOMINANT = new Set<QualityV18>(['7','9','13','7b9','7#9','9#11','7sus4','9sus4']);
 /** Options that lead into the next chord: [chords replacing the end of the held one, weight]. */
-function approaches(s: Settings, current: Degree, target: Degree, room: number): [Degree[], number][] {
-  const bank = bankV18(s), major = family(recipeV18(s)) === 'major', r = pc(target[0]), q = target[1];
+function approaches(s: Settings, era: Era, current: Degree, target: Degree, room: number): [Degree[], number][] {
+  const bank = bankV18(s), major = family(era.a) === 'major', r = pc(target[0]), q = target[1];
   const minor = MINORISH.has(q), stable = !['m7b5','dim7'].includes(q), out: [Degree[], number][] = [];
   if (bank === 'ambient') {
     if (r === 0 && major) out.push([[[10,'add9']], 2], [[[7,'9sus4']], 1]);
@@ -97,15 +149,16 @@ function approaches(s: Settings, current: Degree, target: Degree, room: number):
     .filter(([chords]) => !chords.some(d => same(d, current) || same(d, target)));
 }
 
-const windows = new Map<string, { bars: Degree[]; base: Degree[] }>();
+const windows = new Map<string, { bars: Degree[]; base: Degree[]; era: Era }>();
 /** Eight bars of harmony: authored chords, colours, then approach chords and turnarounds. */
 function windowPlan(s: Settings, w: number) {
   const key = [catalogue(s), s.profile, s.seed, s.groove, s.evolution, w].join(':'), saved = windows.get(key);
   if (saved) return saved;
-  const first = w * 8, at = (i: number) => colouredAt(s, first + i);
+  const first = w * 8, era = eraAt(s, first), at = (i: number) => inFrame(colouredAt(s, first + i), eraAt(s, first + i), era);
   const base = Array.from({ length: 8 }, (_, i) => at(i)), bars = [...base];
   const ambient = s.profile === 'ambient', evolution = s.evolution / 100, bank = bankV18(s);
-  const form = arrangementAt(s, first), r = (bar: number, label: string) => random(s.seed, `harmony-v18:approach:${arrangementAt(s, bar).localBar}:${form.variant}:${label}`);
+  const form = arrangementAt(s, first), round = eraOn(s) && s.evolution > 0 ? `:${Math.floor(first / form.formLength)}` : '';
+  const r = (bar: number, label: string) => random(s.seed, `harmony-v18:approach:${arrangementAt(s, bar).localBar}:${form.variant}${round}:${label}`);
   let budget = form.variant ? 2 : 1;
   const order = Array.from({ length: 8 }, (_, i) => i).sort((x, y) => r(first + x, 'order') - r(first + y, 'order'));
   for (const i of order) {
@@ -120,14 +173,14 @@ function windowPlan(s: Settings, w: number) {
     const chance = turnaround ? .68 * (ambient ? .6 : bank === 'house' ? .5 : 1)
       : ((ambient ? .15 : bank === 'lofi' ? .32 : bank === 'dnb' ? .28 : .14) + evolution * (ambient ? .2 : .35)) * weight;
     if ((!turnaround && !budget) || r(bar, 'chance') >= chance) continue;
-    const options = approaches(s, base[i], next, room).filter(([chords]) => chords.length <= i + 1 && chords.length < room);
+    const options = approaches(s, era, base[i], next, room).filter(([chords]) => chords.length <= i + 1 && chords.length < room);
     if (!options.length) continue;
     let x = r(bar, 'pick') * options.reduce((sum, [, w]) => sum + w, 0), chosen = options[0][0];
     for (const [chords, wt] of options) { if (x < wt) { chosen = chords; break; } x -= wt; }
     chosen.forEach((d, j) => { bars[i - chosen.length + 1 + j] = d; });
     if (!turnaround) budget--;
   }
-  const plan = { bars, base };
+  const plan = { bars, base, era };
   if (windows.size >= 256) windows.delete(windows.keys().next().value!);
   windows.set(key, plan);
   return plan;
@@ -146,8 +199,8 @@ const movement = (a: number[], b: number[]) => a.reduce((sum, n, i) => sum + Mat
 // Comping sits below the lead; low clusters are muddy, so they cost extra.
 const register = (a: number[]) => Math.abs(a.reduce((sum, n) => sum + n, 0) / 4 - 61) * .4 + Math.max(0, a[3] - 67) * .45
   + a.slice(1).reduce((sum, n, i) => sum + (n - a[i] === 1 ? (a[i] < 64 ? 4.5 : 1.2) : n - a[i] === 2 && a[i] < 55 ? .8 : 0), 0);
-function options(s: Settings, d: Degree) {
-  const root = 48 + tonicPcV18(s) + d[0], set = voiceSet(d[1], s.profile === 'ambient').map(i => pc(root + i)), out: number[][] = [];
+function options(s: Settings, era: Era, d: Degree) {
+  const root = 48 + era.tonic + d[0], set = voiceSet(d[1], s.profile === 'ambient').map(i => pc(root + i)), out: number[][] = [];
   const keep = (notes: number[], span: number) => {
     if (notes[0] >= 50 && notes[3] <= 72 && notes[3] - notes[0] <= span && !out.some(o => o.join() === notes.join())) out.push(notes);
   };
@@ -166,10 +219,10 @@ function options(s: Settings, d: Degree) {
 }
 const homes = new Map<string, number[]>();
 /** One home voicing per song; every chord is voiced near it, so the comping stays in one register. */
-function home(s: Settings) {
-  const key = `${catalogue(s)}:${s.profile}:${s.groove}:${s.seed}`, saved = homes.get(key);
+function home(s: Settings, era: Era) {
+  const key = `${catalogue(s)}:${s.profile}:${s.groove}:${s.seed}:${s.evolution}:${era.index}`, saved = homes.get(key);
   if (saved) return saved;
-  const chords = recipeV18(s).chords.map(([d, q]) => options(s, [d, q]));
+  const chords = era.a.chords.map(([d, q]) => options(s, era, [d, q]));
   let best = { cost: Infinity, notes: chords[0][0] };
   for (const first of chords[0]) {
     const cost = register(first) + chords.slice(1).reduce((sum, list) => sum + Math.min(...list.map(o => register(o) + movement(first, o) * .6)), 0);
@@ -180,32 +233,34 @@ function home(s: Settings) {
   return best.notes;
 }
 const chords = new Map<string, Chord>();
-function chordOf(s: Settings, d: Degree): Chord {
-  const key = `${catalogue(s)}:${s.profile}:${s.groove}:${s.seed}:${d[0]}:${d[1]}`, saved = chords.get(key);
+function chordOf(s: Settings, era: Era, d: Degree): Chord {
+  const key = `${catalogue(s)}:${s.profile}:${s.groove}:${s.seed}:${s.evolution}:${era.index}:${d[0]}:${d[1]}`, saved = chords.get(key);
   if (saved) return saved;
-  const root = 48 + tonicPcV18(s) + pc(d[0]), anchor = home(s);
-  const notes = options(s, d).sort((x, y) => register(x) + movement(anchor, x) * .6 - register(y) - movement(anchor, y) * .6)[0];
-  const chord = { root, label: spell(s, root) + LABELS_V18[d[1]], notes, tones: [...new Set(QUALITIES_V18[d[1]].map(i => pc(root + i)))], quality: d[1] };
+  const root = 48 + era.tonic + pc(d[0]), anchor = home(s, era);
+  const notes = options(s, era, d).sort((x, y) => register(x) + movement(anchor, x) * .6 - register(y) - movement(anchor, y) * .6)[0];
+  const chord: Chord = { root, label: spell(era, root) + LABELS_V18[d[1]], notes, tones: [...new Set(QUALITIES_V18[d[1]].map(i => pc(root + i)))], quality: d[1] };
+  // v36 chords carry their era's key, so a chord-scale never needs to know the bar.
+  if (eraOn(s)) chord.key = [...era.key];
   if (chords.size >= 512) chords.delete(chords.keys().next().value!);
   chords.set(key, chord);
   return chord;
 }
 // Chord names are spelled by scale degree in the song's key: C♯13 in D major, A♭maj9 in C minor.
 const LETTERS = ['C','D','E','F','G','A','B'], NATURAL = [0,2,4,5,7,9,11], STEPS = [0,1,1,2,2,3,4,4,5,5,6,6];
-const RELATIVE: Record<string, number> = { major: 0, lydian: 7, minor: 3, dorian: 10 };
-function spell(s: Settings, root: number): string {
-  const tonic = tonicPcV18(s), sharps = [7,2,9,4,11].includes(pc(tonic + RELATIVE[recipeV18(s).mode]));
+function spell(era: Era, root: number): string {
+  const tonic = era.tonic, sharps = [7,2,9,4,11].includes(pc(tonic + RELATIVE[era.a.mode]));
   const letter = NATURAL.includes(tonic) ? NATURAL.indexOf(tonic) : sharps ? NATURAL.indexOf(pc(tonic - 1)) : NATURAL.indexOf(pc(tonic + 1));
   const index = (letter + STEPS[pc(root - tonic)]) % 7, diff = pc(root - NATURAL[index]);
   if (diff === 0) return LETTERS[index];
   if (diff === 1 || diff === 11) return LETTERS[index] + (diff === 1 ? '♯' : '♭');
   return NATURAL.includes(pc(root)) ? LETTERS[NATURAL.indexOf(pc(root))] : sharps ? LETTERS[NATURAL.indexOf(pc(root - 1))] + '♯' : LETTERS[NATURAL.indexOf(pc(root + 1))] + '♭';
 }
-const copy = (c: Chord): Chord => ({ ...c, notes: [...c.notes], tones: [...c.tones!] });
+const copy = (c: Chord): Chord => ({ ...c, notes: [...c.notes], tones: [...c.tones!], ...(c.key ? { key: [...c.key] } : {}) });
 
 export function chordV18(s: Settings, bar: number): Chord {
   const n = Math.floor(Math.max(0, bar));
-  return copy(chordOf(s, windowPlan(s, Math.floor(n / 8)).bars[n % 8]));
+  const plan = windowPlan(s, Math.floor(n / 8));
+  return copy(chordOf(s, plan.era, plan.bars[n % 8]));
 }
 /** An approach/turnaround chord, or a change on an odd bar: the half-time comping re-strikes it. */
 export function hasEndingV18(s: Settings, bar: number) {
@@ -244,7 +299,7 @@ const scales = new Map<string, number[]>();
  * mixolydian ♭13, a tritone substitute lydian dominant, a borrowed iv dorian. Every chord tone is in it.
  */
 export function chordScaleV18(s: Settings, chord: Chord): number[] {
-  const key = keyPcsV18(s), q = chord.quality as QualityV18, root = pc(chord.root), tones = chord.tones!;
+  const key = chord.key ?? keyPcsV18(s), q = chord.quality as QualityV18, root = pc(chord.root), tones = chord.tones!;
   const id = `${key.join()}:${root}:${q}`, saved = scales.get(id);
   if (saved) return [...saved];
   let list = TEMPLATES[q].map(t => t.map(i => pc(root + i)));

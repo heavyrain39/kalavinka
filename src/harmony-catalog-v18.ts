@@ -59,6 +59,25 @@ export const PROGRESSIONS_V18: readonly ProgressionV18[] = [
   // v19: i – V – vii°7 – III – ♭VI7, after Hooktheory's analysis of "Voice of No Return" (NieR:Automata).
   // The harmonic-minor dominant and diminished leading-tone chord, then a dominant on ♭VI that falls home.
   p('l27','Machine lament','lofi','minor',2,[[0,'m9',2],[7,'7',1],[11,'dim7',1],[3,'maj7',2],[8,'7',2]],19),
+  // v36: more of the neo-soul and jazz-standard vocabulary — borrowed iv, backdoor and
+  // tritone resolutions, gospel walk-ups, chains of secondary dominants, dorian and minor vamps.
+  p('l28','Borrowed four','lofi','major',2,[[0,'maj9',2],[4,'m7',2],[5,'maj9',2],[5,'m6',2]],36),
+  p('l29','Three-six-two-five-one','lofi','major',2,[[2,'m9',1],[7,'13',1],[4,'m7',1],[9,'7b9',1],[2,'m9',1],[7,'13',1],[0,'maj9',2]],36),
+  p('l30','Backdoor bird','lofi','major',1,[[0,'maj9',2],[5,'m9',1],[10,'13',1],[0,'maj9',2],[8,'m9',1],[1,'9',1]],36),
+  p('l31','Gospel walk-up','lofi','major',2,[[5,'maj9',2],[6,'m7b5',1],[0,'6/9',1],[9,'7b9',2],[2,'m9',1],[7,'13',1]],36),
+  p('l32','Two-three sway','lofi','major',2,[[2,'m9',2],[4,'m7',2],[2,'m9',2],[5,'maj9',1],[7,'9sus4',1]],36),
+  p('l33','Rainy steps','lofi','major',2,[[5,'maj9',2],[4,'m7',2],[2,'m9',2],[0,'maj9',2]],36),
+  p('l34','Secondary chain','lofi','major',1,[[0,'maj9',2],[4,'7b9',2],[9,'m9',1],[2,'9',1],[2,'m9',1],[7,'13',1]],36),
+  p('l35','Soul sixteen','lofi','major',1,[[9,'m9',2],[2,'m9',2],[7,'13',2],[0,'maj9',2],[5,'maj9',2],[4,'m7',1],[9,'7b9',1],[2,'m9',2],[7,'13',2]],36),
+  p('l36','Minor plagal glow','lofi','major',2,[[0,'maj9',2],[5,'maj9',2],[5,'m9',2],[0,'6/9',1],[7,'9sus4',1]],36),
+  p('l37','Mixolydian shuffle','lofi','major',1,[[0,'9',2],[10,'maj9',2],[5,'maj9',2],[7,'9sus4',2]],36),
+  p('l38','Phrygian sigh','lofi','minor',1,[[0,'m9',2],[1,'maj7',2],[0,'m11',2],[10,'add9',1],[1,'maj7#11',1]],36),
+  p('l39','Minor six walk','lofi','minor',2,[[0,'m6/9',2],[5,'m9',2],[7,'7#9',2],[0,'m9',1],[8,'maj9',1]],36),
+  p('l40','Dorian stairs','lofi','dorian',2,[[0,'m9',2],[2,'m7',2],[3,'maj9',2],[5,'9',2]],36),
+  p('l41','Dorian sway','lofi','dorian',2,[[0,'m11',4],[10,'6/9',2],[5,'13',2]],36),
+  p('l42','Rain minor','lofi','minor',2,[[8,'maj9',2],[10,'9sus4',2],[0,'m9',2],[7,'m7',2]],36),
+  p('l43','Back to four','lofi','minor',1,[[5,'m9',2],[7,'m7',2],[3,'maj9',2],[0,'m11',2]],36),
+  p('l44','Minor two-five sixteen','lofi','minor',1,[[0,'m9',2],[5,'m9',2],[2,'m7b5',2],[7,'7b9',2],[8,'maj9',2],[3,'maj9',2],[5,'m11',2],[7,'7#9',2]],36),
 
   // Ambient: no strong dominants; lydian and dorian colour, suspended and plagal motion.
   p('q01','Open horizon','ambient','major',1,[[0,'add9',2],[5,'maj9',2],[0,'6/9',2],[2,'m9',2]]),
@@ -79,6 +98,19 @@ export const PROGRESSIONS_V18: readonly ProgressionV18[] = [
   p('q16','Plateau','ambient','major',1,[[5,'maj9',4],[0,'6/9',4]]),
   p('q17','Glass horizon','ambient','major',1,[[9,'m9',2],[5,'maj7#11',2],[0,'6/9',2],[7,'9sus4',2]]),
   p('q18','Mirror lake','ambient','minor',1,[[0,'m11',2],[3,'maj9',2],[8,'maj7#11',2],[10,'6/9',2]]),
+  // v36: plagal and modal-mixture colour, long lydian and dorian plateaus, sixteen-unit arcs.
+  p('q19','Lydian glide','ambient','lydian',1,[[0,'maj9',2],[7,'add9',2],[9,'m9',2],[2,'add9',2]],36),
+  p('q20','Dorian bloom','ambient','dorian',1,[[0,'m11',2],[5,'add9',2],[10,'6/9',2],[3,'maj9',2]],36),
+  p('q21','Plagal sea','ambient','major',1,[[5,'maj7#11',4],[0,'6/9',2],[4,'m7',2]],36),
+  p('q22','Minor plateau','ambient','minor',1,[[0,'m9',4],[8,'maj7#11',4]],36),
+  p('q23','Borrowed dawn','ambient','major',1,[[0,'maj9',2],[8,'maj9',2],[10,'add9',2],[0,'6/9',2]],36),
+  p('q24','High pasture','ambient','major',1,[[2,'m11',4],[0,'maj9',4]],36),
+  p('q25','Falling light','ambient','major',1,[[9,'m9',2],[7,'9sus4',2],[5,'maj9',2],[0,'add9',2]],36),
+  p('q26','Cold stars','ambient','minor',1,[[0,'madd9',2],[10,'6/9',2],[8,'maj9',2],[5,'m9',2]],36),
+  p('q27','Slow orbit','ambient','dorian',1,[[0,'m9',4],[10,'add9',2],[5,'add9',2]],36),
+  p('q28','Sixteen lights','ambient','major',1,[[0,'maj9',2],[4,'m7',2],[9,'m9',2],[5,'maj7#11',2],[0,'add9',2],[2,'m9',2],[7,'9sus4',4]],36),
+  p('q29','Tidal minor','ambient','minor',1,[[0,'m11',4],[3,'maj9',4],[10,'6/9',4],[5,'m9',4]],36),
+  p('q30','Lydian tide','ambient','lydian',1,[[0,'6/9',2],[2,'add9',2],[9,'m9',2],[7,'maj9',2]],36),
 
   // Deep house: hypnotic one- and two-chord vamps, minor ninths and dorian fourth chords.
   p('h01','Dorian vamp','house','dorian',2,[[0,'m9',4],[5,'9',4]]),
@@ -97,6 +129,19 @@ export const PROGRESSIONS_V18: readonly ProgressionV18[] = [
   p('h14','Warm signal','house','major',1,[[9,'m9',2],[5,'maj9',2],[2,'m9',2],[7,'9sus4',2]]),
   p('h15','First train','house','major',1,[[0,'6/9',2],[2,'m9',2],[4,'m7',2],[9,'m9',2]]),
   p('h16','Sunrise vamp','house','major',2,[[5,'maj9',4],[7,'9sus4',2],[9,'m9',2]]),
+  // v36: more vamps — two-chord minor and major pads, dorian stabs, garage and disco turns.
+  p('h17','Dorian stab','house','dorian',2,[[0,'m9',2],[10,'6/9',2],[5,'9',4]],36),
+  p('h18','Minor eleven drift','house','minor',2,[[0,'m11',4],[5,'m9',4]],36),
+  p('h19','Garage lift','house','major',1,[[2,'m9',2],[4,'m7',2],[5,'maj9',2],[7,'9sus4',2]],36),
+  p('h20','Chicago soul','house','minor',1,[[0,'m9',2],[3,'maj9',2],[5,'m11',2],[8,'maj9',1],[10,'9sus4',1]],36),
+  p('h21','Velvet pair','house','minor',2,[[0,'m9',4],[8,'maj7#11',4]],36),
+  p('h22','Major pads','house','major',2,[[0,'maj9',4],[5,'maj9',4]],36),
+  p('h23','Rhodes ride','house','major',1,[[9,'m9',4],[5,'maj9',2],[7,'9sus4',2]],36),
+  p('h24','Dub chord','house','dorian',1,[[0,'m9',4],[5,'13',2],[10,'6/9',2]],36),
+  p('h25','Long night','house','minor',1,[[0,'m11',4],[8,'maj9',4],[5,'m9',4],[10,'9sus4',4]],36),
+  p('h26','Phrygian groove','house','minor',1,[[0,'m11',4],[1,'maj7',2],[0,'m9',2]],36),
+  p('h27','Lydian lift','house','lydian',1,[[0,'maj9',4],[2,'9',4]],36),
+  p('h28','Disco minor','house','minor',1,[[0,'m9',2],[5,'m9',2],[7,'m7',2],[8,'maj9',1],[10,'9sus4',1]],36),
 
   // Liquid D&B: lush major/minor ninths, backdoor and soul resolutions, long plateaus.
   p('d01','Liquid backdoor','dnb','major',2,[[5,'m9',2],[10,'13',2],[0,'maj9',4]]),
@@ -112,4 +157,18 @@ export const PROGRESSIONS_V18: readonly ProgressionV18[] = [
   p('d11','Neo liquid','dnb','major',2,[[5,'maj9',2],[4,'7#9',2],[9,'m9',2],[0,'9',2]]),
   p('d12','Sunset loop','dnb','minor',1,[[8,'maj9',2],[10,'9sus4',2],[0,'m9',4]]),
   p('d13','Long drive','dnb','major',1,[[5,'maj9',2],[7,'13',2],[4,'m7',2],[9,'m9',2],[2,'m9',2],[7,'9sus4',2],[0,'maj9',4]]),
+  // v36: more liquid vocabulary — minor cycles, soul turnarounds, backdoor rides, lydian lifts.
+  p('d14','Liquid sixteen','dnb','minor',1,[[0,'m9',2],[8,'maj9',2],[3,'maj9',2],[10,'13',2],[5,'m9',2],[8,'maj7',2],[2,'m7b5',2],[7,'7b9',2]],36),
+  p('d15','Soul lift','dnb','major',2,[[5,'maj9',2],[7,'13',2],[4,'m7',1],[9,'7b9',1],[2,'m9',2]],36),
+  p('d16','Rolling dorian','dnb','dorian',1,[[0,'m11',4],[5,'9',2],[3,'maj9',2]],36),
+  p('d17','Midnight rain','dnb','minor',2,[[5,'m9',2],[10,'9',2],[3,'maj9',2],[8,'maj7#11',2]],36),
+  p('d18','Pads at dawn','dnb','major',1,[[0,'maj9',4],[9,'m9',2],[2,'m9',1],[7,'13',1]],36),
+  p('d19','Backdoor ride','dnb','major',2,[[0,'maj9',2],[5,'m9',2],[10,'13',2],[0,'6/9',2]],36),
+  p('d20','Atmos minor','dnb','minor',1,[[0,'m9',4],[5,'m11',2],[7,'7b9',2]],36),
+  p('d21','City glow','dnb','major',2,[[9,'m9',2],[4,'m7',2],[5,'maj9',2],[7,'9sus4',1],[7,'13',1]],36),
+  p('d22','Liquid lydian','dnb','lydian',1,[[0,'maj9',2],[2,'9',2],[11,'m7',2],[4,'m7',2]],36),
+  p('d23','Neo two-five','dnb','minor',2,[[2,'m7b5',1],[7,'7b9',1],[0,'m9',2],[8,'maj9',2],[10,'9sus4',2]],36),
+  p('d24','Long sky','dnb','major',1,[[5,'maj9',4],[0,'maj9',4],[9,'m9',4],[7,'9sus4',2],[7,'13',2]],36),
+  p('d25','Drift','dnb','minor',1,[[8,'maj9',2],[3,'maj9',2],[10,'6/9',2],[0,'m11',2]],36),
+  p('d26','Glass city','dnb','major',1,[[0,'maj9',2],[4,'7#9',2],[9,'m9',2],[5,'maj7#11',2]],36),
 ];

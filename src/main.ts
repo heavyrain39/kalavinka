@@ -125,7 +125,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </main>
   <footer><span>© 2026 <a class="developer-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer" ${aria('authorPortfolio')}>Yakshawan</a></span><div><button class="text-button" id="about" data-i18n="about">${t('about')}</button></div></footer>
   <div id="toast" role="status" aria-live="polite"></div>
-  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><div class="dialog-links"><span class="mono about-version">v0.43.1</span><a class="inline-link" href="https://github.com/heavyrain39/kalavinka" target="_blank" rel="noopener noreferrer">${label('overviewRepository')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
+  <dialog id="about-dialog"><div class="dialog-head"><h2 data-i18n="appName">${t('appName')}</h2><button id="close-about" class="icon-button" ${aria('close')}>×</button></div><div class="dialog-links"><span class="mono about-version">v0.44.0</span><a class="inline-link" href="https://github.com/heavyrain39/kalavinka" target="_blank" rel="noopener noreferrer">${label('overviewRepository')} ${icon('arrow')}</a><a class="inline-link portfolio-link" href="${PORTFOLIO}" target="_blank" rel="noopener noreferrer">${label('portfolio')} ${icon('arrow')}</a></div></dialog>
 `;
 // The crawlable, static overview becomes the body of the one about dialog.
 const overview = document.querySelector('.app-overview')!;
@@ -459,7 +459,7 @@ function draw(timestamp: number) {
 
 }
 // Read-only inspection surface for browser/audio verification; it is not needed by the player.
-Object.defineProperty(window, '__worksong', { value: { diagnostics: () => ({ ...engine.diagnostics(), peak, activity:{...partActivity}, language, sky: starfield.diagnostics(), harmony: { recipe: (engine.audibleSettings ?? settings).generatorVersion >= 5 ? (isV18(engine.audibleSettings ?? settings) ? recipeV18(engine.audibleSettings ?? settings) : recipeFor(engine.audibleSettings ?? settings)).id : null, ending: (engine.audibleSettings ?? settings).generatorVersion >= 5 && hasEnding(engine.audibleSettings ?? settings, engine.bar), chords: progression(engine.audibleSettings ?? settings, engine.bar).map(c=>c.label) }, settings: structuredClone(settings) }),
+Object.defineProperty(window, '__worksong', { value: { diagnostics: () => ({ ...engine.diagnostics(), peak, activity:{...partActivity}, language, sky: starfield.diagnostics(), harmony: { recipe: (engine.audibleSettings ?? settings).generatorVersion >= 5 ? (isV18(engine.audibleSettings ?? settings) ? recipeV18(engine.audibleSettings ?? settings, engine.bar) : recipeFor(engine.audibleSettings ?? settings)).id : null, ending: (engine.audibleSettings ?? settings).generatorVersion >= 5 && hasEnding(engine.audibleSettings ?? settings, engine.bar), chords: progression(engine.audibleSettings ?? settings, engine.bar).map(c=>c.label) }, settings: structuredClone(settings) }),
   savedPhrase:()=>structuredClone(currentCapture()),
   events: (begin: number, end: number) => playbackScore({settings,phrase:selectedPhrase,opening:true}).onsets(begin, end).length } });
 applyTheme(); applyLanguage(); requestAnimationFrame(draw);

@@ -63,6 +63,8 @@ export function normalizePhrase(value:unknown):SavedPhrase|undefined{
     // v18 chords also name every chord tone (pitch classes) and their quality.
     if(c.tones!==undefined){if(!Array.isArray(c.tones)||!c.tones.length||c.tones.length>7||!c.tones.every(n=>Number.isInteger(n)&&finite(n,0,11)))return;chord.tones=[...c.tones];}
     if(c.quality!==undefined){if(typeof c.quality!=='string'||!Object.hasOwn(QUALITIES_V18,c.quality))return;chord.quality=c.quality;}
+    // v36 chords also carry their era's key.
+    if(c.key!==undefined){if(!Array.isArray(c.key)||!c.key.length||c.key.length>8||!c.key.every(n=>Number.isInteger(n)&&finite(n,0,11)))return;chord.key=[...c.key];}
     chords.push(chord);
   }
   return {version:1,sourceBar:p.sourceBar,events:events.sort((a,b)=>a.at-b.at),chords};

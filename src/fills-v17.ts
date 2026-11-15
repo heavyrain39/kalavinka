@@ -106,7 +106,7 @@ export function addFillV17(s:Settings,bar:number,events:MusicEvent[]){
     for(let i=events.length-1;i>=0;i--)if(events[i].layer==='rhythm'&&events[i].at>=from&&events[i].at<bar+1)events.splice(i,1);
     return;
   }
-  const tonic=tonicPc(s),root=41+pc(tonic-41),third=keyPcs(s).includes(pc(tonic+4))?4:3;
+  const tonic=tonicPc(s,bar),root=41+pc(tonic-41),third=keyPcs(s,bar).includes(pc(tonic+4))?4:3;
   const toms=[root+7,root+third,root,root-5];
   const strokes:MusicEvent[]=[];
   for(const x of plan.hits){

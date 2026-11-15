@@ -35,7 +35,7 @@ export function bassV17(s:Settings,start:number,backing:MusicEvent[],melody:Musi
   const melodyAt=(t:number)=>lead.filter(e=>e.at<=t+1e-6&&sounding(e)>t).at(-1)?.notes[0];
   const phrase=Math.floor(start/8),chapter=Math.floor(start/(ambient?64:32)),form=arrangementAt(s,start);
   const family=(hash(`${s.seed}:bass15:${s.profile}`)+chapter)%CELLS.length;
-  const key=keyPcs(s),tonic=tonicPc(s);
+  const key=keyPcs(s,start),tonic=tonicPc(s,start);
   // Chord changes inside (and at the end of) this window, including one-bar approach chords.
   const changes=Array.from({length:8},(_,i)=>start+i+1).filter(b=>chordAt(s,b).label!==chordAt(s,b-1).label);
   // Pedal: the tonic sustains under compatible chords (ambient spaces, some intros).

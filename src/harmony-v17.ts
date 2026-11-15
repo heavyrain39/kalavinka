@@ -3,7 +3,7 @@ import type { Settings, Chord } from './music';
 import { hash, random } from './seed';
 import { arrangementAt } from './arrangement';
 import { HARMONIES, QUALITIES, type Degree } from './harmony-catalog';
-import { isV18, keyPcsV18, chordScaleV18 } from './harmony-v18';
+import { isV18, keyPcsV18, tonicPcV18, chordScaleV18 } from './harmony-v18';
 
 // Generator v17 harmony: the seed's authored loop stays the song's identity, while each
 // form section may borrow a companion loop, change chord colour or approach the next chord.
@@ -26,8 +26,9 @@ const recipeB = (s: Settings) => {
   const a = recipeA(s), bank = HARMONIES.filter(r => r.profile === s.profile && r.mode === a.mode && r.id !== a.id);
   return bank[hash(`${s.seed}:harmony-v17:companion`) % bank.length];
 };
-export const tonicPc = (s: Settings) => hash(s.seed) % 12;
-export const keyPcs = (s: Settings) => isV18(s) ? keyPcsV18(s) : (recipeA(s).mode === 'major' ? MAJOR : MINOR).map(n => pc(n + tonicPc(s)));
+/** The key at a bar: from v36 a long flow changes key, so the bar matters there. */
+export const tonicPc = (s: Settings, bar = 0) => isV18(s) ? tonicPcV18(s, bar) : hash(s.seed) % 12;
+export const keyPcs = (s: Settings, bar = 0) => isV18(s) ? keyPcsV18(s, bar) : (recipeA(s).mode === 'major' ? MAJOR : MINOR).map(n => pc(n + tonicPc(s)));
 const diatonic = (s: Settings, d: Degree) => QUALITIES[d[1]].every(n => keyPcs(s).includes(pc(tonicPc(s) + d[0] + n)));
 
 // Colour changes keep the chord's function: maj7 ↔ 6 ↔ add9, m7 ↔ madd9 ↔ m6 (diatonic only).

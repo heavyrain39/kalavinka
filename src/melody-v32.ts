@@ -357,7 +357,7 @@ export function melodySentenceV32(s: Settings, start: number, backing: MusicEven
   if (s.energy < 8 || melodyRestsV17(s, start)) return [];
   const ambient = s.profile === 'ambient', dnb = s.profile === 'dub' && s.groove === 'dnb';
   const density = densityV32(s), plan = sentence(s, start, density), seconds = s.bpm / 240;
-  const tonic = tonicPc(s), key = keyPcs(s);
+  const tonic = tonicPc(s, start), key = keyPcs(s, start);
   const ladder = Array.from({ length: 48 }, (_, i) => 48 + i).filter(n => key.includes(pc(n)));
   const center = 69 + hash(`${s.seed}:melody-register`) % 4;
   const rung = (p: number) => ladder.reduce((best, n, i) => Math.abs(n - p) < Math.abs(ladder[best] - p) ? i : best, 0);

@@ -20,7 +20,9 @@ Kalavinka is a free browser-based procedural music generator for work and study.
 | 집중 기능 | 계속 재생, 25/50분 타이머, 집중 화면, 스페이스 키로 재생·정지 |
 | 화면 | 한국어·영어, 밝음·어두움·시스템 테마, 지금 8마디의 멜로디·재생 위치·출력 파형을 보여 주는 구절 리본, 소리에 반응하는 별하늘 |
 
-현재 앱은 v0.43.1이며 새 음악에는 생성기 v35를 사용합니다. 기존 저장곡과 공유 링크는 원래 생성기 버전의 규칙을 유지합니다. 4/4 박자와 장조·단조·도리안·리디안의 74가지 재즈·소울 코드 진행을 바탕으로 구간별 보조 진행·색채 치환·접근 화음을 더하고, 긴 구간에서 모티프와 편곡을 바꿉니다. 보컬, 음원 파일 내보내기, 계정 간 동기화, 크롬 웹스토어 배포는 제공하지 않습니다.
+현재 앱은 v0.44.0이며 새 음악에는 생성기 v36을 사용합니다. 기존 저장곡과 공유 링크는 원래 생성기 버전의 규칙을 유지합니다. 4/4 박자와 장조·단조·도리안·리디안의 128가지 재즈·소울 코드 진행을 바탕으로 구간별 보조 진행·색채 치환·접근 화음을 더하고, 몇 분마다 진행과 조성을, 긴 구간에서 모티프와 편곡을 바꿉니다. 보컬, 음원 파일 내보내기, 계정 간 동기화, 크롬 웹스토어 배포는 제공하지 않습니다.
+
+v0.44.0(생성기 v36)에서는 코드 진행을 74가지에서 128가지로 늘렸습니다(따뜻한 책상 44, 고요한 공간 30, 늦은 밤 28, D&B 26). 이제 한 곡이 진행 두 개에 머물지 않고, 약 7–8분마다(변화가 클수록 자주) 바퀴의 인트로에서 새 진행 한 쌍과 가까운 조성으로 넘어갑니다. 넘어가기 전 마디는 새 조로 이끄는 화음이 됩니다. 색채 치환과 접근 화음은 바퀴마다 새로 정해서, 1시간 동안 쓰이는 진행이 2개에서 13–14개로, 직전 바퀴와 코드가 같은 8마디가 54–84%에서 21–26%로 줄었습니다. 자세한 내용은 [화성 v36](docs/HARMONY_V36.md)에 있습니다.
 
 v0.43.1에서는 앱 정보와 소개·사용법 팝업을 하나로 합치고 문구를 간결하게 줄였습니다. 화면의 이용 조건·외부 구성요소 링크는 없앴고, 라이선스와 고지 파일은 배포본에 그대로 들어 있습니다.
 
@@ -150,7 +152,7 @@ TypeScript와 Vite로 만든 정적 웹앱입니다. 런타임 음악 엔진은 
 
 같은 생성기 버전·시드·설정은 같은 악보와 타이밍 규칙을 재현합니다. 실제 오디오 출력은 브라우저 DSP와 샘플레이트에 따라 조금 다를 수 있습니다. 마스터링은 실시간 재생용 경량 처리이며 파일 전체 LUFS 정규화나 인증된 트루 피크 리미팅을 제공하지 않습니다.
 
-구현 기록: [독자 엔진](docs/INDEPENDENT_ENGINE.md) · [음악 규칙](docs/PROTOTYPE_PLAN.md) · [화성·필인](docs/HARMONY_V5.md) · [멜로디](docs/MELODY_V7.md) · [아르페지오](docs/ARPEGGIO_V8.md) · [드럼](docs/DRUMS_V6.md) · [음색·리버브](docs/TIMBRE_REVERB.md) · [앰비언트](docs/AMBIENT_V13.md) · [멜로디 반복성](docs/MELODY_REPETITION_V14.md) · [베이스](docs/BASS_V15.md) · [크래시 심벌](docs/CRASH_V16.md) · [화성·멜로디·베이스 v17](docs/MUSIC_V17.md) · [멜로디 v32](docs/MELODY_V32.md) · [멜로디 v34](docs/MELODY_V34.md) · [멜로디 v35](docs/MELODY_V35.md) · [브레이크다운 v33](docs/BREAKDOWN_V33.md) · [드럼 음색 v0.41](docs/DRUM_TIMBRE_V041.md)
+구현 기록: [독자 엔진](docs/INDEPENDENT_ENGINE.md) · [음악 규칙](docs/PROTOTYPE_PLAN.md) · [화성·필인](docs/HARMONY_V5.md) · [멜로디](docs/MELODY_V7.md) · [아르페지오](docs/ARPEGGIO_V8.md) · [드럼](docs/DRUMS_V6.md) · [음색·리버브](docs/TIMBRE_REVERB.md) · [앰비언트](docs/AMBIENT_V13.md) · [멜로디 반복성](docs/MELODY_REPETITION_V14.md) · [베이스](docs/BASS_V15.md) · [크래시 심벌](docs/CRASH_V16.md) · [화성·멜로디·베이스 v17](docs/MUSIC_V17.md) · [멜로디 v32](docs/MELODY_V32.md) · [멜로디 v34](docs/MELODY_V34.md) · [멜로디 v35](docs/MELODY_V35.md) · [화성 v36](docs/HARMONY_V36.md) · [브레이크다운 v33](docs/BREAKDOWN_V33.md) · [드럼 음색 v0.41](docs/DRUM_TIMBRE_V041.md)
 
 ## 라이선스
 
